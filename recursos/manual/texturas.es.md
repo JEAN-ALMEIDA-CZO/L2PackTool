@@ -68,9 +68,12 @@ hasta que instales.
 
 ## Lo que sale distinto de lo que entró
 
-El paquete rearmado no es byte a byte igual al original, ni siquiera en las
-texturas que no marcaste: se reconstruye desde cero con `ucc`. Eso es normal, y
-es el motivo de que el original quede guardado.
+Solo cambian las texturas que marcaste. Las demás siguen byte a byte como
+estaban: el paquete se edita en el lugar, no se rearma desde cero.
+
+El archivo crece un poco más allá del tamaño de las texturas nuevas — lo
+viejo sigue dentro, sin uso, y las tablas se reescriben al final. Es el
+precio de no mover nada de lo que ya funcionaba.
 
 Una textura con transparencia mantiene su canal alfa. Una textura que ya está en
 DXT se descomprime, se amplía y se comprime de nuevo — y recomprimir siempre

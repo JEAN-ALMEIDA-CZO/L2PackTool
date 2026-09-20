@@ -68,9 +68,12 @@ you install.
 
 ## What comes out different from what went in
 
-The rebuilt package is not byte-for-byte identical to the original, even in the
-textures you did not tick: it is reconstructed from scratch by `ucc`. That is
-normal, and it is the reason the original is kept.
+Only the textures you ticked change. The others stay byte-for-byte as they
+were: the package is edited in place, not rebuilt from scratch.
+
+The file grows a little beyond the size of the new textures — the old data
+stays inside, unused, and the tables are rewritten at the end. That is the
+price of never moving what already worked.
 
 A texture with transparency keeps its alpha channel. A texture already in DXT is
 decompressed, enlarged and compressed again — and recompression always costs a

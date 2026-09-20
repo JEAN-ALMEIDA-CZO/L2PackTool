@@ -34,6 +34,8 @@ import ajuda
 import rolagem
 import idioma
 from idioma import t, N_
+import l2mapa
+import l2textura
 import motor
 
 RECURSOS = motor.AQUI / "recursos"
@@ -1148,6 +1150,52 @@ class Janela:
             self.botao.config(state="disabled")
             threading.Thread(target=self.trabalhar_lote, daemon=True).start()
 
+
+    def gravar_no_pacote(self, utx, trocas, base, provisorio):
+        """
+        Escreve as texturas novas dentro do proprio pacote.
+
+        Antes isto passava pelo `ucc make`, e ele tem dois limites que nao se
+        contornam: so sabe CRIAR pacote do zero -- por isso uma textura
+        obrigava a remontar todas -- e recusa DDS sem compressao, com
+        "Format 0000 is not DXTn". Pacote de interface, que e RGBA8 quase
+        inteiro, nao voltava de jeito nenhum.
+
+        Aqui o arquivo e editado no lugar, como o `l2mapa` faz com mapa
+        compilado: o corpo novo vai para o fim, as tabelas sao reescritas e o
+        que nao mudou continua byte a byte onde estava. O formato e a
+        quantidade de mipmaps de cada textura saem do proprio arquivo.
+        """
+        dec, detalhe = motor.descriptografar(self.T, utx, base / "dec2")
+        if dec is None:
+            self.log(t("  ERRO ao descriptografar: %s") % detalhe)
+            return None, False
+
+        try:
+            pacote = l2mapa.ler(dec)
+            feitas = l2textura.aplicar(self.T, pacote, trocas, base / "mips",
+                                       aolog=lambda m: self.log("    " + m))
+            if not feitas:
+                self.log(t("  nenhuma textura foi gravada."))
+                return None, False
+            montado = base / "montado" / utx.name
+            l2textura.gravar(pacote, montado)
+        except Exception as erro:                   # noqa: BLE001
+            self.log(t("  ERRO ao gravar no pacote: %s") % erro)
+            return None, False
+
+        self.log(t("  pacote: %d bytes, %d textura(s) trocada(s)")
+                 % (montado.stat().st_size, len(feitas)))
+
+        self.definir_progresso(PESO_AMPLIAR + 0.10, t("gravando e conferindo…"))
+        arquivo, integro = motor.criptografar(self.T, montado, utx.name,
+                                              provisorio, self.estava_cifrado)
+        shutil.rmtree(base / "dec2", ignore_errors=True)
+        if arquivo is None:
+            self.log(t("  ERRO ao gravar"))
+            return None, False
+        return arquivo, integro
+
     def trabalhar_um(self, marcadas):
         """
         Um pacote, so as texturas marcadas.
@@ -1212,34 +1260,19 @@ class Janela:
         if intactas:
             self.log(t("  mantidas no tamanho original: %d") % len(intactas))
 
-        self.definir_progresso(PESO_AMPLIAR + 0.03, t("comprimindo…"))
-        entrada = ampliadas + substitutas + intactas
-        self.log(t("  comprimindo %d texturas, cada uma no formato dela…") % len(entrada))
-        dds = motor.comprimir(self.T, entrada, base / "dds",
-                              formatos=self.formatos,
-                              aviso=lambda m: self.log("    " + m))
-        if not dds:
-            self.log(t("  ERRO: texconv não gerou DDS"))
+        self.definir_progresso(PESO_AMPLIAR + 0.05, t("gravando no pacote…"))
+        trocas = {}
+        for caminho in ampliadas + substitutas:
+            trocas[Path(caminho).stem] = caminho
+        if not trocas:
+            self.log(t("  nada mudou; o pacote fica como está."))
             self.raiz.after(0, self.terminar, [], provisorio)
             return
-        self.log(t("  comprimidas: %d  (%s)")
-                 % (len(dds), motor.resumo_formatos(entrada, self.formatos)))
+        self.log(t("  gravando %d textura(s) no pacote — as outras %d nem "
+                   "são tocadas…") % (len(trocas), len(intactas)))
 
-        self.definir_progresso(PESO_AMPLIAR + 0.06, t("remontando o pacote…"))
-        self.log(t("  remontando o pacote…"))
-        pacote, _ = motor.montar(self.T, utx.stem, dds, self.T["ucc"].parent.parent)
-        if pacote is None:
-            self.log(t("  ERRO no ucc make"))
-            self.raiz.after(0, self.terminar, [], provisorio)
-            return
-        self.log(t("  pacote montado: %d bytes") % pacote.stat().st_size)
-
-        self.definir_progresso(PESO_AMPLIAR + 0.10, t("gravando e conferindo…"))
-        arquivo, integro = motor.criptografar(self.T, pacote, utx.name,
-                                              provisorio, self.estava_cifrado)
-        pacote.unlink(missing_ok=True)    # copia do ucc no System do editor
+        arquivo, integro = self.gravar_no_pacote(utx, trocas, base, provisorio)
         if arquivo is None:
-            self.log(t("  ERRO ao gravar"))
             self.raiz.after(0, self.terminar, [], provisorio)
             return
         self.log(t("  pronto: %d bytes%s")
@@ -1340,28 +1373,14 @@ class Janela:
             self.log(t("  ERRO: upscayl não gerou nada"))
             return False
 
-        self.definir_progresso(PESO_AMPLIAR + 0.03, "comprimindo…")
-        self.log(t("  comprimindo, cada textura no formato dela…"))
-        dds = motor.comprimir(self.T, ampliadas, base / "dds", formatos=formatos,
-                              aviso=lambda m: self.log("    " + m))
-        if not dds:
-            self.log(t("  ERRO: texconv não gerou DDS"))
-            return False
-        self.log(t("  comprimidas: %d  (%s)")
-                 % (len(dds), motor.resumo_formatos(ampliadas, formatos)))
-
-        self.definir_progresso(PESO_AMPLIAR + 0.06, "remontando o pacote…")
-        self.log(t("  remontando o pacote…"))
-        pacote, _ = motor.montar(self.T, utx.stem, dds, self.T["ucc"].parent.parent)
-        if pacote is None:
-            self.log(t("  ERRO no ucc make"))
-            return False
-
-        self.definir_progresso(PESO_AMPLIAR + 0.10, "gravando e conferindo…")
-        arquivo, integro = motor.criptografar(self.T, pacote, utx.name, saida, estava_cifrado)
-        pacote.unlink(missing_ok=True)
+        # No lote todas as texturas foram ampliadas, mas o pacote continua
+        # sendo editado no lugar: e o unico caminho que aceita textura sem
+        # compressao, e o que preserva o formato de cada uma.
+        self.definir_progresso(PESO_AMPLIAR + 0.05, "gravando no pacote…")
+        trocas = dict((Path(c).stem, c) for c in ampliadas)
+        self.log(t("  gravando %d textura(s) no pacote…") % len(trocas))
+        arquivo, integro = self.gravar_no_pacote(utx, trocas, base, saida)
         if arquivo is None:
-            self.log(t("  ERRO ao gravar"))
             return False
         self.log(t("  pronto: %d bytes%s")
                  % (arquivo.stat().st_size,
@@ -1371,6 +1390,43 @@ class Janela:
         shutil.rmtree(base, ignore_errors=True)
         self.definir_progresso(1.0)
         return True
+
+
+    def explicar_o_ucc(self, dds, log_ucc):
+        """
+        Diz por que o `ucc make` falhou, em vez de so dizer que falhou.
+
+        A saida dele e o unico lugar onde o motivo aparece; antes ela era
+        descartada e o usuario ficava com tres palavras. Quando o pacote e
+        grande demais, a conta do tamanho explica melhor do que qualquer
+        linha do log: o ucc e de 32 bits e nao aguenta.
+        """
+        texto = log_ucc or ""
+
+        # O caso mais comum, e o que mais confunde: o importador do ucc so
+        # aceita DDS comprimido. Textura que estava em RGBA8 no pacote
+        # original continua em RGBA8 depois de ampliada -- e ai ele recusa
+        # uma por uma, com "is not DXTn".
+        recusadas = texto.count("is not DXTn") + texto.count("DDSD_LINEARSIZE")
+        if recusadas:
+            self.log(t("  o ucc só importa DDS comprimido (DXT1, DXT3, "
+                       "DXT5), e %d textura(s) deste pacote estão em RGBA8.")
+                     % max(1, recusadas // 2 or recusadas))
+            self.log(t("  ele não tem como remontar este pacote sem mudar o "
+                       "formato delas. Um pacote só de texturas DXT passa "
+                       "normalmente."))
+        else:
+            peso = motor.peso_do_pacote(dds)
+            if peso >= motor.TETO_DO_UCC:
+                self.log(t("  o pacote ficaria com %.2f GB, e o ucc é de 32 "
+                           "bits — ele não passa de 2 GB.")
+                         % (peso / 1024 ** 3))
+                self.log(t("  marque menos texturas de uma vez, ou use "
+                           "escala menor."))
+
+        for linha in texto.strip().splitlines()[-4:]:
+            if linha.strip():
+                self.log("    " + linha.strip())
 
     def terminar(self, concluidos, provisorio):
         self.rodando = False

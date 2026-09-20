@@ -68,9 +68,12 @@ você instalar.
 
 ## O que sai diferente do que entrou
 
-O pacote remontado não é byte a byte igual ao original, mesmo nas texturas que
-você não marcou: ele é reconstruído do zero pelo `ucc`. Isso é normal, e é o
-motivo de o original ficar guardado.
+Só as texturas que você marcou mudam. As outras continuam byte a byte como
+estavam: o pacote é editado no lugar, e não remontado do zero.
+
+O arquivo cresce um pouco além do tamanho das texturas novas — o material
+antigo continua lá dentro, sem uso, e as tabelas são reescritas no fim. É o
+preço de não mover nada do que já funcionava.
 
 Textura com transparência mantém o canal alfa. Textura já em DXT é
 descomprimida, ampliada e comprimida de novo — e recompressão sempre custa um

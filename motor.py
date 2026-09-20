@@ -1028,10 +1028,47 @@ def montar(T, nome, dds, raiz_editor, nomes_extras=(), grupos=None):
 
     destino_u = system / (nome + ".u")
     destino_u.unlink(missing_ok=True)
+    aviso = aviso_de_tamanho(dds)
     _, log = executar([T["ucc"], "make", "-ini=Build.ini"], cwd=system)
+    if aviso:
+        log = aviso + "\n" + log
     shutil.rmtree(pasta, ignore_errors=True)
     build.unlink(missing_ok=True)   # gerado a cada execucao; nao serve depois
     return (destino_u if destino_u.exists() else None), log
+
+
+# O UCC e de 32 bits e nao declara LARGE_ADDRESS_AWARE: o processo dele nao
+# passa de 2 GB de endereco, e na pratica trava antes disso. Com mipmap, o
+# pacote ocupa cerca de um terco a mais do que a soma dos .dds.
+TETO_DO_UCC = 1.5 * 1024 ** 3
+MIPMAP = 1.34
+
+
+def peso_do_pacote(dds):
+    """Quanto o pacote vai pesar na memoria do ucc, com os mipmaps."""
+    total = 0
+    for arquivo in dds:
+        try:
+            total += Path(arquivo).stat().st_size
+        except OSError:
+            continue
+    return total * MIPMAP
+
+
+def aviso_de_tamanho(dds):
+    """
+    O recado de que o pacote nao vai caber, ou vazio se couber.
+
+    Estimativa, nao veredito: um pacote na fronteira as vezes passa. Por
+    isso avisa e deixa tentar, em vez de recusar.
+    """
+    peso = peso_do_pacote(dds)
+    if peso < TETO_DO_UCC:
+        return ""
+    return ("AVISO: este pacote precisa de %.2f GB, e o ucc e de 32 bits --"
+            " ele nao passa de 2 GB e costuma falhar antes.\n"
+            "       Marque menos texturas de uma vez, ou reduza a escala."
+            % (peso / 1024 ** 3))
 
 
 def criptografar(T, pacote, nome_final, destino, cifrar=True, versao="121"):
