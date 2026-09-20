@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L2PackTool</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* O essencial fica aqui dentro: este arquivo abre de dentro do cliente,
+     e maquina de servidor privado nem sempre tem internet. Sem isto, o
+     Tailwind nao carrega e a pagina fica sem forma nenhuma. */
+  :root{
+    --abisso:#14171c; --fundo:#1b1e24; --painel:#232831; --elevado:#2b313c;
+    --borda:#323a46; --texto:#dfe4ea; --fraco:#8b96a5; --apagado:#5c6675;
+    --ouro:#c9a227; --ouro-claro:#e3bf4a; --bom:#6aa84f; --atencao:#d1913a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--abisso); color:var(--texto);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    line-height:1.65; font-size:16px;
+  }
+  /* o brilho de fundo, que e o que faz o vidro ter o que desfocar */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(60rem 40rem at 15% -10%, rgba(201,162,39,.16), transparent 60%),
+      radial-gradient(50rem 35rem at 95% 8%, rgba(91,141,184,.13), transparent 62%),
+      radial-gradient(45rem 45rem at 50% 115%, rgba(201,162,39,.08), transparent 60%);
+  }
+  .vidro{
+    background:rgba(35,40,49,.55);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:18px;
+    backdrop-filter:blur(14px) saturate(130%);
+    -webkit-backdrop-filter:blur(14px) saturate(130%);
+    box-shadow:0 18px 50px -24px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .ouro{color:var(--ouro-claro)}
+  a{color:var(--ouro-claro); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,kbd{
+    font-family:Consolas,ui-monospace,monospace; font-size:.92em;
+    background:rgba(20,23,28,.75); border:1px solid var(--borda);
+    border-radius:6px; padding:.1em .38em; color:#e8d9a0;
+  }
+  pre{
+    background:rgba(20,23,28,.85); border:1px solid var(--borda);
+    border-radius:12px; padding:1rem 1.1rem; overflow:auto;
+  }
+  pre code{background:none;border:none;padding:0;color:#cfe3d8}
+  table{width:100%; border-collapse:collapse}
+  th,td{text-align:left; padding:.62rem .75rem; border-bottom:1px solid rgba(255,255,255,.07)}
+  th{color:var(--fraco); font-weight:600; font-size:.83rem; letter-spacing:.06em; text-transform:uppercase}
+  tbody tr:last-child td{border-bottom:none}
+  .selo{
+    display:inline-flex; align-items:center; gap:.4rem;
+    border:1px solid rgba(209,145,58,.45); background:rgba(51,41,26,.6);
+    color:var(--atencao); border-radius:999px; padding:.15rem .7rem;
+    font-size:.78rem; font-weight:600; letter-spacing:.04em;
+  }
+  .fio{height:1px;background:linear-gradient(90deg,transparent,rgba(201,162,39,.55),transparent)}
+  @media (max-width:640px){ body{font-size:15px} }
+</style>
+</head>
+<body>
+
+<div class="mx-auto px-5 sm:px-8" style="max-width:62rem">
+
+  <!-- ---------------------------------------------------------- capa -->
+  <header class="pt-16 pb-10 text-center">
+    <div class="inline-flex items-center gap-3 mb-5">
+      <span class="text-5xl font-black tracking-tight ouro" style="font-family:Consolas,monospace">L2</span>
+      <div class="text-left">
+        <h1 class="text-4xl font-bold leading-none">PackTool</h1>
+        <p class="text-sm" style="color:var(--apagado)">versão 1.0.0</p>
+      </div>
+    </div>
+    <p class="text-lg max-w-2xl mx-auto" style="color:var(--fraco)">
+      Ferramentas de cliente e servidor para <strong style="color:var(--texto)">Lineage II — Interlude</strong>.
+      NPC com efeito, itens, habilidades, glow, lojas, mobs, a tela de entrada
+      e ampliação de textura por IA — numa janela só.
+    </p>
+    <div class="mt-7 flex flex-wrap gap-3 justify-center">
+      <a class="vidro px-5 py-2.5 font-semibold" href="https://github.com/JEAN-ALMEIDA-CZO/L2PackTool">Repositório</a>
+      <a class="vidro px-5 py-2.5 font-semibold" href="https://github.com/JEAN-ALMEIDA-CZO/L2PackTool/releases">Versões</a>
+    </div>
+  </header>
+
+  <div class="fio my-4"></div>
+
+  <!-- ------------------------------------------------------- as abas -->
+  <section class="py-12">
+    <h2 class="text-2xl font-bold mb-2">O que ele faz</h2>
+    <p class="mb-7" style="color:var(--fraco)">Cada aba resolve um assunto, e
+      todas leem o mesmo cliente e o mesmo servidor.</p>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">NPC com efeito</h3>
+        <p class="text-sm" style="color:var(--fraco)">Efeito visual num NPC, com altura, osso e a XML pronta para o servidor. Dá para ver em 3D antes.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">Itens</h3>
+        <p class="text-sm" style="color:var(--fraco)">Arma, armadura ou consumível copiando um do cliente: nome, destaque, descrição, ícone, status e skills.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">Habilidades</h3>
+        <p class="text-sm" style="color:var(--fraco)">O mesmo do lado das skills, com a tabela do cliente e a XML do servidor em pé de igualdade.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">Glow</h3>
+        <p class="text-sm" style="color:var(--fraco)">O brilho das armas, e cópia de arma já com o glow escolhido.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">Multisell e Mob</h3>
+        <p class="text-sm" style="color:var(--fraco)">As lojas lendo os itens do cliente; os monstros com status, drop e spawn.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">Lobby Vídeo</h3>
+        <p class="text-sm" style="color:var(--fraco)">A tela de entrada: sete lobbys prontos, de C1 a C6, ou o seu vídeo com câmera fixa.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1 flex items-center gap-2">
+          Texture Upscaler <span class="selo">BETA</span>
+        </h3>
+        <p class="text-sm" style="color:var(--fraco)">Amplia as texturas de um <code>.utx</code> por IA e remonta o pacote. Comece por um pacote só.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">Arquivos e Conferir</h3>
+        <p class="text-sm" style="color:var(--fraco)">Abre e fecha <code>.dat</code>, <code>.utx</code>, <code>.u</code>, <code>.unr</code>, <code>.ini</code>; varre o cliente atrás do que falta.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------- primeiros -->
+  <section class="py-12">
+    <h2 class="text-2xl font-bold mb-6">Para começar</h2>
+    <div class="grid sm:grid-cols-3 gap-4">
+      <div class="vidro p-5">
+        <div class="ouro font-bold mb-1">1</div>
+        <p class="text-sm" style="color:var(--fraco)">Em <strong style="color:var(--texto)">Projetos</strong>, aponte a pasta do cliente e a do servidor. Todas as abas passam a usá-las.</p>
+      </div>
+      <div class="vidro p-5">
+        <div class="ouro font-bold mb-1">2</div>
+        <p class="text-sm" style="color:var(--fraco)">Feche o jogo antes de gravar: o cliente segura os arquivos enquanto roda.</p>
+      </div>
+      <div class="vidro p-5">
+        <div class="ouro font-bold mb-1">3</div>
+        <p class="text-sm" style="color:var(--fraco)">O que for sobrescrito vai antes para <code>backup_lobby</code> ou para a pasta de cópias.</p>
+      </div>
+    </div>
+
+    <div class="vidro p-5 mt-4">
+      <p class="text-sm" style="color:var(--fraco)">
+        O <strong style="color:var(--texto)">botão <span class="ouro">?</span></strong> ao lado de cada campo
+        explica o que aquele campo faz. O manual completo abre dentro do
+        programa, em português, inglês e espanhol.
+      </p>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------- ferramentas -->
+  <section class="py-12">
+    <h2 class="text-2xl font-bold mb-2">As ferramentas de fora</h2>
+    <p class="mb-6" style="color:var(--fraco)">Esta instalação já traz todas
+      dentro dela — a lista serve para quem roda a partir do código.</p>
+
+    <div class="vidro p-2 sm:p-4">
+      <table>
+        <thead><tr><th>Ferramenta</th><th>Para quê</th></tr></thead>
+        <tbody>
+          <tr><td><strong>UModel</strong></td><td style="color:var(--fraco)">extrai as texturas do <code>.utx</code></td></tr>
+          <tr><td><strong>texconv</strong></td><td style="color:var(--fraco)">comprime em DXT com mipmaps</td></tr>
+          <tr><td><strong>Upscayl</strong></td><td style="color:var(--fraco)">o upscale por IA</td></tr>
+          <tr><td><strong>ffmpeg</strong></td><td style="color:var(--fraco)">lê o vídeo do lobby</td></tr>
+          <tr><td><strong>l2encdec</strong></td><td style="color:var(--fraco)">descriptografa e criptografa</td></tr>
+          <tr><td><strong>UCC</strong></td><td style="color:var(--fraco)">remonta o pacote</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------ linha de comando -->
+  <section class="py-12">
+    <h2 class="text-2xl font-bold mb-2">Linha de comando</h2>
+    <p class="mb-5" style="color:var(--fraco)">O mesmo motor sem a interface,
+      para o que se repete.</p>
+    <pre><code>L2PackTool-cli upscale "C:\L2\Textures" -s 2
+L2PackTool-cli abrir "C:\L2\system\itemname-e.dat" -o .\aberto
+L2PackTool-cli lobby "C:\Lineage II"
+L2PackTool-cli conferir "C:\Lineage II" -o relatorio.txt</code></pre>
+    <p class="text-sm mt-3" style="color:var(--apagado)">Sem argumento nenhum,
+      ele lista o que sabe fazer.</p>
+  </section>
+
+  <!-- -------------------------------------------------------- avisos -->
+  <section class="py-12">
+    <div class="vidro p-6" style="border-color:rgba(209,145,58,.35)">
+      <h2 class="text-lg font-bold mb-2" style="color:var(--atencao)">Antes de mexer no acervo inteiro</h2>
+      <p class="text-sm" style="color:var(--fraco)">
+        Toda operação que escreve no cliente guarda cópia do que existia — mas
+        cópia não substitui backup. Faça o seu, teste num pacote só e entre no
+        jogo antes de rodar em lote. A ampliação de textura, em especial,
+        depende de um programa de fora e de modelos que mudam de versão para
+        versão: o resultado varia com a máquina.
+      </p>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------- rodape -->
+  <div class="fio my-4"></div>
+  <footer class="py-10 text-center text-sm" style="color:var(--apagado)">
+    <p class="mb-2">
+      Feito por <strong style="color:var(--texto)">Jean Almeida — ÐarkÐomi</strong> ·
+      <a href="https://github.com/JEAN-ALMEIDA-CZO">github.com/JEAN-ALMEIDA-CZO</a>
+    </p>
+    <p class="mb-2">Licença MIT. As ferramentas de terceiros são de seus autores.</p>
+    <p>Lineage II é marca registrada da NCSoft. Este projeto não tem vínculo
+       com a NCSoft e não redistribui conteúdo do jogo.</p>
+  </footer>
+
+</div>
+</body>
+</html>

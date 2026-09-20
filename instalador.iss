@@ -66,6 +66,12 @@ WizardSmallImageFile=recursos\instalador\selo-100.bmp,recursos\instalador\selo-1
 WizardImageStretch=no
 UninstallDisplayIcon={app}\{#Executavel}
 UninstallDisplayName={#Nome} {#Versao}
+; O que aparece na entrada de Programas e Recursos (appwiz.cpl), que em
+; instalacao por usuario mora em HKCU e e lida tanto por ele quanto por
+; Configuracoes > Aplicativos.
+AppComments=Ferramentas de cliente e servidor para Lineage II Interlude
+AppReadmeFile={app}\LEIA-ME.html
+AppContact={#Endereco}
 WizardStyle=modern
 WizardSizePercent=110
 Compression=lzma2/max
@@ -102,11 +108,11 @@ Name: "atalho"; Description: "{cm:AtalhoArea}"; GroupDescription: "{cm:Additiona
 
 [Files]
 Source: "dist\{#Executavel}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "LEIA-ME.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "recursos\LEIA-ME.html"; DestDir: "{app}"; Flags: ignoreversion isreadme
 
 [Icons]
 Name: "{group}\{#Nome}"; Filename: "{app}\{#Executavel}"
-Name: "{group}\{cm:AbrirLeiaMe}"; Filename: "{app}\LEIA-ME.md"
+Name: "{group}\{cm:AbrirLeiaMe}"; Filename: "{app}\LEIA-ME.html"
 Name: "{autodesktop}\{#Nome}"; Filename: "{app}\{#Executavel}"; Tasks: atalho
 
 [Run]
