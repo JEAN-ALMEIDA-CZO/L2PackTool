@@ -108,7 +108,7 @@ def por_icone(janela):
     outro programa. Falha em silencio: nao achar o arquivo nao pode impedir a
     janela de abrir.
     """
-    import l2upscale as motor
+    import motor
     caminho = motor.AQUI / "recursos" / "icone.ico"
     try:
         janela.iconbitmap(str(caminho))

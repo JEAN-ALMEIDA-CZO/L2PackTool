@@ -31,7 +31,7 @@ import ajuda
 import gui_arma
 import l2mundo
 import l2servidor
-import l2upscale as motor
+import motor
 import gui_projeto
 from idioma import t, N_
 
@@ -687,7 +687,7 @@ class PainelServidor:
 
     def _icone_thread(self, referencia):
         import l2item
-        import l2upscale as motor_
+        import motor_
         try:
             arquivo = l2item.extrair_icone(
                 self.dono.T, self.dono.cliente.get(), referencia,

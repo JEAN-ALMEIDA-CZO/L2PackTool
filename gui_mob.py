@@ -40,7 +40,7 @@ import l2item
 import l2mob
 import l2skill
 import l2servidor
-import l2upscale as motor
+import motor
 from idioma import t, N_
 
 try:

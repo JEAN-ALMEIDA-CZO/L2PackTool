@@ -36,7 +36,7 @@ import struct
 import time
 from pathlib import Path
 
-import l2upscale as motor
+import motor
 
 # Tudo que e pacote Unreal e pode ser referenciado por uma tabela.
 EXTENSOES = (".utx", ".usx", ".ukx", ".uax", ".u", ".unr", ".umx")

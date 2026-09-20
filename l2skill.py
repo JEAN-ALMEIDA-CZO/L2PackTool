@@ -25,7 +25,7 @@ from pathlib import Path
 
 import l2item
 import l2npc
-import l2upscale as motor
+import motor
 
 ARQUIVO = "skillgrp.dat"
 NOMES = "skillname-e.dat"

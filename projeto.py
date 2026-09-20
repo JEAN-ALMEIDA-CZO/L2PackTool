@@ -32,7 +32,7 @@ saber que a estrutura mudou.
 import configparser
 from pathlib import Path
 
-import l2upscale as motor
+import motor
 
 ARQUIVO = Path(motor.BASE) / "projetos.ini"
 

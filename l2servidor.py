@@ -42,7 +42,7 @@ import json
 import re
 from pathlib import Path
 
-import l2upscale as motor
+import motor
 
 PASTA_DE_PERFIS = "recursos/servidores"
 PERFIL_PADRAO = "acis"

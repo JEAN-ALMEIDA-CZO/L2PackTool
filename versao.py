@@ -33,8 +33,8 @@ ALVOS = (
     ("L2PackTool", "L2PackTool - ferramentas de cliente Lineage II"),
     ("L2PackTool-Completo",
      "L2PackTool - ferramentas de cliente Lineage II (com as ferramentas)"),
-    ("l2upscale-cli", "L2PackTool - linha de comando"),
-    ("l2upscale-cli-Completo",
+    ("L2PackTool-cli", "L2PackTool - linha de comando"),
+    ("L2PackTool-cli-Completo",
      "L2PackTool - linha de comando (com as ferramentas)"),
 )
 

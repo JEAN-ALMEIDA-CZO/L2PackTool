@@ -35,7 +35,7 @@ import ajuda
 import gui_mundo
 import gui_projeto
 from idioma import t, N_
-import l2upscale as motor
+import motor
 
 # A regua. Largura e altura do desenho, em pixels.
 LARGURA_REGUA = 330

@@ -29,7 +29,7 @@ import l2env
 import l2glow
 import l2item
 import l2npc
-import l2upscale as motor
+import motor
 import gui_projeto
 from idioma import t, N_
 

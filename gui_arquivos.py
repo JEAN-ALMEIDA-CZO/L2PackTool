@@ -24,7 +24,7 @@ import tema
 import ajuda
 import idioma
 import l2npc
-import l2upscale as motor
+import motor
 from idioma import t, N_
 
 # O que vale oferecer na caixa de arquivos, na ordem em que se costuma querer.

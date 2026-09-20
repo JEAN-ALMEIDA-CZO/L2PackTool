@@ -22,7 +22,7 @@ from tkinter import filedialog, messagebox, ttk
 
 import ajuda
 import l2icone
-import l2upscale as motor
+import motor
 import rolagem
 from idioma import t, N_
 

@@ -26,7 +26,7 @@ import ajuda
 import l2conferir
 import l2item
 import l2skill
-import l2upscale as motor
+import motor
 from idioma import t, N_
 
 try:

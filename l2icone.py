@@ -39,7 +39,7 @@ import shutil
 from pathlib import Path
 
 import l2conferir
-import l2upscale as motor
+import motor
 
 try:
     from PIL import Image

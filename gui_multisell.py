@@ -33,7 +33,7 @@ import ajuda
 import l2conferir
 import l2item
 import l2multisell
-import l2upscale as motor
+import motor
 import gui_projeto
 from idioma import t, N_
 

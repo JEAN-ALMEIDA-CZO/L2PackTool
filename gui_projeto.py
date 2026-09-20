@@ -25,7 +25,7 @@ from tkinter import filedialog, messagebox, ttk
 
 import ajuda
 import l2conferir
-import l2upscale as motor
+import motor
 import projeto
 import tema
 from idioma import t

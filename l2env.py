@@ -61,7 +61,7 @@ import shutil
 from pathlib import Path
 
 import l2npc
-import l2upscale as motor
+import motor
 
 ARQUIVO = "env.int"
 PASTA_GUARDA = "backup_env"

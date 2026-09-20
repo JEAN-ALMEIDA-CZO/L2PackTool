@@ -17,11 +17,11 @@ VSVersionInfo(
         StringTable(
           '040904B0',
           [StringStruct('CompanyName', 'L2PackTool'),
-           StringStruct('FileDescription', 'L2PackTool - linha de comando'),
+           StringStruct('FileDescription', 'L2PackTool - linha de comando (com as ferramentas)'),
            StringStruct('FileVersion', '1.0.0.0'),
-           StringStruct('InternalName', 'l2upscale-cli'),
+           StringStruct('InternalName', 'L2PackTool-cli-Completo'),
            StringStruct('LegalCopyright', 'Software livre'),
-           StringStruct('OriginalFilename', 'l2upscale-cli.exe'),
+           StringStruct('OriginalFilename', 'L2PackTool-cli-Completo.exe'),
            StringStruct('ProductName', 'L2PackTool'),
            StringStruct('ProductVersion', '1.0.0.0')])
       ]),

@@ -3,7 +3,7 @@
 Interface grafica do L2PackTool.
 
 Usa tkinter, que acompanha o Python -- nenhuma dependencia a mais no
-executavel. O trabalho pesado fica no l2upscale.py; aqui so ha a janela.
+executavel. O trabalho pesado fica no motor.py; aqui so ha a janela.
 
 Dois modos, escolhidos pelo que o usuario seleciona:
 
@@ -34,7 +34,7 @@ import ajuda
 import rolagem
 import idioma
 from idioma import t, N_
-import l2upscale as motor
+import motor
 
 RECURSOS = motor.AQUI / "recursos"
 

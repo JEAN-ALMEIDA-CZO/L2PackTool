@@ -39,7 +39,7 @@ import struct
 from pathlib import Path
 
 import l2npc
-import l2upscale as motor
+import motor
 
 try:
     from PIL import Image, ImageSequence
@@ -48,7 +48,7 @@ except ImportError:
 
 
 # Nomes que precisam existir na tabela de nomes do pacote para a corrente
-# poder ser escrita depois. Ver `montar` em l2upscale.
+# poder ser escrita depois. Ver `montar` em motor.
 NOMES_DA_CORRENTE = ("AnimNext", "Enchimento", "MinFrameRate",
                      "MaxFrameRate")
 

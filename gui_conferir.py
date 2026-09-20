@@ -24,7 +24,7 @@ from urllib.parse import quote_plus
 
 import ajuda
 import l2conferir
-import l2upscale as motor
+import motor
 import tema
 import gui_projeto
 from idioma import t, N_

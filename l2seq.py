@@ -34,7 +34,7 @@ from pathlib import Path
 
 import l2anim
 import l2npc
-import l2upscale as motor
+import motor
 
 # O quadro do pacote de referencia: 2048x2048 com o video em 16:9 no meio e
 # faixa preta em cima e embaixo. Medido, nao chutado.

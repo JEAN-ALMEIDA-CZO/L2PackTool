@@ -34,7 +34,7 @@ import versao
 import gui_projeto
 import l2criar
 import l2seq
-import l2upscale as motor
+import motor
 from idioma import t
 
 # A previa nao guarda um quadro para cada quadro do filme: centenas de imagens

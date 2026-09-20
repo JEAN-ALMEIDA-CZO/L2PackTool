@@ -73,8 +73,8 @@ import versao
 BASE = Path(__file__).parent
 DIST = BASE / "dist"
 
-NORMAIS = ("L2PackTool.spec", "l2upscale-cli.spec")
-COMPLETOS = ("L2PackTool-Completo.spec", "l2upscale-cli-Completo.spec")
+NORMAIS = ("L2PackTool.spec", "L2PackTool-cli.spec")
+COMPLETOS = ("L2PackTool-Completo.spec", "L2PackTool-cli-Completo.spec")
 
 # Servidores de carimbo de tempo, em ordem. Mais de um porque eles caem, e uma
 # assinatura sem carimbo vale so ate o certificado expirar.

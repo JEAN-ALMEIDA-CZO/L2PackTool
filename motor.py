@@ -984,7 +984,7 @@ def montar(T, nome, dds, raiz_editor, nomes_extras=(), grupos=None):
     shutil.rmtree(pasta, ignore_errors=True)
     (pasta / "Classes").mkdir(parents=True)
 
-    linhas = ["// Gerado por l2upscale -- nao editar a mao.",
+    linhas = ["// Gerado por L2PackTool -- nao editar a mao.",
               "class %s extends Object;" % nome, ""]
     for extra in nomes_extras:
         linhas.append("var Texture %s;   // so para o nome entrar na tabela"
@@ -1188,14 +1188,14 @@ COMANDOS = (
 
 EXEMPLOS = """exemplos
 
-  l2upscale-cli upscale Fantasy.utx -s 2
-  l2upscale-cli upscale C:\\texturas -s 2 -o C:\\saida
-  l2upscale-cli abrir "C:\\Lineage II\\system\\itemname-e.dat" -o .\\aberto
-  l2upscale-cli fechar .\\aberto\\itemname-e.dat -o .\\fechado
-  l2upscale-cli extrair Fantasy.utx -o .\\texturas
-  l2upscale-cli listar Fantasy.utx
-  l2upscale-cli conferir "C:\\Lineage II" -o relatorio.txt
-  l2upscale-cli lobby "C:\\Lineage II"
+  L2PackTool-cli upscale Fantasy.utx -s 2
+  L2PackTool-cli upscale C:\\texturas -s 2 -o C:\\saida
+  L2PackTool-cli abrir "C:\\Lineage II\\system\\itemname-e.dat" -o .\\aberto
+  L2PackTool-cli fechar .\\aberto\\itemname-e.dat -o .\\fechado
+  L2PackTool-cli extrair Fantasy.utx -o .\\texturas
+  L2PackTool-cli listar Fantasy.utx
+  L2PackTool-cli conferir "C:\\Lineage II" -o relatorio.txt
+  L2PackTool-cli lobby "C:\\Lineage II"
 
 o que a interface faz e a linha de comando nao
 
@@ -1207,7 +1207,7 @@ o que a interface faz e a linha de comando nao
 
 def texto_da_ajuda():
     largura = max(len(nome) for nome, _ in COMANDOS)
-    linhas = ["", "l2upscale-cli <comando> [opcoes]", "", "comandos"]
+    linhas = ["", "L2PackTool-cli <comando> [opcoes]", "", "comandos"]
     for nome, resumo in COMANDOS:
         linhas.append("  %-*s  %s" % (largura, nome, resumo))
     linhas += ["",
@@ -1589,9 +1589,9 @@ def _cmd_ajuda(args):
 
 def montar():
     p = argparse.ArgumentParser(
-        prog="l2upscale-cli",
+        prog="L2PackTool-cli",
         description="Ferramentas de cliente do Lineage 2, pela linha de comando.",
-        epilog="`l2upscale-cli ajuda` lista tudo com exemplos.")
+        epilog="`L2PackTool-cli ajuda` lista tudo com exemplos.")
     sub = p.add_subparsers(dest="comando")
 
     up = sub.add_parser("upscale", help=dict(COMANDOS)["upscale"])
@@ -1670,7 +1670,7 @@ def montar():
 def main(argumentos=None):
     argumentos = list(sys.argv[1:] if argumentos is None else argumentos)
 
-    # Quem chamava `l2upscale-cli pasta -s 2` continua chamando assim: sem
+    # Quem chamava `L2PackTool-cli pasta -s 2` continua chamando assim: sem
     # comando reconhecido na frente, o pedido e de upscale, como sempre foi.
     conhecidos = set(dict(COMANDOS)) | {"help", "-h", "--help"}
     if argumentos and argumentos[0] not in conhecidos:

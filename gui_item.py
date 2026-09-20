@@ -28,7 +28,7 @@ import ajuda
 import gui_icone
 import l2conferir
 import l2item
-import l2upscale as motor
+import motor
 import gui_projeto
 from idioma import t, N_
 

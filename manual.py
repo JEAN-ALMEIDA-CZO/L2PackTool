@@ -37,7 +37,7 @@ from tkinter import ttk
 
 import ajuda
 import idioma
-import l2upscale as motor
+import motor
 import tema
 from idioma import t, N_
 

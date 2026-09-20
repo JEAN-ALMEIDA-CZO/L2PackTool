@@ -39,7 +39,7 @@ import shutil
 from pathlib import Path
 
 import l2npc
-import l2upscale as motor
+import motor
 
 PASTA_DE_DEFINICOES = "recursos/definicoes"
 CRONICA_PADRAO = "interlude"

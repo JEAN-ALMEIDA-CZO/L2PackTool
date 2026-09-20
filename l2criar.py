@@ -42,7 +42,7 @@ import l2anim
 import l2npc
 import l2mapa
 import l2seq
-import l2upscale as motor
+import motor
 import versao
 
 # Quanto o pacote pode crescer. Cada quadro de 2048x2048 em DXT1 custa 2 MB, e

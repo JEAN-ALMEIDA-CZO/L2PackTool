@@ -1,13 +1,13 @@
 # Command line: doing in bulk what the screen does one at a time
 
-`l2upscale-cli.exe` is the program's own engine without the interface. It
+`L2PackTool-cli.exe` is the program's own engine without the interface. It
 exists for what repeats: opening a hundred client files, upscaling a whole
 folder of textures, checking a client from inside a script.
 
 With no arguments at all, it lists what it can do:
 
 ```
-l2upscale-cli
+L2PackTool-cli
 ```
 
 
@@ -33,8 +33,8 @@ order.
 ## Opening and closing
 
 ```
-l2upscale-cli abrir "C:\Lineage II\system\itemname-e.dat" -o .\aberto
-l2upscale-cli fechar .\aberto\itemname-e.dat -o .\fechado
+L2PackTool-cli abrir "C:\Lineage II\system\itemname-e.dat" -o .\aberto
+L2PackTool-cli fechar .\aberto\itemname-e.dat -o .\fechado
 ```
 
 The original is **never touched**: what comes out is a new copy, in the `-o`
@@ -56,8 +56,8 @@ the name.
 ## Upscale
 
 ```
-l2upscale-cli upscale Fantasy.utx -s 2
-l2upscale-cli upscale C:\texturas -s 2 -o C:\saida
+L2PackTool-cli upscale Fantasy.utx -s 2
+L2PackTool-cli upscale C:\texturas -s 2 -o C:\saida
 ```
 
 | option | what it is |
@@ -76,7 +76,7 @@ l2upscale-cli upscale C:\texturas -s 2 -o C:\saida
 Anyone who called it with a plain path still can:
 
 ```
-l2upscale-cli C:\texturas -s 2
+L2PackTool-cli C:\texturas -s 2
 ```
 
 With no known command in front, the request is an upscale, as it always was.
@@ -85,8 +85,8 @@ With no known command in front, the request is an upscale, as it always was.
 ## Listing and extracting
 
 ```
-l2upscale-cli listar Fantasy.utx
-l2upscale-cli extrair Fantasy.utx -o .\texturas
+L2PackTool-cli listar Fantasy.utx
+L2PackTool-cli extrair Fantasy.utx -o .\texturas
 ```
 
 `listar` reads the package **even closed**: version 121 is decrypted in memory.
@@ -98,7 +98,7 @@ Version 111 only opens whole, and that one needs `abrir` first.
 ## Checking
 
 ```
-l2upscale-cli conferir "C:\Lineage II" -o relatorio.txt
+L2PackTool-cli conferir "C:\Lineage II" -o relatorio.txt
 ```
 
 The same report as the Check Client tab, complete. Without `-o` it goes to the
@@ -108,14 +108,14 @@ screen.
 something is missing. So it chains:
 
 ```
-l2upscale-cli conferir "C:\Lineage II" -o faltando.txt || notepad faltando.txt
+L2PackTool-cli conferir "C:\Lineage II" -o faltando.txt || notepad faltando.txt
 ```
 
 
 ## When a tool is missing
 
 ```
-l2upscale-cli ferramentas
+L2PackTool-cli ferramentas
 ```
 
 Lists each tool and the path it was found at, or `NAO ENCONTRADA`. The search is
@@ -136,7 +136,7 @@ they would become a long list with no way to check it.
 ## The lobby
 
 ```
-l2upscale-cli lobby "C:\Lineage II" -p L2PackTool
+L2PackTool-cli lobby "C:\Lineage II" -p L2PackTool
 ```
 
 Builds the login screen in the lobby's map: camera fixed at the point, screen

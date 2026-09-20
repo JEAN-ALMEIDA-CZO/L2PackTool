@@ -55,7 +55,7 @@ import struct
 import time
 from pathlib import Path
 
-import l2upscale as motor
+import motor
 
 
 # ---------------------------------------------------------------------------

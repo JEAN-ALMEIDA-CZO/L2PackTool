@@ -1,13 +1,13 @@
 # Linha de comando: fazer em lote o que a tela faz um a um
 
-O `l2upscale-cli.exe` é o mesmo motor do programa, sem a interface. Ele existe
+O `L2PackTool-cli.exe` é o mesmo motor do programa, sem a interface. Ele existe
 para o que se repete: abrir cem arquivos do cliente, ampliar a textura de uma
 pasta inteira, conferir um cliente dentro de um script.
 
 Sem argumento nenhum, ele lista o que sabe fazer:
 
 ```
-l2upscale-cli
+L2PackTool-cli
 ```
 
 
@@ -33,8 +33,8 @@ dentro, em ordem de nome.
 ## Abrir e fechar
 
 ```
-l2upscale-cli abrir "C:\Lineage II\system\itemname-e.dat" -o .\aberto
-l2upscale-cli fechar .\aberto\itemname-e.dat -o .\fechado
+L2PackTool-cli abrir "C:\Lineage II\system\itemname-e.dat" -o .\aberto
+L2PackTool-cli fechar .\aberto\itemname-e.dat -o .\fechado
 ```
 
 O original **nunca é tocado**: o que sai é cópia nova, na pasta de `-o`.
@@ -55,8 +55,8 @@ lado do nome.
 ## Upscale
 
 ```
-l2upscale-cli upscale Fantasy.utx -s 2
-l2upscale-cli upscale C:\texturas -s 2 -o C:\saida
+L2PackTool-cli upscale Fantasy.utx -s 2
+L2PackTool-cli upscale C:\texturas -s 2 -o C:\saida
 ```
 
 | opção | o que é |
@@ -75,7 +75,7 @@ l2upscale-cli upscale C:\texturas -s 2 -o C:\saida
 Quem já chamava pelo caminho direto continua chamando:
 
 ```
-l2upscale-cli C:\texturas -s 2
+L2PackTool-cli C:\texturas -s 2
 ```
 
 Sem um comando conhecido na frente, o pedido é de upscale, como sempre foi.
@@ -84,8 +84,8 @@ Sem um comando conhecido na frente, o pedido é de upscale, como sempre foi.
 ## Listar e extrair
 
 ```
-l2upscale-cli listar Fantasy.utx
-l2upscale-cli extrair Fantasy.utx -o .\texturas
+L2PackTool-cli listar Fantasy.utx
+L2PackTool-cli extrair Fantasy.utx -o .\texturas
 ```
 
 `listar` lê o pacote **mesmo fechado**: a versão 121 é decifrada na memória. A
@@ -97,7 +97,7 @@ l2upscale-cli extrair Fantasy.utx -o .\texturas
 ## Conferir
 
 ```
-l2upscale-cli conferir "C:\Lineage II" -o relatorio.txt
+L2PackTool-cli conferir "C:\Lineage II" -o relatorio.txt
 ```
 
 O mesmo relatório da aba Conferir Cliente, completo. Sem `-o`, ele sai na tela.
@@ -106,14 +106,14 @@ O mesmo relatório da aba Conferir Cliente, completo. Sem `-o`, ele sai na tela.
 falta alguma coisa. Dá para encadear:
 
 ```
-l2upscale-cli conferir "C:\Lineage II" -o faltando.txt || notepad faltando.txt
+L2PackTool-cli conferir "C:\Lineage II" -o faltando.txt || notepad faltando.txt
 ```
 
 
 ## Quando falta ferramenta
 
 ```
-l2upscale-cli ferramentas
+L2PackTool-cli ferramentas
 ```
 
 Lista cada ferramenta e o caminho em que ela foi achada, ou `NÃO ENCONTRADA`. A
@@ -134,7 +134,7 @@ lista longa sem conferência possível.
 ## O lobby
 
 ```
-l2upscale-cli lobby "C:\Lineage II" -p L2PackTool
+L2PackTool-cli lobby "C:\Lineage II" -p L2PackTool
 ```
 
 Monta a tela de login no mapa do lobby: câmera fixa no ponto, tela do tamanho
