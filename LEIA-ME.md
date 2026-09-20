@@ -341,11 +341,11 @@ sempre so um punhado delas aparece perto do jogador.
 
 ### Linha de comando
 
-O `l2upscale-cli.exe` e o mesmo motor sem a interface, para o que se repete.
+O `L2PackTool-cli.exe` e o mesmo motor sem a interface, para o que se repete.
 Sem argumento nenhum ele lista o que sabe fazer:
 
 ```bat
-l2upscale-cli.exe
+L2PackTool-cli.exe
 ```
 
 | comando | o que faz |
@@ -361,15 +361,15 @@ l2upscale-cli.exe
 | `ajuda` | a lista; `ajuda <comando>` detalha um deles |
 
 ```bat
-l2upscale-cli.exe upscale MinhaTextura.utx              :: um pacote, 2x
-l2upscale-cli.exe upscale "C:\L2\Textures" -s 2         :: pasta inteira
-l2upscale-cli.exe upscale pacote.utx -n remacri-4x      :: outro modelo
-l2upscale-cli.exe upscale pacote.utx --parar-em extrair :: inspecionar antes
+L2PackTool-cli.exe upscale MinhaTextura.utx              :: um pacote, 2x
+L2PackTool-cli.exe upscale "C:\L2\Textures" -s 2         :: pasta inteira
+L2PackTool-cli.exe upscale pacote.utx -n remacri-4x      :: outro modelo
+L2PackTool-cli.exe upscale pacote.utx --parar-em extrair :: inspecionar antes
 
-l2upscale-cli.exe abrir "C:\L2\system\itemname-e.dat" -o .\aberto
-l2upscale-cli.exe fechar .\aberto\itemname-e.dat -o .\fechado
-l2upscale-cli.exe listar pacote.utx
-l2upscale-cli.exe conferir "C:\L2" -o relatorio.txt
+L2PackTool-cli.exe abrir "C:\L2\system\itemname-e.dat" -o .\aberto
+L2PackTool-cli.exe fechar .\aberto\itemname-e.dat -o .\fechado
+L2PackTool-cli.exe listar pacote.utx
+L2PackTool-cli.exe conferir "C:\L2" -o relatorio.txt
 ```
 
 Todo comando aceita um arquivo **ou uma pasta**, e `<comando> -h` mostra as
