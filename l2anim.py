@@ -620,7 +620,16 @@ def reescrever_com_corrente(caminho, prefixo="quadro", ciclico=True, aolog=None,
 # Referencia de objeto no Unreal 2: positivo e indice de export, negativo e
 # -(indice de import), zero e nulo. Por isso o alvo aqui e um numero negativo.
 def _ler_nomes_cru(bruto, pos, quantos):
-    """[(nome, flags)] e a posicao logo depois da tabela."""
+    """
+    [(nome, flags)] e a posicao logo depois da tabela.
+
+    Le o que esta escrito, sem corrigir nada. Havia aqui uma linha que
+    trocava o primeiro nome por `None` -- em mapa isso nunca aparecia,
+    porque o primeiro nome de um mapa e `None` mesmo. Num pacote de textura
+    o primeiro e `InternalTime`, e reescrever a tabela com a mentira dentro
+    quebrava o pacote: lista de propriedade termina no nome `None`, entao
+    todo objeto passava a terminar no primeiro campo e o resto virava lixo.
+    """
     itens = []
     for _ in range(quantos):
         tam, pos = _descompacto(bruto, pos)
@@ -629,8 +638,6 @@ def _ler_nomes_cru(bruto, pos, quantos):
         flags = int.from_bytes(bruto[pos:pos + 4], "little")
         pos += 4
         itens.append((nome, flags))
-    if itens:
-        itens[0] = ("None", itens[0][1])
     return itens, pos
 
 
