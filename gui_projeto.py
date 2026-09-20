@@ -308,68 +308,6 @@ class JanelaProjetos:
 # =========================================================================
 # ligar uma tela ao projeto
 # =========================================================================
-class SeletorDeProjeto(ttk.Frame):
-    """
-    A tira de projeto que abre cada aba: escolher, e ver para onde aponta.
-
-    O cabeçalho já tem a mesma escolha, mas quem está no meio de uma aba não
-    olha para o topo da janela -- olha para a aba. Repetir o controle aqui é o
-    que faz a resposta de "em que servidor eu estou mexendo" estar sempre no
-    campo de visão de quem vai gravar alguma coisa.
-
-    Todas as tiras compartilham o mesmo projeto: mexer numa muda as outras,
-    porque todas se inscrevem no `ao_trocar`.
-    """
-
-    def __init__(self, pai, raiz):
-        ttk.Frame.__init__(self, pai, padding=(0, 0, 0, tema.PERTO))
-        self.raiz = raiz
-
-        ttk.Label(self, text=t("Projeto:")).pack(side="left")
-        self.escolhido = tk.StringVar()
-        self.caixa = ttk.Combobox(self, textvariable=self.escolhido, width=20,
-                                  state="readonly")
-        self.caixa.pack(side="left", padx=(6, 0))
-        self.caixa.bind("<<ComboboxSelected>>", self._ao_escolher)
-        ttk.Button(self, text=t("Projetos…"),
-                   command=self._abrir).pack(side="left", padx=(6, 0))
-
-        self.resumo = ttk.Label(self, style="Miudo.TLabel")
-        self.resumo.pack(side="left", padx=(tema.FOLGA, 0))
-
-        self.atualizar()
-        # A tira morre junto com a aba; sem tirar a inscrição, trocar de
-        # projeto depois disso estouraria uma vez por aba morta.
-        projeto.ao_trocar(self._de_fora)
-        self.bind("<Destroy>", lambda _e: projeto.nao_avisar(self._de_fora))
-
-    def _de_fora(self, _nome, _cliente, _servidor):
-        self.atualizar()
-
-    def atualizar(self):
-        nomes = projeto.listar()
-        self.caixa.config(values=tuple(nomes) or (t("(nenhum)"),),
-                          state="readonly" if nomes else "disabled")
-        atual = projeto.atual()
-        self.escolhido.set(atual or t("(nenhum)"))
-        d = projeto.dados(atual)
-        if not atual:
-            self.resumo.config(text=t("nenhum projeto — crie um em Projetos…"))
-        else:
-            self.resumo.config(
-                text=t("cliente: %s   ·   servidor: %s")
-                % (d["cliente"] or t("—"), d["servidor"] or t("—")))
-
-    def _ao_escolher(self, _evento=None):
-        nome = self.escolhido.get()
-        if nome and nome in projeto.listar():
-            projeto.escolher(nome)
-
-    def _abrir(self):
-        JanelaProjetos(self.raiz)
-        projeto.avisar()
-
-
 def conferir_pastas(precisa_cliente=True, precisa_servidor=True):
     """
     O que falta configurar no projeto, em frases prontas para a tela.

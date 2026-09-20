@@ -1850,7 +1850,6 @@ def montar(raiz):
 
         aba_texturas = rolagem.Area(abas)
         abas.add(aba_texturas, text=t("  Texture Upscaler · Beta  "))
-        gui_projeto.SeletorDeProjeto(aba_texturas.dentro, raiz).pack(fill="x")
         abertas.append(Janela(raiz, aba_texturas.dentro))
 
         # A aba de NPC e opcional de proposito: ela depende do l2asm e do
@@ -1860,7 +1859,6 @@ def montar(raiz):
             import gui_npc
             aba_npc = rolagem.Area(abas)
             abas.add(aba_npc, text=t("  NPC  "))
-            gui_projeto.SeletorDeProjeto(aba_npc.dentro, raiz).pack(fill="x")
             abertas.append(gui_npc.JanelaNpc(raiz, aba_npc.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
@@ -1874,7 +1872,6 @@ def montar(raiz):
             import gui_video
             aba_video = rolagem.Area(abas)
             abas.add(aba_video, text=t("  Lobby Vídeo  "))
-            gui_projeto.SeletorDeProjeto(aba_video.dentro, raiz).pack(fill="x")
             abertas.append(gui_video.JanelaVideo(raiz, aba_video.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
@@ -1888,7 +1885,6 @@ def montar(raiz):
             import gui_item
             aba_item = rolagem.Area(abas)
             abas.add(aba_item, text=t("  Itens  "))
-            gui_projeto.SeletorDeProjeto(aba_item.dentro, raiz).pack(fill="x")
             abertas.append(gui_item.JanelaItem(raiz, aba_item.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
@@ -1902,7 +1898,6 @@ def montar(raiz):
             import gui_skill
             aba_skill = rolagem.Area(abas)
             abas.add(aba_skill, text=t("  Habilidades  "))
-            gui_projeto.SeletorDeProjeto(aba_skill.dentro, raiz).pack(fill="x")
             abertas.append(gui_skill.JanelaSkill(raiz, aba_skill.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
@@ -1916,7 +1911,6 @@ def montar(raiz):
             import gui_glow
             aba_glow = rolagem.Area(abas)
             abas.add(aba_glow, text=t("  Glow  "))
-            gui_projeto.SeletorDeProjeto(aba_glow.dentro, raiz).pack(fill="x")
             abertas.append(gui_glow.JanelaGlow(raiz, aba_glow.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
@@ -1931,7 +1925,6 @@ def montar(raiz):
             import gui_multisell
             aba_ms = rolagem.Area(abas)
             abas.add(aba_ms, text=t("  Multisell  "))
-            gui_projeto.SeletorDeProjeto(aba_ms.dentro, raiz).pack(fill="x")
             abertas.append(gui_multisell.JanelaMultisell(raiz, aba_ms.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
@@ -1946,7 +1939,6 @@ def montar(raiz):
             import gui_mob
             aba_mob = rolagem.Area(abas)
             abas.add(aba_mob, text=t("  Mob  "))
-            gui_projeto.SeletorDeProjeto(aba_mob.dentro, raiz).pack(fill="x")
             abertas.append(gui_mob.JanelaMob(raiz, aba_mob.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
@@ -1960,7 +1952,6 @@ def montar(raiz):
             import gui_conferir
             aba_conf = rolagem.Area(abas)
             abas.add(aba_conf, text=t("  Conferir Cliente  "))
-            gui_projeto.SeletorDeProjeto(aba_conf.dentro, raiz).pack(fill="x")
             abertas.append(gui_conferir.JanelaConferir(raiz, aba_conf.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
@@ -1974,7 +1965,6 @@ def montar(raiz):
             import gui_arquivos
             aba_arq = rolagem.Area(abas)
             abas.add(aba_arq, text=t("  L2Crypt  "))
-            gui_projeto.SeletorDeProjeto(aba_arq.dentro, raiz).pack(fill="x")
             abertas.append(gui_arquivos.JanelaArquivos(raiz, aba_arq.dentro))
         except Exception as e:
             aviso = ttk.Frame(abas)
