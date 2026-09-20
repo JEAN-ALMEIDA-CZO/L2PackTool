@@ -2265,7 +2265,7 @@ class NovaArma(tk.Toplevel):
 
         ttk.Label(campos, text=t("descrição:")).grid(row=3, column=0,
                                                      sticky="w", pady=(6, 0))
-        self.descricao = tk.StringVar()
+        self.descricao = tk.StringVar(value=base.get("descricao", ""))
         ttk.Entry(campos, textvariable=self.descricao).grid(
             row=3, column=1, columnspan=2, sticky="ew", padx=(6, 0),
             pady=(6, 0))

@@ -835,6 +835,10 @@ class JanelaItem:
             self.novo_id.set(item["id"])
             self.novo_nome.set(item["nome"])
             self.novo_destaque.set(item.get("destaque", ""))
+            # A descricao vem do itemname-e como as outras duas. Sem isto o
+            # campo abria vazio e regravar o item apagava o texto que estava
+            # no cliente, sem ninguem pedir.
+            self.nova_descricao.set(item.get("descricao", ""))
             self.novo_icone.set(item["icone"])
         self.mostrar_icone(self.novo_icone.get() or item["icone"])
         self.dizer_o_alvo(item["id"])
@@ -1721,7 +1725,7 @@ class NovoItem(tk.Toplevel):
 
         ttk.Label(campos, text=t("descrição:")).grid(row=3, column=0,
                                                      sticky="w", pady=(6, 0))
-        self.descricao = tk.StringVar()
+        self.descricao = tk.StringVar(value=base.get("descricao", ""))
         ttk.Entry(campos, textvariable=self.descricao).grid(
             row=3, column=1, columnspan=2, sticky="ew", padx=(6, 0),
             pady=(6, 0))
