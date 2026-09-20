@@ -91,6 +91,14 @@ O **[LEIA-ME.md](LEIA-ME.md)** é a documentação longa: o que cada aba faz, o
 que deu errado no caminho e por que cada decisão ficou como está. O programa
 também traz o manual embutido, no botão de ajuda.
 
+## Licença
+
+[MIT](LICENSE) — use, modifique e redistribua à vontade, inclusive em
+servidor comercial. A única condição é manter o aviso de copyright.
+
+A licença cobre o código deste projeto. As ferramentas de terceiros são de
+seus autores, e conteúdo do jogo não é redistribuído aqui.
+
 ## Créditos
 
 Feito por **Jean Almeida — ÐarkÐomi**.
