@@ -12,7 +12,7 @@ a = Analysis(
     ['motor.py'],
     pathex=[],
     binaries=[],
-    datas=[('release/L2PackTool/ferramentas', 'ferramentas')],
+    datas=[('ferramentas', 'ferramentas')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

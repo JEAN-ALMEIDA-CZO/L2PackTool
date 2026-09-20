@@ -29,6 +29,10 @@ cliente. Tudo numa janela só, em português, inglês e espanhol.
 | **Arquivos** | abre e fecha `.dat`, `.utx`, `.u`, `.unr`, `.ini` |
 | **Conferir Cliente** | varre o cliente e diz o que falta |
 
+Há também uma **linha de comando** (`L2PackTool-cli`) para o que se repete:
+ampliar uma pasta inteira, abrir cem arquivos, conferir um cliente dentro de
+um script, montar a tela de vídeo num lobby.
+
 ## Instalar
 
 Baixe o instalador na página de [**Releases**](../../releases). Ele instala em
@@ -96,13 +100,11 @@ também traz o manual embutido, no botão de ajuda.
 [MIT](LICENSE) — use, modifique e redistribua à vontade, inclusive em
 servidor comercial. A única condição é manter o aviso de copyright.
 
-A licença cobre o código deste projeto. As ferramentas de terceiros são de
-seus autores, e conteúdo do jogo não é redistribuído aqui.
+A licença cobre **o código deste projeto**. As ferramentas de terceiros
+(UModel, texconv, Upscayl, ffmpeg, l2encdec, UCC) pertencem a seus autores e
+não são redistribuídas aqui. Lineage II é marca registrada da NCSoft; este
+projeto não tem vínculo com a NCSoft e não redistribui conteúdo do jogo.
 
 ## Créditos
 
 Feito por **Jean Almeida — ÐarkÐomi**.
-As ferramentas de terceiros são de seus respectivos autores.
-
-Lineage II é marca registrada da NCSoft. Este projeto não tem vínculo com a
-NCSoft e não redistribui conteúdo do jogo.

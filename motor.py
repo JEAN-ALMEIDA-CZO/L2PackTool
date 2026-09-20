@@ -1581,13 +1581,22 @@ def _cmd_ajuda(args):
             print("Nao conheco o comando `%s`." % alvo)
             print(texto_da_ajuda())
             return 1
-        montar().parse_args([alvo, "-h"])
+        montar_o_parser().parse_args([alvo, "-h"])
         return 0
     print(texto_da_ajuda())
     return 0
 
 
-def montar():
+def montar_o_parser():
+    """
+    O parser da linha de comando.
+
+    O nome nao pode ser `montar`: quem se chama assim neste modulo e a
+    funcao que remonta o pacote de textura, la em cima, e a segunda
+    definicao apagava a primeira -- `motor.montar(T, nome, dds, raiz)`
+    respondia `takes 0 positional arguments`. Quebrava a remontagem do .utx,
+    o pacote de efeito do NPC e o de icone.
+    """
     p = argparse.ArgumentParser(
         prog="L2PackTool-cli",
         description="Ferramentas de cliente do Lineage 2, pela linha de comando.",
@@ -1690,7 +1699,7 @@ def main(argumentos=None):
         print(texto_da_ajuda())
         return 0
 
-    args = montar().parse_args(argumentos)
+    args = montar_o_parser().parse_args(argumentos)
     return args.funcao(args)
 
 

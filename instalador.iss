@@ -67,7 +67,7 @@ SolidCompression=yes
 ; O conteudo ja vem comprimido de dentro do executavel; avisar o Inno disso
 ; evita gastar minutos tentando comprimir o que nao comprime mais.
 LZMANumBlockThreads=4
-OutputDir=release
+OutputDir=dist
 OutputBaseFilename={#Nome}-Setup-{#Versao}
 ; Espaco necessario, para o instalador poder avisar antes de comecar.
 ExtraDiskSpaceRequired=10485760
@@ -96,7 +96,7 @@ Name: "atalho"; Description: "{cm:AtalhoArea}"; GroupDescription: "{cm:Additiona
 
 [Files]
 Source: "dist\{#Executavel}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "release\L2PackTool\LEIA-ME.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "LEIA-ME.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 
 [Icons]
 Name: "{group}\{#Nome}"; Filename: "{app}\{#Executavel}"
