@@ -58,6 +58,12 @@ CloseApplications=yes
 RestartApplications=no
 
 SetupIconFile=recursos\icone.ico
+; As imagens do assistente, desenhadas por `arte_do_instalador.py` a partir
+; da marca e da paleta do programa. Uma medida por escala de tela: o Inno
+; escolhe a mais proxima, e assim nada fica borrado num monitor de 200%.
+WizardImageFile=recursos\instalador\painel-100.bmp,recursos\instalador\painel-125.bmp,recursos\instalador\painel-150.bmp,recursos\instalador\painel-175.bmp,recursos\instalador\painel-200.bmp
+WizardSmallImageFile=recursos\instalador\selo-100.bmp,recursos\instalador\selo-125.bmp,recursos\instalador\selo-150.bmp,recursos\instalador\selo-175.bmp,recursos\instalador\selo-200.bmp
+WizardImageStretch=no
 UninstallDisplayIcon={app}\{#Executavel}
 UninstallDisplayName={#Nome} {#Versao}
 WizardStyle=modern
