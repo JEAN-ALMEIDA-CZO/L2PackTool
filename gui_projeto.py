@@ -480,9 +480,21 @@ def ligar(tela):
         Nome igual não quer dizer coisa igual: a aba de Itens tem um
         `self.servidor` que é um painel inteiro, não um campo. Escrever nele
         pelo nome derrubava a ligação de todas as abas seguintes.
+
+        Sendo painel, procura-se o campo DENTRO dele: a aba de NPC guarda
+        assim o formulário do servidor, e sem isto o caminho do projeto nunca
+        chegava lá -- a tela abria com o que sobrou do `config.ini` e o botão
+        respondia "pasta inválida" com o projeto apontado certo no alto.
         """
         valor = getattr(tela, atributo, None)
-        return valor if isinstance(valor, tk.Variable) else None
+        if isinstance(valor, tk.Variable):
+            return valor
+        if valor is not None and not isinstance(valor, (str, bytes)):
+            for dentro in NOMES_DE_SERVIDOR:
+                de_dentro = getattr(valor, dentro, None)
+                if isinstance(de_dentro, tk.Variable):
+                    return de_dentro
+        return None
 
     def aplicar(_nome, pasta_cliente, pasta_servidor):
         variavel = campo("cliente")

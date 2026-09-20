@@ -33,11 +33,27 @@ import l2mundo
 import l2servidor
 import motor
 import gui_projeto
+import projeto
 from idioma import t, N_
 
 import tema
 
 COR_TEXTO_FRACO = tema.TEXTO_FRACO
+
+
+
+def _servidor_do_projeto():
+    """
+    A pasta de dados do servidor: a do projeto, ou a guardada no config.
+
+    O projeto ganha quando existe -- e o que o usuario ve escrito no alto da
+    janela, e seria estranho a tela usar outro caminho.
+    """
+    try:
+        do_projeto = projeto.servidor()
+    except Exception:                               # noqa: BLE001
+        do_projeto = ""
+    return do_projeto or motor.ler_opcao("conferir", "servidor", "")
 
 
 class PainelServidor:
@@ -112,8 +128,12 @@ class PainelServidor:
         ttk.Label(de_onde, text=t("Pasta do servidor:")).pack(side="left")
         # A mesma opcao da aba de conferencia: quem apontou o servidor uma vez
         # nao deve ter de apontar de novo noutra tela.
-        self.pasta_do_servidor = tk.StringVar(
-            value=motor.ler_opcao("conferir", "servidor", ""))
+        # Do projeto primeiro: e ele que manda desde que existe a tela de
+        # projetos. O `config.ini` fica como reserva, para quem ainda nao
+        # criou projeto nenhum.
+        self.pasta_do_servidor = tk.StringVar(value=_servidor_do_projeto())
+        projeto.ao_trocar(lambda _nome, _cliente, servidor:
+                          servidor and self.pasta_do_servidor.set(servidor))
         self.botao_ler = ttk.Button(de_onde, text=t("Ler do servidor"),
                                     command=self.ler_do_servidor)
         self.botao_ler.pack(side="left", padx=(6, 0))
