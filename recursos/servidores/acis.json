@@ -1,0 +1,23 @@
+{
+ "nome": "aCis (XML)",
+ "ordem": 10,
+ "formato": "xml",
+ "observacao": "Lido do codigo do aCis: ItemData, DocumentItem, DocumentBase e os enums de skills/items. Serve tambem para L2jServer, Mobius e Lisvus, que usam a mesma forma de <set name= val=>.",
+ "pastas": {
+  "itens": "data/xml/items",
+  "skills": "data/xml/skills",
+  "npcs": "data/xml/npcs",
+  "multisell": "data/xml/multisell",
+  "spawn": "data/xml/spawnlist",
+  "droplist": "data/xml/npcs"
+ },
+ "raiz_xml": {
+  "itens": "item",
+  "skills": "skill",
+  "npcs": "npc",
+  "multisell": "list",
+  "spawn": "spawn"
+ },
+ "campos": {},
+ "escala_de_chance": 1
+}

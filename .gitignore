@@ -1,0 +1,27 @@
+# O que o programa produz ou guarda da maquina de quem roda
+config.ini
+projetos.ini
+efeitos.json
+malhas.json
+*.log
+abertos/
+saida/
+trabalho/
+cena_lobby/
+
+# Compilacao
+build/
+dist/
+release/
+__pycache__/
+*.pyc
+*.bak
+
+# Conteudo que nao e deste projeto
+ferramentas/
+recursos/lobbies/
+*.utx
+*.usx
+*.unr
+*.dat
+*.int
