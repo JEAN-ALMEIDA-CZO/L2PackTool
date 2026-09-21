@@ -145,6 +145,9 @@ class EscolherArma:
         self.tabela.pack(side="left", fill="both", expand=True)
         self.tabela.bind("<<TreeviewSelect>>", self.ao_marcar)
         self.tabela.bind("<Double-Button-1>", lambda _e: self.aceitar())
+        # Como na janela de escolher skill: o texto do jogo no balão, porque
+        # nome de item raramente diz o que o item faz.
+        DicaDaLinha(self.tabela, self._descricao_do_item)
 
         lado = ttk.Frame(corpo, padding=(12, 0, 0, 0))
         lado.pack(side="left", fill="y")
@@ -315,6 +318,26 @@ class EscolherArma:
         self.conta.config(text=t("%d de %d") % (len(self.mostradas),
                                                 len(self.armas)))
         self._marcar_a_atual()
+
+
+    def _descricao_do_item(self, linha):
+        """O texto do jogo para o item desta linha, ou nada."""
+        try:
+            item = self.mostradas[int(linha)]
+        except (ValueError, IndexError, TypeError):
+            return ""
+        descricao = (item.get("descricao") or "").strip()
+        destaque = (item.get("destaque") or "").strip()
+        if not descricao and not destaque:
+            return ""
+        titulo = item["nome"] or t("sem nome")
+        if destaque:
+            titulo += "   %s" % destaque
+        partes = ["%s   (id %s)" % (titulo, item["id"])]
+        if descricao:
+            partes.append("")
+            partes.append(descricao)
+        return "\n".join(partes)
 
     def _marcar_a_atual(self):
         """Deixa marcada a arma que ja estava no campo, se ela estiver aqui."""

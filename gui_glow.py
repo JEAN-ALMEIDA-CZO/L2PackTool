@@ -280,7 +280,30 @@ class JanelaGlow:
         barra.pack(side="right", fill="y")
         self.tabela.pack(side="left", fill="both", expand=True)
         self.tabela.bind("<<TreeviewSelect>>", self.ao_escolher)
+        # A mesma descrição da página de Itens: aqui ela ajuda a confirmar que
+        # a arma da linha é mesmo a que se quer dar brilho.
+        import gui_arma
+        gui_arma.DicaDaLinha(self.tabela, self._descricao_da_arma)
         return caixa
+
+    def _descricao_da_arma(self, linha):
+        """O texto do jogo para a arma desta linha."""
+        try:
+            arma = self.mostradas[int(linha)]
+        except (ValueError, IndexError, TypeError):
+            return ""
+        descricao = (arma.get("descricao") or "").strip()
+        destaque = (arma.get("destaque") or "").strip()
+        if not descricao and not destaque:
+            return ""
+        titulo = arma["nome"] or t("sem nome")
+        if destaque:
+            titulo += "   %s" % destaque
+        partes = ["%s   (id %s)" % (titulo, arma["id"])]
+        if descricao:
+            partes.append("")
+            partes.append(descricao)
+        return "\n".join(partes)
 
     # ---- a lista de efeitos ----------------------------------------------
     def _montar_efeitos(self, pai):

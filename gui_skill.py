@@ -204,7 +204,23 @@ class JanelaSkill:
         self.tabela.pack(side="left", fill="both", expand=True)
         self.tabela.bind("<<TreeviewSelect>>", self.ao_escolher)
         self.tabela.bind("<Double-1>", self.ao_dar_duplo_clique)
+        # Nome de skill quase nunca diz o que ela faz; a descrição diz. Ela já
+        # estava lida do skillname-e, só não aparecia em lugar nenhum.
+        import gui_arma
+        gui_arma.DicaDaLinha(self.tabela, self._descricao_da_linha)
         return caixa
+
+    def _descricao_da_linha(self, linha):
+        """O texto do jogo para esta habilidade, no balão da lista."""
+        try:
+            h = self.mostrados[int(linha)]
+        except (ValueError, IndexError, TypeError):
+            return ""
+        descricao = (h.get("descricao") or "").strip()
+        if not descricao:
+            return ""                   # sem texto no cliente, sem balão
+        return "%s   (id %s, %s níveis)\n\n%s" % (
+            h["nome"] or t("sem nome"), h["id"], h["niveis"], descricao)
 
     def _montar_nova(self, pai):
         caixa = ttk.LabelFrame(pai, text=t("Habilidade"), padding=6)
@@ -659,6 +675,10 @@ class JanelaSkill:
         if self.modo == "editar":
             self.novo_id.set(h["id"])
             self.novo_nome.set(h["nome"])
+            # Como no nome: o campo abria vazio mesmo tendo texto no cliente,
+            # e quem edita precisa ver o que já está lá antes de escrever por
+            # cima.
+            self.nova_descricao.set(h.get("descricao", ""))
             self.novo_icone.set(h["icone"])
         self.mostrar_icone(self.novo_icone.get() or h["icone"])
         self.dizer_o_alvo(h["id"])

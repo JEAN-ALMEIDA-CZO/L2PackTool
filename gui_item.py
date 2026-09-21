@@ -233,7 +233,30 @@ class JanelaItem:
         self.tabela.pack(side="left", fill="both", expand=True)
         self.tabela.bind("<<TreeviewSelect>>", self.ao_escolher)
         self.tabela.bind("<Double-1>", self.ao_dar_duplo_clique)
+        # O texto do jogo no balão: a lista tem quase dez mil linhas, e abrir
+        # item por item só para saber qual é qual era o trabalho inteiro.
+        import gui_arma
+        gui_arma.DicaDaLinha(self.tabela, self._descricao_da_linha)
         return caixa
+
+    def _descricao_da_linha(self, linha):
+        """O que o jogo mostra deste item -- nome, destaque e descrição."""
+        try:
+            item = self.mostrados[int(linha)]
+        except (ValueError, IndexError, TypeError):
+            return ""
+        descricao = (item.get("descricao") or "").strip()
+        destaque = (item.get("destaque") or "").strip()
+        if not descricao and not destaque:
+            return ""                   # as colunas já dizem tudo o que há
+        titulo = item["nome"] or t("sem nome")
+        if destaque:
+            titulo += "   %s" % destaque
+        partes = ["%s   (id %s)" % (titulo, item["id"])]
+        if descricao:
+            partes.append("")
+            partes.append(descricao)
+        return "\n".join(partes)
 
     def _montar_novo(self, pai):
         caixa = ttk.LabelFrame(pai, text=t("Item"), padding=6)
