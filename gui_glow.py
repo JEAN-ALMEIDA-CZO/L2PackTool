@@ -567,11 +567,15 @@ class JanelaGlow:
         xml = self._onde_esta_a_xml(arma["id"], pasta)
         no_servidor = (pasta / ("%s-item.xml" % arma["id"])) if pasta else None
 
-        aviso = t("A arma %s — %s sai das tabelas.\n\nO cliente só muda em "
-                  "Instalar no cliente: até lá dá para desfazer fechando sem "
-                  "gerar.") % (arma["id"], arma["nome"] or t("sem nome"))
+        aviso = t("A arma %s — %s sai das tabelas do cliente.\n\nAs tabelas "
+                  "são regravadas e instaladas agora; os originais ficam "
+                  "guardados em %s.\n\nFeche o cliente antes: ele segura os "
+                  "arquivos enquanto roda.") % (
+                      arma["id"], arma["nome"] or t("sem nome"),
+                      l2item.PASTA_GUARDA)
         if no_servidor is not None and no_servidor.is_file():
             aviso += t("\n\nA XML em %s também é apagada.") % no_servidor
+        aviso += t("\n\nExcluir?")
         if not messagebox.askyesno(t("Excluir a arma %s") % arma["id"], aviso):
             return
 
@@ -590,16 +594,67 @@ class JanelaGlow:
         for alvo in apagadas:
             self.log(t("  XML apagada: %s") % alvo)
 
+        # A exclusao so existe de verdade quando chega no cliente. Fazer isso
+        # aqui e o que o usuario pediu ao clicar em Excluir -- mandar ele
+        # gerar e instalar depois era pedir duas acoes para terminar uma.
+        instaladas, erro = self.gravar_e_instalar()
+
         self.lista = [i for i in self.itens.listar() if i["grupo"] == "weapon"]
         self.resumo_do_glow()
         self.base = None
         self.preencher()
         self.refazer_criadas()
         self.atualizar_botoes()
+
+        if erro is not None:
+            messagebox.showerror(
+                t("A arma saiu das tabelas, mas não do cliente"),
+                t("%s\n\nAs tabelas na memória já estão sem ela. Use Gerar e "
+                  "Instalar no cliente quando o problema estiver resolvido.")
+                % erro)
+            return
         messagebox.showinfo(
             t("Arma excluída"),
-            t("Ela saiu das tabelas na memória.\n\nUse Gerar e depois "
-              "Instalar no cliente para a exclusão chegar ao cliente."))
+            t("A arma %s saiu das tabelas e do cliente (%d arquivo(s) "
+              "atualizado(s)).\n\nFeche e abra o cliente: o weapongrp.dat só "
+              "é lido no arranque.") % (arma["id"], instaladas))
+
+    def gravar_e_instalar(self):
+        """
+        Grava as tabelas e as poe no cliente, numa tacada.
+
+        Devolve (quantas foram instaladas, erro). O erro volta em vez de
+        estourar porque quem chama precisa terminar a limpeza da tela de
+        qualquer jeito -- a memoria ja mudou, e deixar a tela mostrando o que
+        nao existe mais seria pior.
+        """
+        # Regravar as quatro tabelas leva alguns segundos, e a janela fica
+        # parada nesse tempo. Dizer o que esta acontecendo antes de travar e
+        # o minimo -- barra de progresso aqui exigiria thread, e uma thread
+        # no meio de uma exclusao ja confirmada complica mais do que ajuda.
+        try:
+            self.estado.config(text=t("regravando as tabelas…"))
+            self.raiz.update_idletasks()
+        except Exception:                           # noqa: BLE001
+            pass
+        try:
+            gravadas = self.itens.gravar(self.saida(),
+                                         aolog=lambda s: self.log("  " + s))
+            postas = l2item.instalar(gravadas, self.system(),
+                                     aolog=lambda s: self.log("  " + s))
+            self.gravados = gravadas
+            self._limpar_estado()
+            return len(postas), None
+        except Exception as erro:                   # noqa: BLE001
+            self.log(t("  a instalação parou: %s") % erro)
+            self._limpar_estado()
+            return 0, erro
+
+    def _limpar_estado(self):
+        try:
+            self.estado.config(text="")
+        except Exception:                           # noqa: BLE001
+            pass
 
     # ---- a pagina do encantamento ----------------------------------------
     def _montar_encantamento(self, pai):
