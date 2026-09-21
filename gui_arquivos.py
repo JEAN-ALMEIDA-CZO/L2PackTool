@@ -71,6 +71,7 @@ class JanelaArquivos:
         topo = ttk.Frame(quadro)
         topo.pack(fill="x", pady=(8, 0))
         ttk.Button(topo, text=t("Escolher arquivos…"),
+                   style="Primario.TButton",
                    command=self.escolher_arquivos).pack(side="left")
         ttk.Button(topo, text=t("Escolher uma pasta…"),
                    command=self.escolher_pasta).pack(side="left", padx=(6, 0))

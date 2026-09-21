@@ -84,6 +84,7 @@ class JanelaConferir:
                 motor.ler_opcao("cliente", "system", "") or "")))
 
         self.botao_conferir = ttk.Button(linha, text=t("Conferir"),
+                                         style="Primario.TButton",
                                          command=self.conferir)
         self.botao_conferir.pack(side="left", padx=(6, 0))
         ajuda.ajuda(linha, lambda: t(

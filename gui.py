@@ -306,6 +306,7 @@ class Janela:
         sel = ttk.LabelFrame(quadro, text=t("Pacote"), padding=8)
         sel.pack(fill="x")
         ttk.Button(sel, text=t("Abrir um .utx…"),
+                   style="Primario.TButton",
                    command=self.abrir_pacote).pack(side="left")
         ajuda.ajuda(sel, lambda: t(
             "Abre UM pacote e mostra as texturas de dentro dele, uma a uma, "

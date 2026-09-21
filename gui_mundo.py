@@ -469,7 +469,7 @@ class PainelServidor:
 
         linha = ttk.Frame(aba)
         linha.pack(fill="x", pady=(8, 0))
-        ttk.Button(linha, text=t("+ item"), style="Primario.TButton",
+        ttk.Button(linha, text=t("+ item"),
                    command=self.por_drop).pack(side="left")
         ttk.Button(linha, text=t("Mudar…"),
                    command=self.mudar_drop).pack(side="left", padx=(4, 0))

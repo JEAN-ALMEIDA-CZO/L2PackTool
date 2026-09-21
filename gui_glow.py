@@ -133,6 +133,7 @@ class JanelaGlow:
                 motor.ler_opcao("cliente", "system", "") or "")))
 
         self.botao_abrir = ttk.Button(linha, text=t("Carregar"),
+                                      style="Primario.TButton",
                                       command=self.abrir)
         self.botao_abrir.pack(side="left", padx=(6, 0))
         ttk.Button(linha, text=t("Manual"),

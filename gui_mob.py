@@ -420,7 +420,7 @@ class JanelaMob:
         botoes.pack(fill="x", pady=(6, 0))
         ttk.Button(botoes, text=t("+ skill"),
                    command=self.por_skill).pack(side="left")
-        ttk.Button(botoes, text=t("Sugerir…"), style="Primario.TButton",
+        ttk.Button(botoes, text=t("Sugerir…"),
                    command=self.sugerir_skill).pack(side="left", padx=(4, 0))
         ttk.Button(botoes, text=t("Mudar…"),
                    command=self.mudar_skill).pack(side="left", padx=(4, 0))

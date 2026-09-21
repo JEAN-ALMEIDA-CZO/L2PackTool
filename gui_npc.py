@@ -141,7 +141,9 @@ class JanelaNpc:
         topo = ttk.LabelFrame(quadro, text=t("Cliente"), padding=8)
         topo.pack(fill="x")
         self.cliente = tk.StringVar(value=achar_cliente())
-        self.botao_ler = ttk.Button(topo, text=t("Carregar"), command=self.ler_cliente)
+        self.botao_ler = ttk.Button(topo, text=t("Carregar"),
+                                    style="Primario.TButton",
+                                    command=self.ler_cliente)
         self.botao_ler.pack(side="left", padx=(8, 0))
         self.botao_editar_npc = ttk.Button(
             topo, text=t("Editar este NPC…"), command=self.editar_existente,

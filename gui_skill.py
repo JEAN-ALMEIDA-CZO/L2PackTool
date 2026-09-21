@@ -143,6 +143,7 @@ class JanelaSkill:
         caixa.bind("<<ComboboxSelected>>", self.ao_trocar_cronica)
 
         self.botao_abrir = ttk.Button(linha, text=t("Carregar"),
+                                      style="Primario.TButton",
                                       command=self.abrir)
         self.botao_abrir.pack(side="left", padx=(6, 0))
         ajuda.ajuda(linha, lambda: t(

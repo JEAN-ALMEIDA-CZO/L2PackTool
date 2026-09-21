@@ -278,6 +278,7 @@ class JanelaVideo:
                                       state="disabled")
         self.botao_lobby.pack(side="left", padx=(0, 8))
         self.botao_criar = ttk.Button(acao, text=t("Gerar vídeo e instalar"),
+                                      style="Primario.TButton",
                                       command=self.criar, state="disabled")
         self.botao_criar.pack(side="left")
         self.estado = ttk.Label(acao, text="")
