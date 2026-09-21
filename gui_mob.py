@@ -782,6 +782,60 @@ class JanelaMob:
     # =====================================================================
     # o rodapé
     # =====================================================================
+
+    def ver_malha(self):
+        """
+        Abre a malha deste mob no visualizador do umodel.
+
+        O mob e do servidor e a malha e do cliente -- quem liga os dois e o
+        `npcgrp.dat`, pelo id. Sem o cliente apontado nao ha o que abrir, e
+        dizer isso e melhor do que abrir uma janela vazia.
+        """
+        import l2npc
+
+        mob = self._da_tela() or self.mob
+        ident = str((mob or {}).get("id") or "").strip()
+        if not ident:
+            messagebox.showinfo(t("Escolha o mob"),
+                                t("Marque um mob na lista primeiro."))
+            return
+
+        cliente = self.cliente.get().strip()
+        if not cliente:
+            messagebox.showinfo(t("Falta o cliente"),
+                                t("Aponte a pasta do cliente em Projetos: a "
+                                  "malha vem de lá, não do servidor."))
+            return
+
+        try:
+            grp = l2npc.Npcgrp(self.system(), self.T, self.trabalho())
+            malha = ""
+            for linha in grp.linhas:
+                if linha[0] == ident:
+                    malha = grp.campo(linha, "mesh")
+                    break
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu para ler o npcgrp.dat"), str(erro))
+            return
+
+        if not malha:
+            messagebox.showinfo(
+                t("Sem malha no cliente"),
+                t("O id %s não está no npcgrp.dat deste cliente, ou não tem "
+                  "modelo apontado. Ele existe no servidor, mas o cliente "
+                  "não sabe desenhá-lo.") % ident)
+            return
+
+        try:
+            pacote = l2npc.abrir_visualizador(
+                self.T, l2conferir.raiz_do_cliente(cliente), malha)
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu"), str(erro))
+            return
+
+        self.log(t("\nAbrindo a malha %s (%s) no visualizador do umodel.")
+                 % (malha, Path(pacote).name))
+
     def _montar_rodape(self, pai):
         acao = ttk.Frame(pai)
         acao.pack(fill="x", pady=(8, 0))
@@ -794,6 +848,14 @@ class JanelaMob:
         self.botao_gravar = ttk.Button(acao, text=t("Gravar no servidor"),
                                        command=self.gravar)
         self.botao_gravar.pack(side="left", padx=(6, 0))
+        self.botao_malha = ttk.Button(acao, text=t("Ver a malha em 3D"),
+                                      command=self.ver_malha)
+        self.botao_malha.pack(side="left", padx=(6, 0))
+        ajuda.ajuda(acao, lambda: t(
+            "Abre a malha deste mob no visualizador do umodel, para girar e "
+            "ver as animações.\n\n"
+            "O mob vem do servidor, mas o modelo é do cliente: o id é "
+            "procurado no npcgrp.dat, que diz qual malha ele usa."))
         self.estado = ttk.Label(acao, text="", foreground=COR_TEXTO_FRACO)
         self.estado.pack(side="left", padx=(12, 0))
 
