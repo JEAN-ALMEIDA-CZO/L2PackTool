@@ -202,6 +202,127 @@ EMISSORES = ("SpriteEmitter", "MeshEmitter", "BeamEmitter", "VertMeshEmitter",
              "TrailEmitter", "SparkEmitter", "ParticleEmitter")
 
 
+
+# O l2encdec corta os ultimos 20 bytes de todo arquivo que decifra: e o
+# "tail", uma assinatura que os arquivos oficiais carregam no fim. Nem todos
+# carregam. Um pacote Ver111 gravado por editor de terceiros costuma nao ter
+# tail nenhum, e ai os 20 bytes cortados sao dados de verdade -- o arquivo sai
+# curto, a tabela de exportacao fica faltando um pedaco, e a leitura estoura
+# num IndexError que nao explica nada.
+#
+# Medido no anim90.u de um cliente Interlude: 96.762 bytes no disco, 28 de
+# cabecalho, 96.734 de pacote. Com `-d` saem 96.714 -- vinte a menos do que a
+# propria tabela do pacote exige. Com `-t -d` saem os 96.734, e o pacote abre.
+#
+# Daí a ordem: tenta o normal, confere se o que saiu se sustenta, e so entao
+# repete ignorando o tail. A conferencia e barata e nao depende de adivinhar:
+# o cabecalho diz onde comecam as tabelas, e nenhuma pode comecar depois do
+# fim do arquivo.
+TAMANHO_DO_TAIL = 20
+
+
+# O `Pacote._ler_exports` PERDOA arquivo cortado de proposito: ele para no
+# ultimo registro inteiro, porque perder dois objetos de 5.495 nao muda um
+# catalogo. Aqui e o contrario -- a pergunta e exatamente "veio cortado?" --,
+# entao estes tres percorrem as tabelas sem perdoar nada e deixam o estouro
+# subir.
+def _percorrer_nomes(dados, pos, quantos):
+    for _ in range(quantos):
+        tamanho, pos = _indice(dados, pos)
+        pos += tamanho + 4
+        if pos > len(dados):
+            raise IndexError("tabela de nomes passa do fim")
+
+
+def _percorrer_imports(dados, pos, quantos):
+    for _ in range(quantos):
+        _pacote, pos = _indice(dados, pos)
+        _classe, pos = _indice(dados, pos)
+        struct.unpack_from("<i", dados, pos)
+        pos += 4
+        _nome, pos = _indice(dados, pos)
+        if pos > len(dados):
+            raise IndexError("tabela de importacao passa do fim")
+
+
+def _percorrer_exports(dados, pos, quantos):
+    for _ in range(quantos):
+        _classe, pos = _indice(dados, pos)
+        _mae, pos = _indice(dados, pos)
+        struct.unpack_from("<i", dados, pos)
+        pos += 4
+        _nome, pos = _indice(dados, pos)
+        pos += 4
+        tamanho, pos = _indice(dados, pos)
+        if tamanho > 0:
+            _inicio, pos = _indice(dados, pos)
+        if pos > len(dados):
+            raise IndexError("tabela de exportacao passa do fim")
+
+
+
+
+def _pacote_se_sustenta(caminho):
+    """
+    O arquivo decifrado tem tamanho para as tabelas que ele mesmo declara?
+
+    Devolve (sim, recado). Nao valida o conteudo -- so a aritmetica do
+    cabecalho, que ja basta para separar "veio curto" de "veio inteiro".
+    """
+    caminho = Path(caminho)
+    if not caminho.is_file():
+        return False, "o l2encdec nao escreveu nada"
+    tamanho = caminho.stat().st_size
+    if tamanho < 40:
+        return False, "saiu com %d bytes, menos que um cabecalho" % tamanho
+
+    # Conferir so o deslocamento das tabelas nao bastaria: o arquivo cortado
+    # ainda COMECA a tabela de exportacao dentro dele, e acaba no meio. Quem
+    # responde de verdade e percorrer as tres tabelas ate o fim -- que e o que
+    # o Pacote faria logo em seguida, entao nao ha trabalho a mais.
+    fh = None
+    dados = None
+    try:
+        fh = open(caminho, "rb")
+        dados = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+        assinatura, = struct.unpack_from("<I", dados, 0)
+        if assinatura != Pacote.ASSINATURA:
+            return False, "nao comeca com a assinatura de pacote Unreal"
+        (_flags, qtd_nomes, off_nomes, qtd_exp, off_exp,
+         qtd_imp, off_imp) = struct.unpack_from("<IIIIIII", dados, 8)
+        _percorrer_nomes(dados, off_nomes, qtd_nomes)
+        _percorrer_imports(dados, off_imp, qtd_imp)
+        _percorrer_exports(dados, off_exp, qtd_exp)
+    except (IndexError, ValueError, struct.error) as erro:
+        return False, "as tabelas nao cabem no que saiu: %s" % erro
+    finally:
+        if dados is not None:
+            dados.close()
+        if fh is not None:
+            fh.close()
+    return True, "inteiro"
+
+
+def _descriptografar(ferramentas, origem, destino):
+    """
+    Decifra, e se o resultado vier curto repete ignorando o tail.
+
+    Devolve a saida do l2encdec da tentativa que valeu. Limite curto de
+    proposito: aqui a resposta interessante e "abriu ou nao abriu". Um pacote
+    que o l2encdec nao decifra em meio minuto nao vai decifrar, e a varredura
+    tem mais quarenta arquivos pela frente.
+    """
+    _codigo, saida = motor.executar(
+        [ferramentas["l2encdec"], "-d", origem, destino], limite=30)
+    inteiro, _porque = _pacote_se_sustenta(destino)
+    if inteiro:
+        return saida
+    Path(destino).unlink(missing_ok=True)
+    _codigo, saida = motor.executar(
+        [ferramentas["l2encdec"], "-t", "-d", origem, destino], limite=30)
+    return saida
+
+
 class Pacote:
     """
     Um pacote Unreal lido o suficiente para tres perguntas: que classes existem,
@@ -274,8 +395,7 @@ class Pacote:
                 # "abriu ou nao abriu". Um pacote que o l2encdec nao decifra em
                 # meio minuto nao vai decifrar, e a varredura tem mais quarenta
                 # arquivos pela frente.
-                codigo, saida = motor.executar([ferramentas["l2encdec"], "-d",
-                                                self.caminho, destino], limite=30)
+                saida = _descriptografar(ferramentas, self.caminho, destino)
                 # O l2encdec devolve zero mesmo quando desiste -- ele so
                 # imprime o motivo. Quem diz se deu certo e o arquivo existir.
                 if not destino.exists() or destino.stat().st_size == 0:
