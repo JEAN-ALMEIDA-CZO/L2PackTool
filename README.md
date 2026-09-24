@@ -26,6 +26,7 @@ cliente. Tudo numa janela só, em português, inglês e espanhol.
 | **Mob** | os monstros: status, drop e spawn |
 | **Lobby Vídeo** | a tela de entrada: catorze lobbys prontos (C1 a High Five), ou o seu vídeo |
 | **Texture Upscaler** | amplia as texturas de um `.utx` por IA e remonta o pacote *(em testes)* |
+| **Proteção** | fecha as tabelas do cliente com uma chave sua, para ninguém gerar arquivo que ele aceite |
 | **Arquivos** | abre e fecha `.dat`, `.utx`, `.u`, `.unr`, `.ini`, e trata o cliente oficial: chave, loader e patcher |
 | **Conferir Cliente** | varre o cliente e diz o que falta |
 
@@ -100,6 +101,26 @@ e 7 são ativa (física, mágica, aura, especial, pesca, transformação), 6 é
 alternável e 11 a 16 são passiva. Qual escala vale se decide **olhando a
 tabela** — valor de 10 para cima só existe na nova —, e não pelo nome da
 crônica, que obrigaria a lembrar do código a cada núcleo novo.
+
+## Proteção
+
+A aba **Proteção** fecha as tabelas escolhidas do cliente com uma chave gerada
+a partir de uma frase sua. Sem essa frase ninguém produz arquivo que o seu
+cliente aceite — e a frase não é guardada em lugar nenhum: nem no programa,
+nem no arquivo de configuração, nem no cliente.
+
+Cada arquivo é copiado antes, refeito e **conferido** — só entra no cliente se
+voltar idêntico. A chave do executável é trocada por último, e só se todos
+passarem. *Voltar ao original* desfaz tudo.
+
+Duas coisas ditas na própria tela, porque prometer mais seria desonesto:
+
+- isto tranca a **escrita**, não a leitura. Para jogar, o cliente precisa abrir
+  os arquivos, então ele carrega o que precisa para abri-los; quem tiver o seu
+  cliente pode chegar lá. O que muda é sair do "qualquer um abre com um clique"
+  para o "quem souber procurar";
+- funciona nos clientes que guardam a chave no executável. Nos mais novos ela
+  chega por loader, e aí a chave própria não se aplica.
 
 ## Cliente oficial
 
@@ -203,7 +224,7 @@ do que já anda, a família. Os dois guardam o original antes de gravar.
 ## Instalar
 
 Baixe o instalador da [**versão mais nova**](../../releases/latest) — hoje a
-**1.4.0**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
+**1.5.0**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
 administrador, e já traz as ferramentas de terceiros dentro. Instalar por cima
 atualiza no lugar; o que mudou em cada versão está no
 [CHANGELOG](CHANGELOG.md).

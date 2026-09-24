@@ -9,6 +9,23 @@ continua abrindo.
 
 ---
 
+## 1.5.0 — 24/09/2026
+
+**Proteção (anticheat).** Aba nova: fecha as tabelas escolhidas do cliente com
+uma chave gerada a partir de uma frase sua. Sem a frase, ninguém gera arquivo
+que o seu cliente aceite. A frase não é guardada em lugar nenhum.
+
+Cada arquivo é copiado antes, refeito e conferido — só entra no cliente se
+voltar idêntico —, e a chave do executável é trocada por último. *Voltar ao
+original* desfaz tudo. A tela diz o que a proteção faz e o que não faz, e
+avisa quando o cliente não aceita chave própria.
+
+**Abrir sem depender de ferramenta de fora.** Quando o l2encdec não está
+instalado, é barrado pelo antivírus ou não dá conta, o programa passa a abrir
+sozinho os formatos que sabe — antes o arquivo simplesmente não abria.
+
+---
+
 ## 1.4.0 — 24/09/2026
 
 **Gracia.** Três crônicas novas, e cada uma provada contra um cliente de

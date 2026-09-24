@@ -323,6 +323,29 @@ def _descriptografar(ferramentas, origem, destino):
     return saida
 
 
+
+def _abrir_sem_l2encdec(origem, destino):
+    """
+    Tenta abrir sem ferramenta de fora. Devolve True quando conseguiu.
+
+    So vale para os formatos XOR -- 111, 120 e 121 --, que sao a maioria dos
+    `.u` e `.utx` do cliente e que o programa sabe de cor. Os RSA precisam da
+    chave, e chave nao se adivinha: esses continuam com o l2encdec.
+    """
+    try:
+        import l2cripto
+
+        dados = Path(origem).read_bytes()
+        metodo = l2cripto.metodo(dados)
+        if metodo not in l2cripto.SO_XOR:
+            return False
+        conteudo, _rabo = l2cripto.abrir_xor(dados, metodo, Path(origem).name)
+        Path(destino).write_bytes(conteudo)
+        return Path(destino).stat().st_size > 0
+    except Exception:                               # noqa: BLE001
+        return False
+
+
 class Pacote:
     """
     Um pacote Unreal lido o suficiente para tres perguntas: que classes existem,
@@ -411,8 +434,13 @@ class Pacote:
                 # O l2encdec devolve zero mesmo quando desiste -- ele so
                 # imprime o motivo. Quem diz se deu certo e o arquivo existir.
                 if not destino.exists() or destino.stat().st_size == 0:
-                    raise ValueError("nao consegui descriptografar %s: %s"
-                                     % (self.caminho.name, saida.strip()[:160]))
+                    # A rede de seguranca: os formatos XOR o programa abre
+                    # sozinho, e ai nao importa se o l2encdec sumiu, foi
+                    # barrado pelo antivirus ou nao deu conta.
+                    if not _abrir_sem_l2encdec(self.caminho, destino):
+                        raise ValueError(
+                            "nao consegui descriptografar %s: %s"
+                            % (self.caminho.name, saida.strip()[:160]))
 
             self.puro = destino
             alvo = destino

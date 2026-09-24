@@ -2086,6 +2086,20 @@ def montar(raiz):
             ttk.Label(aviso, padding=20, justify="left", foreground=tema.ATENCAO,
                       text=t("A aba de conferência não carregou:\n\n%s") % e).pack()
 
+        # Proteger vem depois de conferir e antes de abrir: conferir so le,
+        # proteger fecha, e o L2Crypt e a ferramenta solta de abrir e fechar
+        # um arquivo por vez.
+        try:
+            import gui_protecao
+            aba_prot = rolagem.Area(abas)
+            abas.add(aba_prot, text=t("  Proteção  "))
+            abertas.append(gui_protecao.JanelaProtecao(raiz, aba_prot.dentro))
+        except Exception as e:
+            aviso = ttk.Frame(abas)
+            abas.add(aviso, text=t("  Proteção  "))
+            ttk.Label(aviso, padding=20, justify="left", foreground=tema.ATENCAO,
+                      text=t("A aba de proteção não carregou:\n\n%s") % e).pack()
+
         # Abrir arquivo do cliente so precisa do l2encdec, que e a ferramenta
         # mais basica do conjunto -- por isso esta aba quase nunca falta.
         try:
