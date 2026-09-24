@@ -1,0 +1,19 @@
+{
+  "rotulo": "C4 - Scions of Destiny",
+  "origem_das_definicoes": "biblioteca do L2FileEdit, pasta C4",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcname-e"
+  ],
+  "nao_provadas": [
+    "npcgrp"
+  ],
+  "conferido_em": "2026-09-23",
+  "cliente_usado": "cliente C4 completo, chaves originais",
+  "porque_nao_provadas": "a definicao le o arquivo mas nao o reproduz byte a byte na volta; ler assim desloca campo sem avisar, entao o programa recusa esta tabela nesta cronica"
+}

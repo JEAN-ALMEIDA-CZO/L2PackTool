@@ -809,10 +809,33 @@ def definicao_da_cronica(arquivo, embutida, cronica=None):
     return embutida
 
 
+def exigir_provada(tabela, cronica=None):
+    """
+    Recusa abrir tabela que a cronica declara nao provada.
+
+    Ler com definicao que nao fecha na volta nao da erro: da campo
+    deslocado. No npcgrp isso e malha e classe trocadas de NPC, e o sintoma
+    aparece no jogo, nao aqui.
+    """
+    if cronica is None:
+        try:
+            cronica = projeto.cronica()
+        except Exception:                           # noqa: BLE001
+            cronica = None
+    if motor.tabela_provada(cronica, tabela):
+        return
+    raise ErroDat(
+        "a definicao de %s ainda nao foi provada na cronica %s: ela le o "
+        "arquivo mas nao o reproduz na volta, e ler assim desloca campo sem "
+        "avisar. As outras abas continuam funcionando nesta cronica."
+        % (tabela, cronica or "?"))
+
+
 class Npcgrp(Tabela):
     """O npcgrp.dat, com os atalhos que este programa usa."""
 
     def __init__(self, system, T, trabalho, cronica=None):
+        exigir_provada("npcgrp", cronica)
         Tabela.__init__(self, Path(system) / "npcgrp.dat",
                         definicao_da_cronica("npcgrp", DDF_NPCGRP, cronica),
                         T, trabalho)

@@ -25,6 +25,7 @@ import re
 import shutil
 import tempfile
 import time
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -355,6 +356,35 @@ def cronicas_com_definicao():
         return []
     return sorted(p.name for p in raiz.iterdir()
                   if p.is_dir() and any(p.glob("*.ddf")))
+
+
+NOME_DO_NUCLEO = "nucleo.json"
+
+
+def nucleo(cronica=None):
+    """O cartao de identidade da cronica: rotulo, e o que foi provado."""
+    caminho = definicoes(cronica) / NOME_DO_NUCLEO
+    if not caminho.is_file():
+        return {}
+    try:
+        return json.loads(caminho.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def tabela_provada(cronica, tabela):
+    """
+    Esta tabela foi provada nesta cronica?
+
+    Devolve True tambem quando nao ha manifesto: o que nao se sabe nao vira
+    proibicao. So o que esta escrito como NAO provado e recusado.
+    """
+    cartao = nucleo(cronica)
+    if not cartao:
+        return True
+    if tabela in (cartao.get("provadas") or []):
+        return True
+    return tabela not in (cartao.get("nao_provadas") or [])
 
 
 def completar_definicao(T, base, binario, trabalho):
