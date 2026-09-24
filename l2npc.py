@@ -685,7 +685,7 @@ class Tabela:
     confianca.
     """
 
-    def __init__(self, origem, ddf, T, trabalho):
+    def __init__(self, origem, ddf, T, trabalho, cronica=None):
         self.origem = Path(origem)
         self.ddf_texto = ddf
         self.T = T
@@ -695,6 +695,10 @@ class Tabela:
 
         # `ddf_base` descreve os campos; `ddf` passa a ser a versao medida
         # neste arquivo, escrita pelo `_ler`.
+        # De que cronica veio a definicao, para a mensagem de erro saber o
+        # que comparar. Quem constroi a Tabela direto nao informa, e ai vale
+        # a do projeto.
+        self.cronica_em_uso = cronica
         self.ddf_base = self.trabalho / (self.origem.stem + "_base.ddf")
         self.ddf_base.write_text(ddf, encoding="latin-1", newline="")
         self.ddf = self.ddf_base
@@ -721,13 +725,22 @@ class Tabela:
             self.ddf = motor.completar_definicao(self.T, self.ddf_base, puro,
                                                  self.trabalho)
         except OSError as erro:
-            raise ErroDat(str(erro))
+            # Definicao que nao mede quase sempre e cronica errada, e o
+            # programa sabe medir qual e a certa -- dizer isso aqui poupa o
+            # usuario de tentar uma por uma.
+            try:
+                import l2item
+                raise ErroDat(l2item.com_a_cronica_certa(
+                    self.T, self.origem.parent, self.cronica_em_uso,
+                    self.origem, self.trabalho, erro))
+            except ImportError:
+                raise ErroDat(str(erro))
 
         texto = self.trabalho / (self.origem.stem + ".txt")
         codigo, saida = motor.executar([self.T["l2disasm"], "-d", self.ddf, puro, texto])
         if not texto.exists():
-            raise ErroDat("l2disasm nao leu %s: %s"
-                          % (self.origem.name, saida.strip()[:300]))
+            raise ErroDat(motor.explicar_saida(
+                saida, "não consegui ler %s." % self.origem.name))
 
         conteudo = texto.read_text(encoding="utf-8", errors="replace").split("\n")
         self.cabecalho = conteudo[0].split("\t")
@@ -754,8 +767,8 @@ class Tabela:
         puro.unlink(missing_ok=True)
         codigo, saida = motor.executar([self.T["l2asm"], "-d", self.ddf, texto, puro])
         if not puro.exists():
-            raise ErroDat("l2asm nao montou %s: %s"
-                          % (self.origem.name, saida.strip()[:300]))
+            raise ErroDat(motor.explicar_saida(
+                saida, "não consegui montar %s de volta." % self.origem.name))
 
         provisorio = self.trabalho / (self.origem.stem + "_novo.dat")
         provisorio.unlink(missing_ok=True)
@@ -901,7 +914,7 @@ class Npcgrp(Tabela):
         exigir_provada("npcgrp", cronica)
         Tabela.__init__(self, Path(system) / "npcgrp.dat",
                         definicao_da_cronica("npcgrp", DDF_NPCGRP, cronica),
-                        T, trabalho)
+                        T, trabalho, cronica)
 
     def resumo(self):
         """Uma linha por NPC, so com o que a tela mostra."""
@@ -967,7 +980,7 @@ class Npcname(Tabela):
     def __init__(self, system, T, trabalho, cronica=None):
         Tabela.__init__(self, Path(system) / "npcname-e.dat",
                         definicao_da_cronica("npcname-e", DDF_NPCNAME, cronica),
-                        T, trabalho)
+                        T, trabalho, cronica)
 
     def nomes(self):
         """{id: nome} com o marcador de formato e o \\0 final removidos."""

@@ -392,6 +392,50 @@ def tabela_provada(cronica, tabela):
     return tabela not in (cartao.get("nao_provadas") or [])
 
 
+# O que as ferramentas dizem quando nao dao conta, e o que isso quer dizer
+# para quem esta usando o programa. A ordem importa: a primeira que casar
+# manda, entao o mais especifico vem antes.
+RECADOS_CONHECIDOS = (
+    ("file scan error",
+     "a definição desta crônica não descreve este cliente: a leitura parou "
+     "no meio da primeira linha, o que acontece quando a tabela tem outras "
+     "colunas. Confira a crônica do projeto."),
+    ("post-parse init failed",
+     "a definição desta crônica não fecha para este cliente. Confira a "
+     "crônica do projeto."),
+    ("has no soft limit",
+     "a definição precisa ser medida neste cliente antes de montar -- é um "
+     "passo interno do programa, e ele falhou aqui."),
+    ("stream error detected during decompression",
+     "o arquivo não abriu com nenhuma das duas chaves conhecidas. Ou está "
+     "corrompido, ou usa uma chave que o programa não tem."),
+    ("is not dxtn",
+     "a imagem precisa estar comprimida em DXT para entrar neste pacote."),
+    ("ddsd_linearsize",
+     "a imagem não tem o cabeçalho que o montador de pacote exige."),
+    ("cannot open", "não consegui abrir o arquivo."),
+    ("access is denied",
+     "o arquivo está em uso ou sem permissão de escrita -- feche o jogo e "
+     "tente de novo."),
+)
+
+
+def explicar_saida(saida, padrao=""):
+    """
+    A saida de uma ferramenta externa, em portugues e sem a assinatura dela.
+
+    O banner ("hL2disasm 1.4.1 by M.Soltys...") e a primeira coisa que essas
+    ferramentas imprimem, e a ultima que interessa a quem esta usando o
+    programa. Aqui ele nunca aparece: ou ha uma explicacao conhecida, ou vem
+    a frase padrao de quem chamou.
+    """
+    baixo = (saida or "").lower()
+    for marca, frase in RECADOS_CONHECIDOS:
+        if marca in baixo:
+            return frase
+    return padrao or "a ferramenta externa não deu conta do arquivo."
+
+
 def completar_definicao(T, base, binario, trabalho):
     """
     A definicao com os limites que o montador exige, medidos NESTE arquivo.
@@ -413,8 +457,8 @@ def completar_definicao(T, base, binario, trabalho):
         [T["l2disasm"], "-d", base, "-e", completa, binario, rascunho],
         limite=900)
     if not completa.exists():
-        raise OSError("nao consegui medir %s: %s"
-                      % (Path(base).name, (saida or "").strip()[:200]))
+        raise OSError(explicar_saida(
+            saida, "não consegui ler %s com esta definição." % Path(binario).name))
     return completa
 
 

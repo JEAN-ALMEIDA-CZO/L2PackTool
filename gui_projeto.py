@@ -219,7 +219,10 @@ class JanelaProjetos:
         self.caixa_cronica = ttk.Combobox(direita, textvariable=self.cronica,
                                           state="readonly", width=32,
                                           values=self._cronicas_na_tela())
-        self.caixa_cronica.grid(row=7, column=0, columnspan=2, sticky="ew")
+        self.caixa_cronica.grid(row=7, column=0, sticky="ew")
+        self.botao_detectar = ttk.Button(direita, text=t("Detectar"),
+                                         command=self.detectar_cronica)
+        self.botao_detectar.grid(row=7, column=1, sticky="w", padx=(6, 0))
         # `direita` e um formulario em grid: o `?` tem de entrar por grid
         # tambem. Empacotar por pack aqui derruba a janela inteira -- o Tk
         # nao deixa os dois gerenciadores no mesmo pai.
@@ -306,12 +309,101 @@ class JanelaProjetos:
         self.lista.selection_clear(0, "end")
         self.recado.config(text="")
 
+
+    # ---- descobrir a crônica do cliente ---------------------------------
+    def detectar_cronica(self, silencioso=False):
+        """
+        Mede o cliente apontado e escolhe a crônica que o reproduz.
+
+        `silencioso` é para quando a medição vem de escolher a pasta: aí o
+        resultado aparece na própria caixa, sem caixa de aviso por cima.
+        """
+        import threading
+        import l2conferir
+
+        cliente = (self.pasta_cliente.get() or "").strip()
+        if not cliente:
+            if not silencioso:
+                messagebox.showinfo(
+                    t("Falta a pasta"),
+                    t("Aponte a pasta do cliente primeiro — é ela que vai "
+                      "ser medida."))
+            return
+        system = l2conferir.raiz_do_cliente(cliente) / "system"
+        if not system.is_dir():
+            if not silencioso:
+                messagebox.showerror(
+                    t("Pasta inválida"),
+                    t("Não achei a pasta system em %s") % cliente)
+            return
+
+        self.botao_detectar.config(state="disabled")
+        self.recado.config(text=t("medindo o cliente…"))
+        threading.Thread(target=self._detectar_thread,
+                         args=(system, silencioso), daemon=True).start()
+
+    def _detectar_thread(self, system, silencioso):
+        import l2cronica
+        import motor
+        try:
+            T = motor.carregar_config()
+            atual = self._cronica_da_tela()
+            achado = l2cronica.detectar(
+                T, system, Path(motor.BASE) / "trabalho" / "cronica",
+                preferida=atual,
+                aoprogresso=lambda i, total, o: self.raiz.after(
+                    0, self.recado.config,
+                    {"text": t("medindo: %s") % o}))
+            erro = None
+        except Exception as e:                      # noqa: BLE001
+            achado, erro = None, e
+        self.raiz.after(0, self._fim_da_deteccao, achado, erro, silencioso)
+
+    def _fim_da_deteccao(self, achado, erro, silencioso):
+        import l2item
+        try:
+            self.botao_detectar.config(state="normal")
+        except tk.TclError:
+            return                      # janela fechada no meio da medição
+
+        if erro is not None:
+            self.recado.config(text=t("não deu para medir: %s") % erro)
+            return
+        if not achado or not achado["cronica"]:
+            self.recado.config(text=t("nenhuma crônica conhecida reproduz "
+                                      "este cliente"))
+            if not silencioso:
+                messagebox.showwarning(
+                    t("Não reconheci o cliente"),
+                    t("%s\n\nA leitura continua possível escolhendo a "
+                      "crônica na mão, mas o programa não garante que as "
+                      "colunas batem.") % achado["detalhe"] if achado
+                    else t("Não achei tabelas para medir."))
+            return
+
+        rotulo = l2item.rotulo_da_cronica(achado["cronica"])
+        self.cronica.set(rotulo)
+        certeza = (t("medido byte a byte") if achado["confianca"] == "certa"
+                   else t("provável"))
+        self.recado.config(text=t("crônica: %s (%s)") % (rotulo, certeza))
+        if not silencioso:
+            messagebox.showinfo(
+                t("Crônica encontrada"),
+                t("Este cliente é %s.\n\n%s\n\nGuarde o projeto para a "
+                  "escolha valer.") % (rotulo, achado["detalhe"]))
+
     def _escolher_pasta(self, variavel, titulo):
         pasta = filedialog.askdirectory(
             title=titulo, initialdir=variavel.get().strip() or None,
             parent=self.janela)
-        if pasta:
-            variavel.set(pasta)
+        if not pasta:
+            return
+        variavel.set(pasta)
+        # Escolher o cliente e dizer de que crônica ele é são a mesma
+        # decisão: deixar as duas para o usuário é convidar ao erro que
+        # motivou isto -- cliente C3 marcado como Interlude.
+        if variavel is self.pasta_cliente:
+            self.detectar_cronica(silencioso=True)
 
     # ---- guardar e apagar ---------------------------------------------
     def guardar(self):

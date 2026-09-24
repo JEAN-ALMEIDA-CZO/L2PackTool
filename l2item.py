@@ -175,6 +175,15 @@ def completar(T, base, binario, trabalho):
     return completa.read_text(encoding="latin-1")
 
 
+def erro_de_cronica(cronica, arquivo):
+    """A frase de quando a definicao nao serve para o cliente apontado."""
+    return ("%s não abre como %s: as colunas não batem.\n\n"
+            "Isso quase sempre é a crônica do projeto errada. Abra "
+            "Projetos… e use Detectar — o programa mede o cliente e diz de "
+            "qual crônica ele é."
+            % (Path(arquivo).name, rotulo_da_cronica(cronica)))
+
+
 def _decifrar(T, origem, trabalho):
     trabalho = Path(trabalho)
     trabalho.mkdir(parents=True, exist_ok=True)
@@ -212,8 +221,35 @@ def abrir_tabela(T, system, arquivo, trabalho, cronica=None):
                          % (origem.stem, cronica))
 
     puro = _decifrar(T, origem, trabalho)
-    definicao = completar(T, base, puro, trabalho)
+    try:
+        definicao = completar(T, base, puro, trabalho)
+    except ErroDeItem as erro:
+        raise ErroDeItem(com_a_cronica_certa(T, system, cronica, origem,
+                                             trabalho, erro))
     return l2npc.Tabela(origem, definicao, T, trabalho)
+
+
+def com_a_cronica_certa(T, system, cronica, arquivo, trabalho, erro):
+    """
+    A mensagem de cronica errada, com a cronica certa medida na hora.
+
+    Se a medicao tambem nao achar nada, fica o recado original -- dizer "nao
+    sei" e melhor do que apontar uma cronica ao acaso.
+    """
+    recado = "%s: %s" % (Path(arquivo).name, erro)
+    try:
+        import l2cronica
+        achado = l2cronica.detectar(T, system, Path(trabalho) / "cronica",
+                                    preferida=cronica)
+    except Exception:                               # noqa: BLE001
+        return recado
+    if not achado.get("cronica") or achado["cronica"] == cronica:
+        return recado
+    return ("Este cliente não é %s.\n\nMedi as tabelas dele: é %s (%s).\n\n"
+            "Troque a crônica em Projetos… — o botão Detectar faz essa mesma "
+            "medição e já deixa escolhido."
+            % (rotulo_da_cronica(cronica),
+               rotulo_da_cronica(achado["cronica"]), achado["detalhe"]))
 
 
 # ---------------------------------------------------------------------------
