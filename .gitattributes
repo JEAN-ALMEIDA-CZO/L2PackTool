@@ -1,0 +1,3 @@
+# Definicao de tabela e dado, nao codigo: o l2disasm le byte a byte e
+# trocar LF por CRLF na clonagem mudaria o arquivo que ele recebe.
+*.ddf binary
