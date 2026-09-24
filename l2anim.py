@@ -233,8 +233,19 @@ def posicoes_de_mipmap(dados, inicio, tamanho, fim_das_propriedades):
     # que o ucc montou inteiro a lista de propriedades vem VAZIA e os campos
     # viram bloco nativo -- 52 bytes antes do vetor. Procurar e barato; o que
     # decide e a caminhada, que so fecha no lugar certo.
-    for comeco in range(fim_das_propriedades,
-                        min(fim_das_propriedades + 160, fim)):
+    #
+    # E quando a janela nao basta, procura-se do comeco do objeto. Isso e
+    # necessidade medida, nao zelo: `fim_das_propriedades` vem de um leitor
+    # generico de propriedades, e a tabela de nomes de varios pacotes oficiais
+    # tem `None` em dois indices -- o leitor para no primeiro e devolve uma
+    # posicao cedo demais. Num Icon.utx de Hellbound a lista de mips so comeca
+    # centenas de bytes depois, e a janela de 160 nunca a alcancava: toda
+    # textura do pacote saia como "nao reconheci os mipmaps". Alargar nao
+    # afrouxa nada, porque quem aprova continua sendo a caminhada inteira.
+    janela = range(fim_das_propriedades,
+                   min(fim_das_propriedades + 160, fim))
+    reserva = range(inicio, min(inicio + 8192, fim))
+    for comeco in list(janela) + [p for p in reserva if p not in janela]:
         pos = comeco
         try:
             quantos, pos = _descompacto(dados, pos)
@@ -1170,12 +1181,19 @@ def animar_de_fora(T, alvo, textura, quadros, trabalho, destino,
     return arquivo_quadros, arquivo_alvo, endereco
 
 
-def instalar_pacote(arquivo, pasta_original, aolog=None):
-    """Poe o pacote no cliente, guardando o que estava la em backup_lobby."""
+def instalar_pacote(arquivo, pasta_original, aolog=None,
+                    pasta_de_copias="backup_lobby"):
+    """
+    Poe o pacote no cliente, guardando o que estava la.
+
+    O nome da pasta de copias e argumento porque esta funcao serve ao lobby e
+    a animacao de textura: achar um Icon.utx guardado em "backup_lobby" e a
+    pista que faz perder meia hora.
+    """
     arquivo, pasta = Path(arquivo), Path(pasta_original)
     destino = pasta / arquivo.name
     if destino.exists():
-        guarda = pasta / "backup_lobby"
+        guarda = pasta / pasta_de_copias
         guarda.mkdir(exist_ok=True)
         import time as _time
         copia = guarda / ("%s_%s" % (_time.strftime("%Y%m%d_%H%M%S"),

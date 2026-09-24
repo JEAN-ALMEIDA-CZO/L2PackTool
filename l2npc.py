@@ -357,6 +357,18 @@ class Pacote:
             dados = self.dados
             assinatura, self.versao, self.licenca = struct.unpack_from("<IHH", dados, 0)
             if assinatura != self.ASSINATURA:
+                # Quando havia cifra, o suspeito nao e o arquivo: e o nome. O
+                # nome entra na chave dos metodos 111 e 121, entao uma copia
+                # renomeada decifra com o tamanho certo e o conteudo todo
+                # errado -- medido: L2_SkillTime.utx devolve a assinatura
+                # c1 83 2a 9e, e a mesma copia chamada teste.utx devolve
+                # d0 92 3b 8f, que e ela com XOR 11 11 11 11.
+                if getattr(self, "metodo", None) is not None:
+                    raise ValueError(
+                        "%s foi decifrado mas nao virou um pacote Unreal. O "
+                        "nome do arquivo faz parte da chave (metodo %s): se "
+                        "este e uma copia renomeada, volte ao nome original "
+                        "do cliente." % (self.caminho.name, self.metodo))
                 raise ValueError("%s nao e um pacote Unreal." % self.caminho.name)
 
             (_flags, qtd_nomes, off_nomes, qtd_exp, off_exp,
@@ -379,7 +391,7 @@ class Pacote:
         vai para um temporario reaproveitado enquanto o original nao mudar.
         """
         alvo = self.caminho
-        metodo = metodo_do_arquivo(self.caminho)
+        metodo = self.metodo = metodo_do_arquivo(self.caminho)
 
         if metodo is not None:
             if ferramentas is None or temporario is None:

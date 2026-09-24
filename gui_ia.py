@@ -25,6 +25,7 @@ sobre ela -- pulso, giro ou varredura --, em ciclo fechado. O pacote sai com
 os quadros numerados, que é como o cliente espera uma sequência.
 """
 
+import shutil
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -218,6 +219,12 @@ class JanelaDeArte:
         self.quantos = tk.StringVar(value="8")
         ttk.Spinbox(linha, from_=2, to=32, width=5,
                     textvariable=self.quantos).pack(side="left", padx=(6, 0))
+        # A velocidade só vale para a corrente do motor: numa família quem
+        # manda no ritmo é o código da interface, e não o pacote.
+        ttk.Label(linha, text=t("por segundo:")).pack(side="left", padx=(12, 0))
+        self.taxa = tk.StringVar(value="15")
+        ttk.Spinbox(linha, from_=1, to=60, width=5,
+                    textvariable=self.taxa).pack(side="left", padx=(6, 0))
 
 
     def _explicar_o_modo(self):
@@ -250,12 +257,14 @@ class JanelaDeArte:
                                       style="Primario.TButton",
                                       command=self.gerar)
         self.botao_gerar.pack(side="left")
+        ttk.Button(acao, text=t("Abrir imagem…"),
+                   command=self.abrir_do_disco).pack(side="left", padx=(6, 0))
         self.botao_usar = ttk.Button(acao, text=t("Usar esta"),
                                      command=self.usar, state="disabled")
         self.botao_usar.pack(side="left", padx=(6, 0))
         self.botao_animar_cliente = ttk.Button(
-            acao, text=t("Aplicar numa animação do cliente…"),
-            command=self.aplicar_no_cliente, state="disabled")
+            acao, text=t("Animar no cliente…"),
+            command=self.animar_no_cliente, state="disabled")
         self.botao_animar_cliente.pack(side="left", padx=(6, 0))
         ttk.Button(acao, text=t("Ver o pedido"),
                    command=self.ver_o_pedido).pack(side="left", padx=(6, 0))
@@ -386,7 +395,141 @@ class JanelaDeArte:
 
 
 
+    def abrir_do_disco(self):
+        """
+        Usa uma imagem sua no lugar da gerada.
+
+        O movimento, a corrente e a troca de quadros não dependem de IA --
+        dependem de uma imagem. Quem já desenhou a sua não precisa de chave de
+        API para animá-la.
+        """
+        caminho = filedialog.askopenfilename(
+            title=t("A imagem que vai virar arte"), parent=self.janela,
+            filetypes=[(t("Imagem"), "*.png *.jpg *.jpeg *.bmp *.tga *.webp"),
+                       (t("Todos os arquivos"), "*.*")])
+        if not caminho:
+            return
+        try:
+            imagem = Image.open(caminho).convert("RGBA")
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não consegui abrir a imagem"), str(erro),
+                                 parent=self.janela)
+            return
+        alvo = self.trabalho / ("minha" + Path(caminho).suffix.lower())
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        imagem.save(alvo) if alvo.suffix == ".png" else shutil.copy2(caminho,
+                                                                     alvo)
+        self._fim_da_geracao(imagem, alvo, None)
+        self.estado.config(text=t("%s: %dx%d. Dá para animar direto, ou gerar "
+                                  "outra com a IA.")
+                           % (Path(caminho).name, imagem.size[0],
+                              imagem.size[1]))
+
     # -- pôr a animação no cliente -----------------------------------------
+    def animar_no_cliente(self):
+        """
+        Pergunta por qual dos dois caminhos, e segue por ele.
+
+        São mecanismos diferentes, e a escolha não é de gosto: um anima o que
+        hoje está parado, o outro muda a cara do que já anda.
+        """
+        if self.gerada is None:
+            return
+        metodo = EscolherMetodo(self.janela).resposta
+        if metodo == "corrente":
+            self.animar_pela_corrente()
+        elif metodo == "familia":
+            self.aplicar_no_cliente()
+
+    def _pacote_do_cliente(self, titulo):
+        """O pacote que o usuário escolher, começando na pasta do cliente."""
+        import l2conferir
+        import projeto
+
+        cliente = (projeto.cliente() or "").strip()
+        inicio = str(l2conferir.raiz_do_cliente(cliente)) if cliente else None
+        return filedialog.askopenfilename(
+            title=t(titulo), initialdir=inicio, parent=self.janela,
+            filetypes=[(t("Pacote do cliente"), "*.utx *.u *.usx *.unr"),
+                       (t("Todos os arquivos"), "*.*")])
+
+    def animar_pela_corrente(self):
+        """
+        Faz uma textura parada do cliente animar, pela corrente do motor.
+
+        `AnimNext` é propriedade do próprio Unreal: uma textura aponta para a
+        seguinte, e o motor percorre a corrente sozinho. A textura escolhida
+        não muda de conteúdo nem de endereço -- quem a usa hoje continua a
+        achando, e agora ela anda. Os quadros vão num pacote novo, ao lado.
+        """
+        import l2anima
+
+        caminho = self._pacote_do_cliente(
+            "O pacote onde está a textura (ex.: Icon.utx)")
+        if not caminho:
+            return
+
+        self.estado.config(text=t("lendo o pacote…"))
+        self.janela.update_idletasks()
+        try:
+            _pacote, texturas = l2anima.texturas_do_arquivo(
+                motor.carregar_config(), caminho)
+        except Exception as erro:                   # noqa: BLE001
+            self.estado.config(text="")
+            messagebox.showerror(t("Não deu para ler o pacote"), str(erro),
+                                 parent=self.janela)
+            return
+        self.estado.config(text="")
+        if not texturas:
+            messagebox.showinfo(
+                t("Sem textura aqui"),
+                t("Não achei textura nenhuma em %s.") % Path(caminho).name,
+                parent=self.janela)
+            return
+
+        escolhida = EscolherTextura(self.janela, texturas).resposta
+        if not escolhida:
+            return
+
+        _indice, nome, largura, altura = escolhida
+        quantos = max(2, min(l2anima.MAXIMO_DE_QUADROS,
+                             _inteiro(self.quantos.get(), 8)))
+        taxa = max(1, min(60, _inteiro(self.taxa.get(), 15)))
+        if not messagebox.askyesno(
+                t("Animar %s?") % nome,
+                t("A textura %s (%dx%d) vai passar a percorrer %d quadros "
+                  "novos, a %d por segundo.\n\n"
+                  "Ela não muda de conteúdo nem de endereço: ganha uma "
+                  "propriedade. Os quadros vão num pacote à parte, na pasta "
+                  "de texturas do cliente.\n\n"
+                  "O %s original vai para backup_animacao antes.\n\n"
+                  "Feche o jogo: o cliente segura o arquivo enquanto roda.\n\n"
+                  "Animar?")
+                % (nome, largura, altura, quantos, taxa, Path(caminho).name),
+                parent=self.janela):
+            return
+
+        self.botao_animar_cliente.config(state="disabled")
+        self.estado.config(text=t("montando a corrente…"))
+        threading.Thread(target=self._corrente_thread,
+                         args=(caminho, nome, (largura, altura), quantos,
+                               taxa), daemon=True).start()
+
+    def _corrente_thread(self, caminho, textura, tamanho, quantos, taxa):
+        import l2anima
+        registro = []
+        try:
+            T = motor.carregar_config()
+            quadros = l2ia.animar(self.gerada, self.modo.get(), quantos)
+            feito = l2anima.animar_textura_do_cliente(
+                T, caminho, textura, quadros, self.trabalho / "corrente",
+                aolog=registro.append, taxa=float(taxa), tamanho=tamanho)
+            registro.append("endereço novo: %s" % feito["endereco"])
+            erro = None
+        except Exception as e:                      # noqa: BLE001
+            erro = e
+        self.raiz.after(0, self._fim_da_aplicacao, registro, erro)
+
     def aplicar_no_cliente(self):
         """
         Troca o desenho de uma sequência que o cliente já toca.
@@ -535,6 +678,151 @@ class EscolherSequencia:
             self.resposta = self.familias[marcado[0]]
         self.janela.destroy()
 
+
+
+class EscolherMetodo:
+    """
+    Por qual dos dois caminhos animar. Devolve "corrente", "familia" ou None.
+
+    A pergunta existe porque os dois mecanismos são de camadas diferentes do
+    jogo, e nenhum substitui o outro.
+    """
+
+    def __init__(self, pai):
+        self.resposta = None
+        self.escolha = tk.StringVar(value="corrente")
+
+        self.janela = ajuda.por_icone(tk.Toplevel(pai))
+        self.janela.title(t("Como animar"))
+        self.janela.transient(pai)
+        self.janela.grab_set()
+
+        quadro = ttk.Frame(self.janela, padding=12)
+        quadro.pack(fill="both", expand=True)
+
+        ttk.Radiobutton(quadro, variable=self.escolha, value="corrente",
+                        text=t("Animar uma textura que hoje está parada")
+                        ).pack(anchor="w")
+        ttk.Label(quadro, justify="left", wraplength=470,
+                  foreground=tema.TEXTO_FRACO,
+                  text=t("A corrente do motor. A textura escolhida passa a "
+                         "apontar para os seus quadros, e o Unreal percorre "
+                         "sozinho -- serve para ícone, botão, moldura, céu. "
+                         "Ela não muda de endereço: quem a usa hoje continua "
+                         "a achando.")
+                  ).pack(anchor="w", padx=(22, 0), pady=(0, 10))
+
+        ttk.Radiobutton(quadro, variable=self.escolha, value="familia",
+                        text=t("Mudar o desenho de uma animação que já existe")
+                        ).pack(anchor="w")
+        ttk.Label(quadro, justify="left", wraplength=470,
+                  foreground=tema.TEXTO_FRACO,
+                  text=t("A família numerada, como ToggleEffect001..013. Aqui "
+                         "quem escolhe o quadro a cada instante é o código da "
+                         "interface, então não dá para inventar nome novo -- "
+                         "dá para trocar o desenho do que existe.")
+                  ).pack(anchor="w", padx=(22, 0))
+
+        botoes = ttk.Frame(quadro)
+        botoes.pack(fill="x", pady=(12, 0))
+        ttk.Button(botoes, text=t("Continuar"), style="Primario.TButton",
+                   command=self.aceitar).pack(side="left")
+        ttk.Button(botoes, text=t("Cancelar"),
+                   command=self.janela.destroy).pack(side="right")
+
+        pai.wait_window(self.janela)
+
+    def aceitar(self):
+        self.resposta = self.escolha.get()
+        self.janela.destroy()
+
+
+class EscolherTextura:
+    """
+    A lista de texturas do pacote, com filtro. Devolve a escolhida.
+
+    O filtro não é enfeite: um Icon.utx oficial tem 4.662 texturas, e rolar
+    isso à procura de um nome é pior do que não ter a lista.
+    """
+
+    QUANTAS_MOSTRAR = 400
+
+    def __init__(self, pai, texturas):
+        self.resposta = None
+        self.todas = list(texturas)
+        self.mostradas = []
+
+        self.janela = ajuda.por_icone(tk.Toplevel(pai))
+        self.janela.title(t("Qual textura animar"))
+        self.janela.transient(pai)
+        self.janela.grab_set()
+
+        quadro = ttk.Frame(self.janela, padding=12)
+        quadro.pack(fill="both", expand=True)
+        ttk.Label(quadro, justify="left", wraplength=470,
+                  foreground=tema.TEXTO_FRACO,
+                  text=t("%d texturas neste pacote. Escreva parte do nome "
+                         "para achar.") % len(self.todas)).pack(anchor="w")
+
+        linha = ttk.Frame(quadro)
+        linha.pack(fill="x", pady=(8, 0))
+        ttk.Label(linha, text=t("filtro:")).pack(side="left")
+        self.filtro = tk.StringVar()
+        campo = ttk.Entry(linha, textvariable=self.filtro)
+        campo.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        self.filtro.trace_add("write", lambda *_a: self._encher())
+
+        self.lista = tk.Listbox(quadro, height=12, width=58,
+                                background=tema.PAINEL, foreground=tema.TEXTO,
+                                selectbackground=tema.OURO_FUNDO,
+                                highlightthickness=1,
+                                highlightbackground=tema.BORDA,
+                                borderwidth=0, font=tema.CORPO)
+        self.lista.pack(fill="both", expand=True, pady=(8, 0))
+        self.lista.bind("<Double-1>", lambda _e: self.aceitar())
+        self.conta = ttk.Label(quadro, foreground=tema.TEXTO_FRACO)
+        self.conta.pack(anchor="w", pady=(4, 0))
+
+        botoes = ttk.Frame(quadro)
+        botoes.pack(fill="x", pady=(10, 0))
+        ttk.Button(botoes, text=t("Usar esta"), style="Primario.TButton",
+                   command=self.aceitar).pack(side="left")
+        ttk.Button(botoes, text=t("Cancelar"),
+                   command=self.janela.destroy).pack(side="right")
+
+        self._encher()
+        campo.focus_set()
+        pai.wait_window(self.janela)
+
+    def _encher(self):
+        procurado = self.filtro.get().strip().lower()
+        casaram = [x for x in self.todas
+                   if not procurado or procurado in x[1].lower()]
+        self.mostradas = casaram[:self.QUANTAS_MOSTRAR]
+        self.lista.delete(0, "end")
+        for _indice, nome, largura, altura in self.mostradas:
+            self.lista.insert("end", "%-34s %dx%d" % (nome, largura, altura))
+        if self.mostradas:
+            self.lista.selection_set(0)
+        sobraram = len(casaram) - len(self.mostradas)
+        self.conta.config(
+            text=(t("%d encontradas; mostrando as %d primeiras.")
+                  % (len(casaram), len(self.mostradas))) if sobraram else
+                 (t("%d encontradas.") % len(casaram)))
+
+    def aceitar(self):
+        marcado = self.lista.curselection()
+        if marcado:
+            self.resposta = self.mostradas[marcado[0]]
+        self.janela.destroy()
+
+
+def _inteiro(texto, padrao):
+    """O número que está escrito na caixa, ou o padrão quando não há um."""
+    try:
+        return int(str(texto).strip())
+    except (TypeError, ValueError):
+        return padrao
 
 def _nome_do_objeto(texto):
     """Um nome de objeto a partir do que o usuário escreveu."""

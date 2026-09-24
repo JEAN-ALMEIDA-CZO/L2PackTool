@@ -31,7 +31,8 @@ cliente. Tudo numa janela só, em português, inglês e espanhol.
 
 Há também uma **linha de comando** (`L2PackTool-cli`) para o que se repete:
 ampliar uma pasta inteira, abrir cem arquivos, conferir um cliente dentro de
-um script, montar a tela de vídeo num lobby.
+um script, montar a tela de vídeo num lobby, animar textura em lote
+(`animar --listar` mostra o que o pacote tem).
 
 ## As crônicas
 
@@ -102,19 +103,30 @@ referência que você anexar. O botão *Ver o pedido* mostra exatamente o que sa
 **Animação.** Doze movimentos (pulso, giro, varredura, contorno, cintilar,
 onda, matiz e outros), todos em ciclo fechado: o quadro depois do último é o
 primeiro, porque num ícone que roda o tempo todo o pulo da volta é a única
-coisa que se enxerga.
+coisa que se enxerga. A arte pode vir da IA ou do disco — animar um PNG seu
+não pede chave de API nenhuma.
 
-E os quadros vão para onde o cliente os toca. O Lineage II anima a interface
-sem material nenhum: são famílias de textura numeradas dentro do `.utx` —
-`cooltime000..359`, `ToggleEffect001..013` — que o código do cliente escolhe a
-cada instante. O programa lê o pacote, lista as famílias que achou com quantos
-quadros e de que tamanho, e regrava o desenho de cada uma no mesmo tamanho e
-formato. O original vai para `backup_animacao` com data e hora.
+E os quadros vão para dentro do jogo por um dos dois caminhos que o Lineage II
+tem. O programa pergunta qual, porque não são a mesma coisa:
 
-O limite está dito na própria tela: isso troca o desenho de uma animação que
-**existe**. Um nome que o código do cliente não conhece fica parado dentro do
-pacote, sem ninguém para tocá-lo — animação nova em superfície 3D pede
-`MaterialSequence`, que é outro assunto.
+**A corrente do motor.** Uma textura aponta para a seguinte pela propriedade
+`AnimNext`, e o Unreal percorre sozinho — ninguém programa nada. É assim que
+funciona o `anim70.u` que circula nos clientes: `anim_over` com
+`TotalFrameNum = 21` e `MaxFrameRate = 50`, seguido de `02 → 03 → … → 21`.
+Escolha o pacote e a textura, e ela passa a andar. Ela **não muda de conteúdo
+nem de endereço**: ganha uma propriedade, e quem a usa hoje continua achando o
+mesmo nome. Os quadros vão num `.utx` novo, ao lado. Medido num `Icon.utx`
+oficial de Hellbound: 4.662 texturas, nenhuma com o desenho alterado, duas
+importações a mais, e o umodel lendo a corrente antes de qualquer instalação.
+
+**A família numerada.** O outro caminho não é do motor, é do código da
+interface: `cooltime000..359`, `ToggleEffect001..013`. Quem escolhe o quadro a
+cada instante é o cliente, que conhece esses nomes — então aqui não dá para
+inventar animação, dá para trocar o **desenho** da que existe, mantendo nome,
+contagem, tamanho e formato.
+
+Em resumo: para animar o que hoje está parado, a corrente; para mudar a cara
+do que já anda, a família. Os dois guardam o original antes de gravar.
 
 
 ## Instalar

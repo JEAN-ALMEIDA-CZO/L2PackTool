@@ -1395,6 +1395,7 @@ COMANDOS = (
     ("listar", "mostra a versao e os objetos de um pacote"),
     ("conferir", "confere o cliente e diz que arquivo falta"),
     ("lobby", "poe o video na tela de login de um lobby, com camera fixa"),
+    ("animar", "anima uma textura do cliente, ou troca os quadros de uma"),
     ("ferramentas", "diz quais ferramentas foram encontradas, e onde"),
     ("ajuda", "esta lista; `ajuda <comando>` detalha um deles"),
 )
@@ -1409,6 +1410,9 @@ EXEMPLOS = """exemplos
   L2PackTool-cli listar Fantasy.utx
   L2PackTool-cli conferir "C:\\Lineage II" -o relatorio.txt
   L2PackTool-cli lobby "C:\\Lineage II"
+  L2PackTool-cli animar Icon.utx --listar
+  L2PackTool-cli animar Icon.utx --textura skill1042 --imagem arte.png
+  L2PackTool-cli animar L2_SkillTime.utx --familia ToggleEffect --imagem arte.png
 
 o que a interface faz e a linha de comando nao
 
@@ -1735,6 +1739,111 @@ def _camera_pedida(texto):
     return tuple(float(p) for p in partes)
 
 
+def _cmd_animar(args):
+    """
+    Anima uma textura do cliente, pelos dois caminhos que o jogo tem.
+
+    Com `--textura` a escolhida passa a percorrer quadros novos pela corrente
+    do motor; com `--familia` troca-se o desenho de uma sequencia que o cliente
+    ja toca. Sao camadas diferentes do jogo -- ver o l2anima.
+    """
+    import l2anima
+    import l2ia
+
+    pacote = Path(args.pacote)
+    if not pacote.is_file():
+        print("Nao achei %s" % pacote)
+        return 1
+
+    T = carregar_config()
+    try:
+        _lido, texturas = l2anima.texturas_do_arquivo(T, pacote)
+        _lido2, familias = l2anima.familias_do_arquivo(T, pacote)
+    except Exception as erro:                       # noqa: BLE001
+        print("Nao consegui ler %s: %s" % (pacote.name, erro))
+        return 1
+
+    if args.listar or not (args.textura or args.familia):
+        print("%s: %d texturas" % (pacote.name, len(texturas)))
+        if familias:
+            print("\nsequencias que o cliente toca (--familia):")
+            for f in familias:
+                print("  %-20s %4d quadros  %dx%d  %s"
+                      % (f["prefixo"], f["quantos"], f["largura"],
+                         f["altura"], f["formato"]))
+        else:
+            print("\nnenhuma sequencia numerada aqui.")
+        print("\nprimeiras texturas (--textura):")
+        for _i, nome, largura, altura in texturas[:20]:
+            print("  %-34s %dx%d" % (nome, largura, altura))
+        if len(texturas) > 20:
+            print("  ... e outras %d" % (len(texturas) - 20))
+        print("\nmovimentos (--modo): %s" % ", ".join(l2ia.MODOS))
+        return 0 if args.listar else 2
+
+    if not args.imagem:
+        print("Falta --imagem: e dela que sai o movimento.")
+        return 2
+    arte = Path(args.imagem)
+    if not arte.is_file():
+        print("Nao achei a imagem %s" % arte)
+        return 1
+    if args.modo not in l2ia.MODOS:
+        print("Modo desconhecido: %s" % args.modo)
+        print("Os que existem: %s" % ", ".join(l2ia.MODOS))
+        return 2
+
+    try:
+        from PIL import Image as _Image
+    except ImportError:
+        print("Falta o Pillow para animar.")
+        return 1
+    base = _Image.open(arte).convert("RGBA")
+    trabalho = Path("./trabalho") / "animacao"
+
+    try:
+        if args.familia:
+            alvo = next((f for f in familias
+                         if f["prefixo"].lower() == args.familia.lower()), None)
+            if alvo is None:
+                print("Nao achei a sequencia %s em %s."
+                      % (args.familia, pacote.name))
+                print("As que existem: %s"
+                      % (", ".join(f["prefixo"] for f in familias) or "nenhuma"))
+                return 1
+            quadros = l2ia.animar(base, args.modo, alvo["quantos"], args.forca)
+            pronto = l2anima.trocar_quadros(T, pacote, alvo["prefixo"], quadros,
+                                            trabalho, aolog=print)
+            if args.nao_instalar:
+                print("montado em %s -- nada instalado (--nao-instalar)."
+                      % pronto)
+                return 0
+            l2anima.instalar(T, pronto, pacote, aolog=print)
+            return 0
+
+        existe = next((x for x in texturas
+                       if x[1].lower() == args.textura.lower()), None)
+        if existe is None:
+            print("Nao achei a textura %s em %s." % (args.textura,
+                                                     pacote.name))
+            print("Use --listar para ver os nomes.")
+            return 1
+        quantos = max(2, min(l2anima.MAXIMO_DE_QUADROS, args.quadros))
+        quadros = l2ia.animar(base, args.modo, quantos, args.forca)
+        feito = l2anima.animar_textura_do_cliente(
+            T, pacote, existe[1], quadros, trabalho, aolog=print,
+            taxa=args.taxa, tamanho=(existe[2], existe[3]),
+            instalar=not args.nao_instalar)
+        print("%s -> %s" % (existe[1], feito["endereco"]))
+        if args.nao_instalar:
+            print("nada foi instalado (--nao-instalar); os arquivos estao em %s"
+                  % Path(feito["quadros"]).parent)
+        return 0
+    except Exception as erro:                       # noqa: BLE001
+        print("Nao deu: %s" % explicar_saida(str(erro), str(erro)))
+        return 1
+
+
 def _cmd_lobby(args):
     import l2mapa
 
@@ -1878,6 +1987,31 @@ def montar_o_parser():
     lo.add_argument("-o", "--saida",
                     help="grava noutro arquivo, em vez de no do cliente")
     lo.set_defaults(funcao=_cmd_lobby)
+
+    an = sub.add_parser("animar", help=dict(COMANDOS)["animar"])
+    an.add_argument("pacote", help="o .utx ou .u do cliente")
+    an.add_argument("--listar", action="store_true",
+                    help="so mostra as texturas e as sequencias, e sai")
+    an.add_argument("--textura",
+                    help="a textura a animar pela corrente do motor "
+                         "(AnimNext): ela passa a percorrer os quadros novos")
+    an.add_argument("--familia",
+                    help="em vez da corrente, troca o desenho desta sequencia "
+                         "numerada (ex.: ToggleEffect)")
+    an.add_argument("-i", "--imagem",
+                    help="a arte de onde sai o movimento")
+    an.add_argument("--modo", default="pulso",
+                    help="o movimento (padrao pulso); `--listar` mostra todos")
+    an.add_argument("--quadros", type=int, default=8,
+                    help="quantos quadros (padrao 8). Na familia a contagem e "
+                         "a dela, que manda.")
+    an.add_argument("--taxa", type=float, default=15.0,
+                    help="quadros por segundo da corrente (padrao 15)")
+    an.add_argument("--forca", type=float, default=0.6,
+                    help="intensidade do movimento, de 0 a 1 (padrao 0.6)")
+    an.add_argument("--nao-instalar", action="store_true", dest="nao_instalar",
+                    help="monta e confere, mas nao mexe no cliente")
+    an.set_defaults(funcao=_cmd_animar)
 
     fr = sub.add_parser("ferramentas", help=dict(COMANDOS)["ferramentas"])
     fr.set_defaults(funcao=_cmd_ferramentas)
