@@ -877,8 +877,12 @@ class JanelaSkill:
 
         pasta = self.pasta_do_servidor.get().strip()
         if not pasta or not Path(pasta).is_dir():
-            messagebox.showerror(t("Pasta inválida"),
-                                 t("Aponte a pasta de dados do servidor."))
+            messagebox.showerror(
+                t("Sem servidor neste projeto"),
+                t("Este projeto não tem pasta de servidor, ou ela não existe "
+                  "mais.\n\nO caminho vem do projeto -- abra Projetos… no "
+                  "alto da janela e aponte a pasta de dados do servidor "
+                  "(a que tem stats, ou data/stats)."))
             return
         if self.base is None:
             messagebox.showinfo(t("Escolha primeiro"),

@@ -4,7 +4,7 @@
 
 # L2PackTool
 
-**Ferramentas de cliente e servidor para Lineage II — de C1 a Gracia Part 2.**
+**Ferramentas de cliente e servidor para Lineage II — de C1 a Gracia Final.**
 
 Criar NPC com efeito, item, arma, habilidade e loja; trocar a tela de entrada
 por um vídeo seu; ampliar textura por IA; abrir e fechar os arquivos do
@@ -36,7 +36,7 @@ um script, montar a tela de vídeo num lobby, animar textura em lote
 
 ## As crônicas
 
-O programa abre dez, e cada uma é um **núcleo**: uma pasta com a definição de
+O programa abre onze, e cada uma é um **núcleo**: uma pasta com a definição de
 cada tabela e um manifesto dizendo o que foi provado nela — e provado quer
 dizer medido, num cliente de verdade, pela ida e volta byte a byte. A lista
 sai em ordem de lançamento, e não de alfabeto: a posição vem do manifesto, e
@@ -54,6 +54,7 @@ crônica nova entra no lugar certo só por existir.
 | CT1.5 — Hellbound | 8 de 8 | binário |
 | CT2.1 — Gracia Part 1 | 9 de 9 | binário |
 | CT2.2 — Gracia Part 2 | 9 de 9 | binário |
+| CT2.3 — Gracia Final | 9 de 9 | binário |
 
 Até o C2 as tabelas do cliente são **texto** (`weapongrp.txt`, com os campos
 escritos por nome); de C3 em diante são binário descrito por `.ddf`. O
@@ -63,6 +64,13 @@ Acrescentar uma crônica é largar uma pasta em `recursos/definicoes/` — nem o
 nome na tela exige mexer em código. O que ela não conseguir provar fica
 escrito como não provado, e a tabela correspondente é recusada em vez de ler
 campo deslocado.
+
+**O projeto manda, inclusive quando não tem.** As pastas de cliente e de
+servidor das abas vêm do projeto e são somente-leitura. Projeto sem servidor
+agora significa *sem servidor*: o campo é limpo ao trocar de projeto, em vez de
+guardar o caminho do anterior — antes o cabeçalho dizia `servidor: —` e a aba
+lia o XML do outro projeto assim mesmo. Sem projeto nenhum nada muda: vale o
+que estiver no `config.ini`, como antes de os projetos existirem.
 
 **Ele descobre a crônica sozinho.** Ao apontar a pasta do cliente, o programa
 mede quatro tabelas contra cada definição instalada e escolhe a que reproduz o

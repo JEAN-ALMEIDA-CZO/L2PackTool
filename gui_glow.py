@@ -560,7 +560,8 @@ class JanelaGlow:
         if pasta is None:
             messagebox.showinfo(
                 t("Não sei onde gravar"),
-                t("Aponte a pasta de dados do servidor no alto da tela.\n\n"
+                t("Este projeto não tem pasta de servidor: abra Projetos… "
+                  "no alto da janela e aponte a pasta de dados.\n\n"
                   "Se ela já está apontada, o programa não conseguiu "
                   "descobrir onde os itens moram dentro dela — e gravar no "
                   "lugar errado é pior do que não gravar."))

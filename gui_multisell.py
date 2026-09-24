@@ -1241,9 +1241,10 @@ class JanelaMultisell:
         if pasta is None:
             messagebox.showinfo(
                 t("Não sei onde gravar"),
-                t("Aponte a pasta de dados do servidor e use Ler as "
-                  "multisells.\n\nSe ela já está apontada, o programa não "
-                  "conseguiu descobrir onde as multisells moram dentro "
+                t("Este projeto não tem pasta de servidor: abra Projetos… "
+                  "no alto da janela e aponte a pasta de dados, depois use "
+                  "Ler as multisells.\n\nSe ela já está apontada, o programa "
+                  "não conseguiu descobrir onde as multisells moram dentro "
                   "dela."))
             return
 

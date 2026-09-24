@@ -110,8 +110,11 @@ class JanelaMob:
     def _montar_pastas(self, pai):
         linha = ttk.Frame(pai)
         linha.pack(fill="x", pady=(10, 0))
-        self.servidor = tk.StringVar(
-            value=motor.ler_opcao("servidor", "pasta", "") or "")
+        # Pelo projeto, como as outras abas. Ler o `config.ini` direto fazia
+        # esta aba abrir com o servidor de OUTRO projeto ate a primeira troca.
+        import gui_mundo
+
+        self.servidor = tk.StringVar(value=gui_mundo._servidor_do_projeto())
         self.botao_abrir = ttk.Button(linha, text=t("Carregar"),
                                       style="Primario.TButton",
                                       command=self.carregar_tudo)

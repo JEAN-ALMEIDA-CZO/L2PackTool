@@ -1,0 +1,21 @@
+{
+  "rotulo": "CT2.3 - Gracia Final",
+  "ordem": 110,
+  "formato": "binario",
+  "origem_das_definicoes": "biblioteca do L2FileEdit, pasta CT2_3en",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcgrp",
+    "npcname-e",
+    "transformdata"
+  ],
+  "nao_provadas": [],
+  "conferido_em": "2026-09-24",
+  "cliente_usado": "Clientes/09_Gracia_Final, limpo. Medido: 3.371 armas, 2.639 armaduras, 9.633 etcitem, 15.643 nomes de item, 58.602 skills, 9.355 NPCs, 194 transformacoes -- as nove tabelas identicas ao original na ida e volta.",
+  "observacao": "Diferente do Part 2 nas tabelas de item (weapongrp, armorgrp, etcitemgrp, itemname-e) e no transformdata; skillgrp, skillname-e, npcgrp e npcname-e continuam iguais aos do Part 2, e por isso sozinhas nao separariam as duas."
+}

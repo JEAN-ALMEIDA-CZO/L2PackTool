@@ -574,14 +574,37 @@ def ligar(tela):
         return None
 
     def aplicar(_nome, pasta_cliente, pasta_servidor):
+        # Havendo projeto, o que ele diz vale -- inclusive quando ele diz que
+        # NAO TEM. Antes o campo so era reescrito quando havia pasta nova, e
+        # o projeto sem servidor herdava o do anterior: o cabecalho mostrava
+        # "servidor: --" e a aba lia o XML do outro projeto assim mesmo.
+        #
+        # Isso fazia sentido quando o campo era editavel -- apagar o que a
+        # pessoa digitou seria pior. Os campos de pasta ficaram
+        # somente-leitura (`_travar_campos`), entao a unica fonte possivel e o
+        # projeto, e guardar o valor velho virou mentira.
+        manda_o_projeto = False
+        try:
+            manda_o_projeto = projeto.ha_projeto()
+        except Exception:                           # noqa: BLE001
+            manda_o_projeto = False
+
         variavel = campo("cliente")
-        if variavel is not None and pasta_cliente:
-            raiz = l2conferir.raiz_do_cliente(pasta_cliente)
-            variavel.set(str(raiz / "system") if quer_system else str(raiz))
+        if variavel is not None:
+            if pasta_cliente:
+                raiz = l2conferir.raiz_do_cliente(pasta_cliente)
+                variavel.set(str(raiz / "system") if quer_system
+                             else str(raiz))
+            elif manda_o_projeto:
+                variavel.set("")
         for atributo in NOMES_DE_SERVIDOR:
             variavel = campo(atributo)
-            if variavel is not None and pasta_servidor:
+            if variavel is None:
+                continue
+            if pasta_servidor:
                 variavel.set(pasta_servidor)
+            elif manda_o_projeto:
+                variavel.set("")
         atualizar = getattr(tela, "atualizar_botoes", None)
         if callable(atualizar):
             try:

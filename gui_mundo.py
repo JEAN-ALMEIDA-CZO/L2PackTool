@@ -242,8 +242,11 @@ class PainelServidor:
 
         pasta = self.pasta_do_servidor.get().strip()
         if not pasta or not Path(pasta).is_dir():
-            messagebox.showerror(t("Pasta inv\u00e1lida"),
-                                 t("Aponte a pasta de dados do servidor."))
+            messagebox.showerror(
+                t("Sem servidor neste projeto"),
+                t("Este projeto n\u00e3o tem pasta de servidor, ou ela n\u00e3o "
+                  "existe mais.\n\nO caminho vem do projeto -- abra Projetos… "
+                  "no alto da janela e aponte a pasta de dados."))
             return
 
         perfil = self.perfil()
