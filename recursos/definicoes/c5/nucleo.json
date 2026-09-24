@@ -1,5 +1,6 @@
 {
   "rotulo": "C5 - Oath of Blood",
+  "ordem": 50,
   "origem_das_definicoes": "biblioteca do L2FileEdit, pasta C5",
   "provadas": [
     "armorgrp",

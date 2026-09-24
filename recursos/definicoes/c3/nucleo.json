@@ -1,5 +1,6 @@
 {
   "rotulo": "C3 - Rise of Darkness",
+  "ordem": 30,
   "origem_das_definicoes": "biblioteca do L2FileEdit, pasta C3",
   "provadas": [
     "weapongrp",

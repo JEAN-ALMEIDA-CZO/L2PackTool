@@ -355,12 +355,25 @@ def definicoes(cronica=None):
 
 
 def cronicas_com_definicao():
-    """As cronicas que tem pelo menos uma definicao instalada."""
+    """As cronicas que tem pelo menos uma definicao instalada, em ordem."""
     raiz = Path(AQUI) / PASTA_DE_DEFINICOES
     if not raiz.is_dir():
         return []
-    return sorted(p.name for p in raiz.iterdir()
-                  if p.is_dir() and any(p.glob("*.ddf")))
+    return em_ordem(p.name for p in raiz.iterdir()
+                    if p.is_dir() and any(p.glob("*.ddf")))
+
+
+def em_ordem(nomes):
+    """
+    As cronicas na ordem em que sairam, e nao na do alfabeto.
+
+    Alfabetica poe Hellbound antes de Interlude e Gracia antes de Kamael --
+    o contrario do tempo, e quem procura a sua cronica procura por epoca. A
+    posicao vem do manifesto de cada nucleo; quem nao disser a sua cai no
+    fim, por nome, porque o que nao se sabe nao inventa posicao.
+    """
+    nomes = list(nomes)
+    return sorted(nomes, key=lambda c: (nucleo(c).get("ordem", 10 ** 6), c))
 
 
 NOME_DO_NUCLEO = "nucleo.json"

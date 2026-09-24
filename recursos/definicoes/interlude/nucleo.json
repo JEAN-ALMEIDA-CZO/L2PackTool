@@ -1,5 +1,6 @@
 {
   "rotulo": "C6 - Interlude",
+  "ordem": 60,
   "origem_das_definicoes": "medidas e provadas nos clientes do usuario",
   "provadas": [
     "weapongrp",

@@ -1,5 +1,6 @@
 {
   "rotulo": "C2 - Age of Splendor",
+  "ordem": 20,
   "formato": "texto",
   "observacao": "as tabelas desta cronica sao texto UTF-16 com os campos escritos por nome, criptografadas em Ver211; nao ha .ddf porque nao ha coluna a definir",
   "provadas": [

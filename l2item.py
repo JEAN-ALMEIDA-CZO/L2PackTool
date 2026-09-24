@@ -128,15 +128,15 @@ def provadas(cronica):
 
 
 def cronicas():
-    """As cronicas que tem definicao embutida, em ordem alfabetica."""
+    """As cronicas que tem definicao embutida, em ordem de lançamento."""
     raiz = Path(motor.AQUI) / PASTA_DE_DEFINICOES
     if not raiz.is_dir():
         return []
     # Pasta com manifesto e sem .ddf tambem vale: as cronicas de tabela em
     # texto (C1, C2) nao tem definicao porque nao ha coluna a definir.
-    return sorted(p.name for p in raiz.iterdir()
-                  if p.is_dir() and (any(p.glob("*.ddf"))
-                                     or (p / NOME_DO_NUCLEO).is_file()))
+    return motor.em_ordem(p.name for p in raiz.iterdir()
+                          if p.is_dir() and (any(p.glob("*.ddf"))
+                                             or (p / NOME_DO_NUCLEO).is_file()))
 
 
 def rotulo_da_cronica(chave):

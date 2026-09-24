@@ -1,5 +1,6 @@
 {
   "rotulo": "CT1 - The Kamael",
+  "ordem": 70,
   "origem_das_definicoes": "biblioteca do L2FileEdit, pasta CT1_0",
   "provadas": [
     "armorgrp",

@@ -1,5 +1,6 @@
 {
   "rotulo": "C4 - Scions of Destiny",
+  "ordem": 40,
   "origem_das_definicoes": "biblioteca do L2FileEdit, pasta C4",
   "provadas": [
     "armorgrp",

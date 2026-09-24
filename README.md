@@ -4,7 +4,7 @@
 
 # L2PackTool
 
-**Ferramentas de cliente e servidor para Lineage II — de C1 a Hellbound.**
+**Ferramentas de cliente e servidor para Lineage II — de C1 a Gracia Part 1.**
 
 Criar NPC com efeito, item, arma, habilidade e loja; trocar a tela de entrada
 por um vídeo seu; ampliar textura por IA; abrir e fechar os arquivos do
@@ -36,9 +36,11 @@ um script, montar a tela de vídeo num lobby, animar textura em lote
 
 ## As crônicas
 
-O programa abre oito, e cada uma é um **núcleo**: uma pasta com a definição de
+O programa abre nove, e cada uma é um **núcleo**: uma pasta com a definição de
 cada tabela e um manifesto dizendo o que foi provado nela — e provado quer
-dizer medido, num cliente de verdade, pela ida e volta byte a byte.
+dizer medido, num cliente de verdade, pela ida e volta byte a byte. A lista
+sai em ordem de lançamento, e não de alfabeto: a posição vem do manifesto, e
+crônica nova entra no lugar certo só por existir.
 
 | Crônica | Tabelas | Formato |
 | --- | --- | --- |
@@ -50,6 +52,7 @@ dizer medido, num cliente de verdade, pela ida e volta byte a byte.
 | C6 — Interlude | 8 de 8 | binário |
 | CT1 — The Kamael | 8 de 8 | binário |
 | CT1.5 — Hellbound | 8 de 8 | binário |
+| CT2.1 — Gracia Part 1 | 8 de 8 | binário |
 
 Até o C2 as tabelas do cliente são **texto** (`weapongrp.txt`, com os campos
 escritos por nome); de C3 em diante são binário descrito por `.ddf`. O
@@ -65,6 +68,21 @@ mede três tabelas contra cada definição instalada e escolhe a que reproduz o
 arquivo. Uma tabela só não bastaria: várias atravessam crônicas sem mudar. Se
 a crônica do projeto estiver errada, o erro diz qual é a certa, em vez de
 falar em `field 13 / 57`.
+
+**O tipo da habilidade tem duas escalas.** A coluna `oper_type` do `skillgrp`
+não quer dizer o mesmo em todas as crônicas, e isso foi medido por habilidade
+conhecida nos cinco clientes:
+
+| | Power Strike | Divine Heal | Weapon Mastery | Critical Chance | Relax |
+| --- | --- | --- | --- | --- | --- |
+| C3 a Kamael | 0 | 0 | 2 | 2 | 3 |
+| Hellbound em diante | 0 | 1 | 11 | 12 | 6 |
+
+Na escala antiga, 0 e 1 são ativa, 2 é passiva e 3 é alternável. Na nova, 0 a 5
+e 7 são ativa (física, mágica, aura, especial, pesca, transformação), 6 é
+alternável e 11 a 16 são passiva. Qual escala vale se decide **olhando a
+tabela** — valor de 10 para cima só existe na nova —, e não pelo nome da
+crônica, que obrigaria a lembrar do código a cada núcleo novo.
 
 ## Cliente oficial
 

@@ -1,5 +1,6 @@
 {
   "rotulo": "CT1.5 - Hellbound",
+  "ordem": 80,
   "origem_das_definicoes": "biblioteca do L2FileEdit, pasta CT1_5",
   "provadas": [
     "weapongrp",

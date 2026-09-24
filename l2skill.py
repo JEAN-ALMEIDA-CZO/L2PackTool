@@ -274,36 +274,98 @@ def _inteiro(texto, padrao=0):
 
 def _tipo_legivel(tabela, linha):
     """
-    Ativa, passiva ou alternavel -- e a coluna nao se chama igual em todas.
+    Ativa, passiva ou alternavel -- e o numero nao quer dizer o mesmo em todas.
 
-    De C3 em diante e `oper_type`, com tres valores. Em C1 e C2 e
-    `operate_type`, com QUATRO: la as ativas se dividem em duas (golpe e
-    aura), e por isso o numero da passiva e outro. Usar a tabela errada nao
-    daria erro, so mostraria toda skill como ativa -- que era o que estava
-    acontecendo: 767 ativas e nenhuma passiva no C1.
+    A coluna tem dois nomes (`oper_type` de C3 em diante, `operate_type` em
+    C1 e C2) e, pior, DUAS ESCALAS. Ver `ESCALA_ANTIGA` e `ESCALA_NOVA`, que
+    trazem o que foi medido.
     """
-    for coluna, mapa in (("oper_type", OPER_DO_CLIENTE),
-                         ("operate_type", OPER_DO_CLIENTE_ANTIGO)):
+    for coluna in ("oper_type", "operate_type"):
         cru = (tabela.campo(linha, coluna) or "").strip()
         if not cru:
             continue
         if cru.upper() in ("ACTIVE", "PASSIVE", "TOGGLE"):
             return cru.upper()
-        return mapa.get(_inteiro(cru, -1), "")
+        numero = _inteiro(cru, -1)
+        escala = _escala_da_tabela(tabela, coluna)
+        if escala is ESCALA_NOVA:
+            if numero in ESCALA_NOVA:
+                return ESCALA_NOVA[numero]
+            # Valor de escala nova que ainda nao foi visto: 10 ou mais e
+            # passiva, porque e la que a faixa das passivas comeca. Abaixo
+            # disso e ativa. Chutar "" seria esconder a habilidade da lista.
+            return "PASSIVE" if numero >= 10 else "ACTIVE"
+        return escala.get(numero, "")
     return ""
 
 
-# oper_type do skillgrp: 0 ativa, 1 passiva, 2 alternavel. Bate com o
-# operateType do servidor.
-OPER_DO_CLIENTE = {0: "ACTIVE", 1: "PASSIVE", 2: "TOGGLE"}
-
-# operate_type de C1 e C2. Medido nos dois clientes, por skill conhecida:
+# A escala ANTIGA -- C1, C2, C3, C4, C5 e Kamael. Medida por habilidade
+# conhecida nos clientes:
 #   0  golpe        Power Strike, Mortal Blow, Divine Heal
-#   1  aura/buff    Dash, War Cry, Majesty          -- ativa tambem
-#   2  passiva      Weapon Mastery, Armor Mastery, Critical Chance
-#   3  alternavel   Relax, Silent Walk, Hundred Fist
-OPER_DO_CLIENTE_ANTIGO = {0: "ACTIVE", 1: "ACTIVE", 2: "PASSIVE",
-                          3: "TOGGLE"}
+#   1  aura/buff    Dash, War Cry, Majesty, Shield Stun   -- ativa tambem
+#   2  passiva      Weapon Mastery, Armor Mastery, Critical Chance, Trade
+#   3  alternavel   Relax
+ESCALA_ANTIGA = {0: "ACTIVE", 1: "ACTIVE", 2: "PASSIVE", 3: "TOGGLE"}
+
+# A escala NOVA -- Hellbound em diante. O mesmo campo passa a separar a ativa
+# por natureza, e joga as passivas para a casa dos dez:
+#   0  fisica       Power Strike
+#   1  magica       Divine Heal, Poison Recovery
+#   2  aura/buff    Dash, War Cry, Majesty
+#   3  fisica especial  Shield Stun
+#   4  especial     Seal of Ruler, Build Headquarters, Noblesse Blessing
+#   5  pesca        Fishing, Pumping
+#   6  ALTERNAVEL   Relax
+#   7  transformacao    Transform Grail Apostle
+#   11 mastery      Weapon Mastery, Armor Mastery, Long Shot
+#   12 critico      Critical Chance, Magician's Movement
+#   13 peso/sentido Weight Limit, Shadow Sense
+#   14 oficio       Cubic Mastery, Trade
+#   15 cla          Clan Vitality, Clan Spirituality
+#   16 bonus        int_1, str_2, maxmp_5 (as dos itens)
+ESCALA_NOVA = {0: "ACTIVE", 1: "ACTIVE", 2: "ACTIVE", 3: "ACTIVE",
+               4: "ACTIVE", 5: "ACTIVE", 6: "TOGGLE", 7: "ACTIVE",
+               11: "PASSIVE", 12: "PASSIVE", 13: "PASSIVE", 14: "PASSIVE",
+               15: "PASSIVE", 16: "PASSIVE"}
+
+# Onde a escala nova comeca a contar passiva. E este numero que separa as
+# duas escalas, porque na antiga ele nunca aparece.
+PRIMEIRA_PASSIVA_NOVA = 10
+
+
+def _escala_da_tabela(tabela, coluna):
+    """
+    Qual das duas escalas esta tabela usa -- decidido OLHANDO a tabela.
+
+    Nao se pergunta a cronica: valor de 10 para cima so existe na escala
+    nova, entao a propria coluna responde. Amarrar no nome da cronica
+    obrigaria a lembrar deste arquivo a cada nucleo novo, e um esquecimento
+    aqui nao daria erro -- daria tipo errado, que e pior.
+
+    A conta e feita uma vez por tabela e fica guardada nela.
+    """
+    guardado = getattr(tabela, "_escala_do_oper", None)
+    if guardado is not None:
+        return guardado
+
+    escala = ESCALA_ANTIGA
+    try:
+        for linha in tabela.linhas:
+            if _inteiro(tabela.campo(linha, coluna), 0) >= PRIMEIRA_PASSIVA_NOVA:
+                escala = ESCALA_NOVA
+                break
+    except Exception:                               # noqa: BLE001
+        escala = ESCALA_ANTIGA
+    try:
+        tabela._escala_do_oper = escala
+    except Exception:                               # noqa: BLE001
+        pass
+    return escala
+
+
+# Os nomes antigos, que outros modulos ainda importam.
+OPER_DO_CLIENTE = ESCALA_ANTIGA
+OPER_DO_CLIENTE_ANTIGO = ESCALA_ANTIGA
 
 
 # ---------------------------------------------------------------------------
