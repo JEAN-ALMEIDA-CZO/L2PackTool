@@ -379,11 +379,12 @@ def _abrir_dat(caminho, T, trabalho):
     if (not puro.exists()
             or puro.stat().st_mtime < caminho.stat().st_mtime):
         puro.unlink(missing_ok=True)
-        codigo, saida = motor.executar([T["l2encdec"], "-d", caminho, puro],
-                                       limite=300)
-        if not puro.exists():
-            raise ErroDeLeitura("o l2encdec nao abriu %s: %s"
-                                % (caminho.name, saida.strip()[:160]))
+        try:
+            # cliente de servidor privado ou cliente oficial: o motor tenta
+            # as duas familias de chave
+            motor.abrir_dat(T, caminho, puro, limite=300)
+        except OSError as erro:
+            raise ErroDeLeitura(str(erro))
     return puro.read_bytes()
 
 

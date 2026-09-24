@@ -330,6 +330,72 @@ def executar(cmd, cwd=None, mostrar=False, limite=3600):
         return -1, str(e)
 
 
+# Qual chave abriu cada arquivo: {caminho: "-d" ou "-l"}. A resposta nao muda
+# enquanto o arquivo for o mesmo, e tentar a segunda chave custa um processo.
+_CHAVE_QUE_ABRIU = {}
+
+CHAVES_DE_LEITURA = ("-d", "-l")
+
+
+# Onde moram as definicoes .ddf, uma pasta por cronica. Fica aqui, e nao no
+# l2item, porque o l2npc tambem precisa e importar l2item de la faria ciclo.
+PASTA_DE_DEFINICOES = "recursos/definicoes"
+CRONICA_PADRAO = "interlude"
+
+
+def definicoes(cronica=None):
+    """A pasta de definicoes daquela cronica."""
+    return Path(AQUI) / PASTA_DE_DEFINICOES / (cronica or CRONICA_PADRAO)
+
+
+def cronicas_com_definicao():
+    """As cronicas que tem pelo menos uma definicao instalada."""
+    raiz = Path(AQUI) / PASTA_DE_DEFINICOES
+    if not raiz.is_dir():
+        return []
+    return sorted(p.name for p in raiz.iterdir()
+                  if p.is_dir() and any(p.glob("*.ddf")))
+
+
+def abrir_dat(T, origem, destino, limite=900):
+    """
+    Decifra um .dat, seja ele de cliente oficial ou de servidor privado.
+
+    Devolve (caminho aberto, chave usada). A chave importa para quem for
+    gravar: `-l` quer dizer que o cliente ainda esta com as chaves originais
+    da NCSoft, e um arquivo reencriptado com as chaves do l2encdec so sera
+    lido por um cliente ja preparado com o patcher.
+
+    Levanta OSError se nenhuma das duas abrir.
+    """
+    origem, destino = Path(origem), Path(destino)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+
+    tentar = list(CHAVES_DE_LEITURA)
+    lembrada = _CHAVE_QUE_ABRIU.get(str(origem))
+    if lembrada:                        # a que ja serviu vai primeiro
+        tentar.remove(lembrada)
+        tentar.insert(0, lembrada)
+
+    recados = []
+    for chave in tentar:
+        destino.unlink(missing_ok=True)
+        _codigo, saida = executar([T["l2encdec"], chave, origem, destino],
+                                  limite=limite)
+        if destino.exists() and destino.stat().st_size:
+            _CHAVE_QUE_ABRIU[str(origem)] = chave
+            return destino, chave
+        recados.append("%s: %s" % (chave, (saida or "").strip()[-120:]))
+
+    raise OSError("o l2encdec nao abriu %s com nenhuma das chaves.\n%s"
+                  % (origem.name, "\n".join(recados)))
+
+
+def chave_do_dat(caminho):
+    """A chave que abriu este arquivo, se ele ja foi aberto nesta sessao."""
+    return _CHAVE_QUE_ABRIU.get(str(caminho))
+
+
 def executar_fluxo(cmd, aoprogresso=None, cwd=None):
     """
     Como executar(), mas LENDO A SAIDA ENQUANTO O PROCESSO RODA.

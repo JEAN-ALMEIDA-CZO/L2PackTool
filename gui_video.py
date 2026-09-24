@@ -367,6 +367,18 @@ class JanelaVideo:
         self.rodando = True
         self.atualizar_botoes()
         self.estado.config(text=t("instalando…"))
+        if self._da_cronica_do_projeto(self.modelo) is False:
+            import l2item
+            import projeto
+            if not messagebox.askyesno(
+                    t("Lobby de outra crônica"),
+                    t("Este lobby é de %s, e o projeto é %s.\n\n"
+                      "A tela de entrada costuma sair errada assim: a malha "
+                      "não casa com o mapa e os personagens ficam fora de "
+                      "lugar.\n\nInstalar mesmo assim?")
+                    % (l2item.rotulo_da_cronica(self.modelo["cronica"]),
+                       l2item.rotulo_da_cronica(projeto.cronica()))):
+                return
         self.log(t("Instalando %s") % self.modelo["nome"])
         threading.Thread(target=self._lobby_thread, daemon=True).start()
 
@@ -397,13 +409,32 @@ class JanelaVideo:
             self.mostrar_cliente()
             self.olhar_o_instalado()
 
+    def _da_cronica_do_projeto(self, modelo):
+        """Este lobby é da mesma crônica que o projeto?"""
+        dele = (modelo or {}).get("cronica") or ""
+        if not dele:
+            return None                 # não declarado: não dá para comparar
+        try:
+            import projeto
+            return dele == (projeto.cronica() or "")
+        except Exception:                           # noqa: BLE001
+            return None
+
     @staticmethod
     def _rotulo(modelo):
         """O nome, e so. O tamanho do quadro nao ajuda a escolher."""
         return modelo["nome"]
 
     def _valores_do_combo(self):
-        return [self._rotulo(m) for m in self.modelos]
+        # A marca diz qual lobby é da crônica do projeto. Em lista de
+        # catorze, é a diferença entre escolher e adivinhar.
+        saida = []
+        for m in self.modelos:
+            rotulo = self._rotulo(m)
+            if self._da_cronica_do_projeto(m):
+                rotulo += t("   ← a do projeto")
+            saida.append(rotulo)
+        return saida
 
     def _modelo_por_chave(self, chave):
         for modelo in self.modelos:

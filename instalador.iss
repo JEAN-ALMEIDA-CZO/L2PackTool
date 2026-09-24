@@ -1,4 +1,4 @@
-; ---------------------------------------------------------------------------
+﻿; ---------------------------------------------------------------------------
 ;  O instalador do L2PackTool
 ; ---------------------------------------------------------------------------
 ;  Instala POR USUARIO, em %LocalAppData%\Programs\L2PackTool, e nao pede
@@ -109,6 +109,9 @@ Name: "atalho"; Description: "{cm:AtalhoArea}"; GroupDescription: "{cm:Additiona
 [Files]
 Source: "dist\{#Executavel}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "recursos\LEIA-ME.html"; DestDir: "{app}"; Flags: ignoreversion isreadme
+; Os lobbys das cronicas do Chaotic Throne ficam ao lado do programa, e nao
+; dentro dele: sao 62 MB que quem usa um lobby so nao precisa carregar no exe.
+Source: "lobbies\*.zip"; DestDir: "{app}\lobbies"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#Nome}"; Filename: "{app}\{#Executavel}"

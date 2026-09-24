@@ -34,6 +34,7 @@ mudar nada e compara com o binario original. Se a volta nao reproduz a ida byte
 a byte, nada e gravado.
 """
 
+import json
 import re
 import shutil
 from pathlib import Path
@@ -83,13 +84,47 @@ class ErroDeItem(Exception):
 # ---------------------------------------------------------------------------
 # As definicoes
 # ---------------------------------------------------------------------------
-def pasta_de_definicoes(cronica=CRONICA_PADRAO):
-    return Path(motor.AQUI) / PASTA_DE_DEFINICOES / cronica
+def pasta_de_definicoes(cronica=None):
+    """A pasta daquela cronica. Sem cronica dita, a do projeto."""
+    return motor.definicoes(cronica or cronica_em_uso())
+
+
+def cronica_em_uso():
+    """
+    A cronica do projeto, com Interlude de reserva.
+
+    Quem chama passando cronica explicita manda; quem nao passa segue o
+    projeto, que e onde o cliente esta apontado.
+    """
+    try:
+        import projeto
+        return projeto.cronica() or CRONICA_PADRAO
+    except Exception:                               # noqa: BLE001
+        return CRONICA_PADRAO
 
 
 # O nome da pasta e chave: esta na configuracao guardada e dentro do
-# executavel. O que o usuario le e outra coisa, e nao precisa ser igual.
-ROTULOS_DE_CRONICA = {"interlude": "C1 - Interlude"}
+# executavel. O que o usuario le e outra coisa, e nao precisa ser igual -- e
+# quem diz e o `nucleo.json` de dentro da pasta, para que acrescentar cronica
+# seja largar uma pasta, sem tocar em codigo.
+NOME_DO_NUCLEO = "nucleo.json"
+ROTULOS_DE_CRONICA = {"interlude": "C6 - Interlude"}
+
+
+def nucleo(cronica):
+    """O cartao de identidade daquela cronica: rotulo, o que foi provado."""
+    caminho = motor.definicoes(cronica) / NOME_DO_NUCLEO
+    if not caminho.is_file():
+        return {}
+    try:
+        return json.loads(caminho.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def provadas(cronica):
+    """As tabelas que a prova de ida e volta ja confirmou nesta cronica."""
+    return list(nucleo(cronica).get("provadas") or [])
 
 
 def cronicas():
@@ -102,8 +137,9 @@ def cronicas():
 
 
 def rotulo_da_cronica(chave):
-    """Como a cronica aparece na tela."""
-    return ROTULOS_DE_CRONICA.get(chave, chave)
+    """Como a cronica aparece na tela: o que o nucleo disser, ou a pasta."""
+    return (nucleo(chave).get("rotulo")
+            or ROTULOS_DE_CRONICA.get(chave, chave))
 
 
 def cronica_do_rotulo(rotulo, entre=()):
@@ -147,14 +183,16 @@ def _decifrar(T, origem, trabalho):
         shutil.copy2(origem, puro)
         return puro
     puro.unlink(missing_ok=True)
-    codigo, saida = motor.executar([T["l2encdec"], "-d", origem, puro], limite=900)
-    if not puro.exists():
-        raise ErroDeItem("o l2encdec nao abriu %s: %s"
-                         % (Path(origem).name, saida.strip()[:200]))
-    return puro
+    try:
+        # Tenta as duas familias de chave: cliente de servidor privado usa as
+        # do l2encdec, cliente oficial limpo usa as da NCSoft.
+        aberto, _chave = motor.abrir_dat(T, origem, puro)
+    except OSError as erro:
+        raise ErroDeItem(str(erro))
+    return aberto
 
 
-def abrir_tabela(T, system, arquivo, trabalho, cronica=CRONICA_PADRAO):
+def abrir_tabela(T, system, arquivo, trabalho, cronica=None):
     """Uma tabela do cliente, com a definicao ja medida nele."""
     origem = Path(system) / arquivo
     if not origem.is_file():
@@ -179,7 +217,7 @@ class Itens:
     metades e nenhuma operacao aqui toca so numa.
     """
 
-    def __init__(self, T, system, trabalho, cronica=CRONICA_PADRAO,
+    def __init__(self, T, system, trabalho, cronica=None,
                  aoprogresso=None):
         self.T = T
         self.system = Path(system)

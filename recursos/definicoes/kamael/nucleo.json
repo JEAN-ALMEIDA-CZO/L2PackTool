@@ -1,0 +1,19 @@
+{
+  "rotulo": "CT1 - The Kamael",
+  "origem_das_definicoes": "biblioteca do L2FileEdit, pasta CT1_0",
+  "provadas": [
+    "armorgrp",
+    "itemname-e",
+    "npcgrp",
+    "npcname-e",
+    "skillgrp",
+    "skillname-e",
+    "weapongrp"
+  ],
+  "nao_provadas": [
+    "etcitemgrp"
+  ],
+  "porque_nao_provadas": "o etcitemgrp.dat ainda estava baixando no cliente de referencia; rodar levantar_cronicas.py quando chegar",
+  "conferido_em": "2026-09-23",
+  "cliente_usado": "akumu L2NA P828, limpo, chaves originais (-l)"
+}

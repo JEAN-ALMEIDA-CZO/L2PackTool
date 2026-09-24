@@ -300,8 +300,9 @@ class JanelaArquivos:
                                  % (i, len(self.arquivos), origem.name)})
                 try:
                     if item["metodo"]:
-                        motor.executar([self.T["l2encdec"], "-d", origem, alvo],
-                                       limite=1800)
+                        # tenta a chave do l2encdec e, se nao for, a original
+                        # da NCSoft -- cliente oficial usa a segunda
+                        motor.abrir_dat(self.T, origem, alvo, limite=1800)
                         if not alvo.exists():
                             raise RuntimeError(t("o l2encdec não gravou nada"))
                         marca = t("aberto (%s)") % t(METODOS.get(item["metodo"],

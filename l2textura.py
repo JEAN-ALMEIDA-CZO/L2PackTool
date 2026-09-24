@@ -89,7 +89,13 @@ def _achar_os_mips(dados, inicio, fim):
     a partir de cada posicao possivel, e vale a que fecha exatamente no fim
     do corpo. Ou a leitura casa com o arquivo inteiro, ou nao e ela.
     """
-    for comeco in range(inicio, min(inicio + 256, fim)):
+    # Ate onde procurar o comeco. Eram 256 bytes, medidos em pacote de
+    # servidor privado; num Icon.utx oficial do Kamael a lista de mips so
+    # comeca no byte 1273, porque a lista de propriedades e bem maior. O
+    # limite existe so para nao varrer megabytes a toa -- quem valida e a
+    # leitura inteira, que tem de fechar exatamente no fim do corpo.
+    ate = min(inicio + 8192, fim)
+    for comeco in range(inicio, ate):
         lidos = _tentar_ler_mips(dados, comeco, fim)
         if lidos is not None:
             return comeco, lidos

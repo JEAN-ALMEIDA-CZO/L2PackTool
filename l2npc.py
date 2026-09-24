@@ -56,6 +56,7 @@ import time
 from pathlib import Path
 
 import motor
+import projeto
 
 
 # ---------------------------------------------------------------------------
@@ -643,10 +644,10 @@ class Tabela:
     def _ler(self):
         puro = self.trabalho / (self.origem.stem + ".dec")
         if self.metodo:
-            codigo, saida = motor.executar([self.T["l2encdec"], "-d", self.origem, puro])
-            if not puro.exists():
-                raise ErroDat("l2encdec nao abriu %s: %s"
-                              % (self.origem.name, saida.strip()[:200]))
+            try:
+                motor.abrir_dat(self.T, self.origem, puro)
+            except OSError as erro:
+                raise ErroDat(str(erro))
         else:
             shutil.copy2(self.origem, puro)
 
@@ -774,11 +775,35 @@ class Tabela:
         return None
 
 
+def definicao_da_cronica(arquivo, embutida, cronica=None):
+    """
+    O texto .ddf daquela tabela, na cronica em uso.
+
+    A definicao vem da pasta da cronica; a embutida no codigo fica como
+    reserva, para o caso de a pasta nao ter aquele arquivo. Sem cronica dita,
+    vale a do projeto -- cliente e cronica andam juntos.
+    """
+    if cronica is None:
+        try:
+            cronica = projeto.cronica()
+        except Exception:                           # noqa: BLE001
+            cronica = None
+    caminho = motor.definicoes(cronica) / (arquivo + ".ddf")
+    if caminho.is_file():
+        try:
+            return caminho.read_text(encoding="latin-1")
+        except OSError:
+            pass
+    return embutida
+
+
 class Npcgrp(Tabela):
     """O npcgrp.dat, com os atalhos que este programa usa."""
 
-    def __init__(self, system, T, trabalho):
-        Tabela.__init__(self, Path(system) / "npcgrp.dat", DDF_NPCGRP, T, trabalho)
+    def __init__(self, system, T, trabalho, cronica=None):
+        Tabela.__init__(self, Path(system) / "npcgrp.dat",
+                        definicao_da_cronica("npcgrp", DDF_NPCGRP, cronica),
+                        T, trabalho)
 
     def resumo(self):
         """Uma linha por NPC, so com o que a tela mostra."""
@@ -841,8 +866,10 @@ class Npcgrp(Tabela):
 class Npcname(Tabela):
     """O npcname-e.dat, so para dar nome ao NPC novo."""
 
-    def __init__(self, system, T, trabalho):
-        Tabela.__init__(self, Path(system) / "npcname-e.dat", DDF_NPCNAME, T, trabalho)
+    def __init__(self, system, T, trabalho, cronica=None):
+        Tabela.__init__(self, Path(system) / "npcname-e.dat",
+                        definicao_da_cronica("npcname-e", DDF_NPCNAME, cronica),
+                        T, trabalho)
 
     def nomes(self):
         """{id: nome} com o marcador de formato e o \\0 final removidos."""

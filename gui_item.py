@@ -30,6 +30,7 @@ import l2conferir
 import l2item
 import motor
 import gui_projeto
+import projeto
 from idioma import t, N_
 
 try:
@@ -153,20 +154,13 @@ class JanelaItem:
             value=str(l2conferir.raiz_do_cliente(
                 motor.ler_opcao("cliente", "system", "") or "")))
 
-        ttk.Label(linha, text=t("Crônica:")).pack(side="left", padx=(12, 0))
-        # A caixa mostra o rotulo; o resto do programa continua falando em
-        # nome de pasta, que e o que a configuracao e o executavel guardam.
-        self.embutidas = l2item.cronicas() or [l2item.CRONICA_PADRAO]
-        guardada = motor.ler_opcao("item", "cronica", self.embutidas[0])
-        if guardada not in self.embutidas:
-            guardada = self.embutidas[0]
-        rotulos = [l2item.rotulo_da_cronica(c) for c in self.embutidas]
-        self.cronica_rotulo = tk.StringVar(
-            value=l2item.rotulo_da_cronica(guardada))
-        caixa = ttk.Combobox(linha, textvariable=self.cronica_rotulo,
-                             values=rotulos, state="readonly", width=16)
-        caixa.pack(side="left", padx=(6, 0))
-        caixa.bind("<<ComboboxSelected>>", self.ao_trocar_cronica)
+        # A cronica e do PROJETO, junto com a pasta do cliente: as duas
+        # descrevem o mesmo cliente e nao podem discordar. Aqui ela so
+        # aparece, para quem le a tela saber com o que esta trabalhando.
+        self.rotulo_cronica = ttk.Label(linha, style="Miudo.TLabel")
+        self.rotulo_cronica.pack(side="left", padx=(12, 0))
+        self.mostrar_cronica()
+        projeto.ao_trocar(lambda *_a: self.ao_trocar_cronica())
 
         self.botao_abrir = ttk.Button(linha, text=t("Carregar"),
                                       style="Primario.TButton",
@@ -724,16 +718,36 @@ class JanelaItem:
 
     # ---- escolhas --------------------------------------------------------
     def cronica_escolhida(self):
-        """O nome da pasta da cronica que esta na caixa."""
-        return l2item.cronica_do_rotulo(self.cronica_rotulo.get(),
-                                        self.embutidas)
+        """A cronica do projeto -- e o cliente dele que vai ser lido."""
+        return l2item.cronica_em_uso()
+
+    def mostrar_cronica(self):
+        """O rótulo da crônica em uso, ao lado do botão."""
+        try:
+            self.rotulo_cronica.config(
+                text=t("crônica: %s")
+                % l2item.rotulo_da_cronica(self.cronica_escolhida()))
+        except tk.TclError:
+            pass                        # aba fechada durante a troca
 
     def ao_trocar_cronica(self, _evento=None):
-        motor.gravar_opcao("item", "cronica", self.cronica_escolhida())
+        """
+        Trocou de projeto: o que estava lido era de outro cliente.
+
+        Nao basta trocar o rótulo -- as tabelas abertas descrevem o cliente
+        anterior, e mante-las na tela convidaria a gravar uma no outro.
+        """
+        self.mostrar_cronica()
+        if self.itens is None:
+            return
         self.itens = None
         self.base = None
-        self.tabela.delete(*self.tabela.get_children())
-        self.log(t("Crônica: %s. Abra as tabelas de novo.") % self.cronica_escolhida())
+        try:
+            self.tabela.delete(*self.tabela.get_children())
+        except tk.TclError:
+            return
+        self.log(t("\nCrônica: %s. Carregue as tabelas de novo.")
+                 % l2item.rotulo_da_cronica(self.cronica_escolhida()))
         self.atualizar_botoes()
 
     # ---- abrir -----------------------------------------------------------

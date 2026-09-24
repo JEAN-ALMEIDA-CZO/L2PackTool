@@ -52,7 +52,7 @@ class ErroDeSkill(Exception):
 class Skills:
     """As duas tabelas de habilidade abertas juntas."""
 
-    def __init__(self, T, system, trabalho, cronica=l2item.CRONICA_PADRAO,
+    def __init__(self, T, system, trabalho, cronica=None,
                  aoprogresso=None):
         self.T = T
         self.system = Path(system)

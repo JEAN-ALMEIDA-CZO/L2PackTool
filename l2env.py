@@ -126,7 +126,10 @@ def _decifrar(T, origem, trabalho):
     shutil.copy2(origem, copia)
     puro = trabalho / "env.txt"
     puro.unlink(missing_ok=True)
-    motor.executar([T["l2encdec"], "-d", str(copia), str(puro)], limite=60)
+    try:
+        motor.abrir_dat(T, copia, puro, limite=60)
+    except OSError as erro:
+        raise ErroDeEnv(str(erro))
     if not puro.is_file():
         raise ErroDeEnv("o l2encdec nao decifrou o %s." % ARQUIVO)
     texto, codificacao = _texto_de(puro.read_bytes())

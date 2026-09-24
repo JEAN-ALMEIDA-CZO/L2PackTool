@@ -97,13 +97,20 @@ def listar():
     return sorted(s for s in _ler().sections() if s != _ESCOLHA)
 
 
+# A cronica de quem criou projeto antes de existir esta opcao. Trocar isto
+# mudaria, de uma atualizacao para outra, o significado de projeto ja gravado.
+CRONICA_DE_RESERVA = "interlude"
+
+
 def dados(nome):
-    """{"cliente": ..., "servidor": ...} daquele projeto, ou vazio."""
+    """{"cliente", "servidor", "cronica"} daquele projeto, ou vazio."""
     cfg = _ler()
     if not nome or not cfg.has_section(nome):
-        return {"cliente": "", "servidor": ""}
+        return {"cliente": "", "servidor": "", "cronica": CRONICA_DE_RESERVA}
     return {"cliente": cfg.get(nome, "cliente", fallback=""),
-            "servidor": cfg.get(nome, "servidor", fallback="")}
+            "servidor": cfg.get(nome, "servidor", fallback=""),
+            "cronica": (cfg.get(nome, "cronica", fallback="").strip()
+                        or CRONICA_DE_RESERVA)}
 
 
 def atual():
@@ -127,6 +134,17 @@ def servidor():
     return dados(atual())["servidor"]
 
 
+def cronica():
+    """
+    A cronica do projeto escolhido.
+
+    Quem le tabela do cliente precisa saber disto antes de qualquer coisa: a
+    mesma tabela tem colunas diferentes em cada cronica, e ler com a
+    definicao errada nao da erro -- grava campo deslocado.
+    """
+    return dados(atual())["cronica"]
+
+
 def ha_projeto():
     return bool(atual())
 
@@ -134,7 +152,7 @@ def ha_projeto():
 # =========================================================================
 # escrever
 # =========================================================================
-def guardar(nome, pasta_cliente, pasta_servidor, antigo=None):
+def guardar(nome, pasta_cliente, pasta_servidor, antigo=None, cronica=None):
     """
     Cria ou muda um projeto. Renomeia quando `antigo` vem preenchido.
 
@@ -153,6 +171,12 @@ def guardar(nome, pasta_cliente, pasta_servidor, antigo=None):
         cfg.add_section(nome)
     cfg.set(nome, "cliente", str(pasta_cliente or ""))
     cfg.set(nome, "servidor", str(pasta_servidor or ""))
+    # Sem cronica dita, mantem a que o projeto ja tinha -- gravar um caminho
+    # novo nao e motivo para mudar de cronica.
+    if cronica:
+        cfg.set(nome, "cronica", str(cronica))
+    elif not cfg.has_option(nome, "cronica"):
+        cfg.set(nome, "cronica", CRONICA_DE_RESERVA)
     _gravar(cfg)
     if atual() in ("", antigo or ""):
         escolher(nome)

@@ -128,8 +128,11 @@ class Cabecalho(ttk.Frame):
                 text=t("Nenhum projeto. Crie um em Projetos… para não ter "
                        "que apontar as pastas em cada aba."))
             return
-        self.resumo.config(text=t("cliente:  %s\nservidor: %s")
-                           % (d["cliente"] or t("—"), d["servidor"] or t("—")))
+        import l2item
+        self.resumo.config(
+            text=t("cliente:  %s\nservidor: %s\ncrônica:  %s")
+            % (d["cliente"] or t("—"), d["servidor"] or t("—"),
+               l2item.rotulo_da_cronica(d["cronica"])))
 
     def _ao_escolher(self, _evento=None):
         nome = self.escolhido.get()
@@ -191,6 +194,7 @@ class JanelaProjetos:
         self.nome = tk.StringVar()
         self.pasta_cliente = tk.StringVar()
         self.pasta_servidor = tk.StringVar()
+        self.cronica = tk.StringVar()
 
         ttk.Label(direita, text=t("nome")).grid(row=0, column=0, sticky="w")
         ttk.Entry(direita, textvariable=self.nome, width=34).grid(
@@ -209,10 +213,25 @@ class JanelaProjetos:
                        command=lambda v=variavel, ti=titulo:
                        self._escolher_pasta(v, ti)).grid(
                 row=linha * 2 + 1, column=2, padx=(6, 0))
+        ttk.Label(direita, text=t("crônica")).grid(row=6, column=0,
+                                                   sticky="w",
+                                                   pady=(tema.PERTO, 0))
+        self.caixa_cronica = ttk.Combobox(direita, textvariable=self.cronica,
+                                          state="readonly", width=32,
+                                          values=self._cronicas_na_tela())
+        self.caixa_cronica.grid(row=7, column=0, columnspan=2, sticky="ew")
+        ajuda.ajuda(direita, lambda: t(
+            "A crônica do CLIENTE deste projeto.@@"
+            "As tabelas .dat têm colunas diferentes em cada crônica. Ler com "
+            "a definição errada não dá erro: o programa lê campo deslocado e "
+            "grava lixo por cima.@@"
+            "Na dúvida, veja o que diz o instalador do seu cliente — ou "
+            "escolha e confira se os nomes aparecem certos na aba de Itens."))
+
         direita.columnconfigure(1, weight=1)
 
         botoes = ttk.Frame(direita)
-        botoes.grid(row=6, column=0, columnspan=3, sticky="ew",
+        botoes.grid(row=8, column=0, columnspan=3, sticky="ew",
                     pady=(tema.FOLGA, 0))
         ttk.Button(botoes, text=t("Guardar"), style="Primario.TButton",
                    command=self.guardar).pack(side="left")
@@ -223,7 +242,7 @@ class JanelaProjetos:
 
         self.recado = ttk.Label(direita, style="Atencao.TLabel", wraplength=340,
                                 justify="left")
-        self.recado.grid(row=7, column=0, columnspan=3, sticky="w",
+        self.recado.grid(row=9, column=0, columnspan=3, sticky="w",
                          pady=(tema.PERTO, 0))
 
         fim = ttk.Frame(quadro)
@@ -253,19 +272,33 @@ class JanelaProjetos:
         if marcado:
             self._carregar(self.lista.get(marcado[0]))
 
+    def _cronicas_na_tela(self):
+        """Os rótulos das crônicas instaladas, na ordem em que aparecem."""
+        import l2item
+        return tuple(l2item.rotulo_da_cronica(c) for c in l2item.cronicas())
+
+    def _cronica_da_tela(self):
+        """Do rótulo escolhido de volta para o nome da pasta."""
+        import l2item
+        return l2item.cronica_do_rotulo(self.cronica.get())
+
     def _carregar(self, nome):
+        import l2item
         d = projeto.dados(nome)
         self.editando = nome
         self.nome.set(nome)
         self.pasta_cliente.set(d["cliente"])
         self.pasta_servidor.set(d["servidor"])
+        self.cronica.set(l2item.rotulo_da_cronica(d["cronica"]))
         self.recado.config(text="")
 
     def limpar(self):
+        import l2item
         self.editando = None
         self.nome.set("")
         self.pasta_cliente.set("")
         self.pasta_servidor.set("")
+        self.cronica.set(l2item.rotulo_da_cronica(projeto.CRONICA_DE_RESERVA))
         self.lista.selection_clear(0, "end")
         self.recado.config(text="")
 
@@ -281,7 +314,8 @@ class JanelaProjetos:
         problema = projeto.guardar(self.nome.get(),
                                    self.pasta_cliente.get().strip(),
                                    self.pasta_servidor.get().strip(),
-                                   antigo=self.editando)
+                                   antigo=self.editando,
+                                   cronica=self._cronica_da_tela())
         if problema:
             self.recado.config(text=problema)
             return

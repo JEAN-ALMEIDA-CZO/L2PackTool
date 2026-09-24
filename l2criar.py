@@ -997,6 +997,9 @@ def _ler_embutido(caminho):
             # O pacote de video leva o nome do sistema, e nao o do lobby de
             # origem: quem instala nao tem por que anunciar de onde ele veio.
             "nome_do_arquivo": "%s.usx" % versao.NOME,
+            # de que cronica e este lobby, quando o cartao diz. Vazio quer
+            # dizer "nao declarado", e nao "serve em qualquer uma".
+            "cronica": (cartao.get("cronica") or "").strip(),
             # do cartao: se este lobby e o que recebe video, de onde a camera
             # do login olha, e se e ele que vem escolhido ao abrir a aba
             "video": bool(cartao.get("video")),
@@ -1031,22 +1034,46 @@ def abrir_o_lobby(modelo, destino):
                 extras=[c for c in arquivos if c != mapas[0]])
 
 
+# Pasta de lobbys ao lado do executavel. Existe porque lobby e pesado: as
+# cronicas do Chaotic Throne tem de 15 a 36 MB cada, e embutir todas dobraria
+# o programa para quem usa uma.
+PASTA_AO_LADO = "lobbies"
+
+
+def pastas_de_modelos():
+    """Onde procurar lobby: dentro do programa e na pasta ao lado dele."""
+    vistas, saida = set(), []
+    for pasta in (pasta_embutida(), Path(motor.BASE) / PASTA_AO_LADO):
+        try:
+            marca = pasta.resolve()
+        except OSError:                             # noqa: PERF203
+            continue
+        if pasta.is_dir() and marca not in vistas:
+            vistas.add(marca)
+            saida.append(pasta)
+    return saida
+
+
 def modelos_embutidos():
     """
-    Todos os lobbys que acompanham o programa, um por zip.
+    Todos os lobbys que o programa enxerga, um por zip.
 
-    Acrescentar outro e largar outro `.zip` aqui -- nao ha codigo a mexer.
-    Dentro dele, as pastas do cliente: `maps`, `staticmeshes`, `textures`,
-    `music`, `system`.
+    Acrescentar outro e largar outro `.zip` na pasta `lobbies`, ao lado do
+    programa -- nao ha codigo a mexer nem recompilar. Dentro do zip, as
+    pastas do cliente: `maps`, `staticmeshes`, `textures`, `music`, `system`.
+
+    Nome repetido: ganha o embutido, que e o que veio provado junto com o
+    programa.
     """
-    pasta = pasta_embutida()
-    if not pasta.is_dir():
-        return []
-    achados = []
-    for arquivo in sorted(pasta.glob("*.zip")):
-        modelo = _ler_embutido(arquivo)
-        if modelo:
-            achados.append(modelo)
+    achados, chaves = [], set()
+    for pasta in pastas_de_modelos():
+        for arquivo in sorted(pasta.glob("*.zip")):
+            if arquivo.stem in chaves:
+                continue
+            modelo = _ler_embutido(arquivo)
+            if modelo:
+                chaves.add(arquivo.stem)
+                achados.append(modelo)
     # o de video primeiro, e o resto em ordem
     achados.sort(key=lambda m: (not m["video"], m["chave"]))
     return achados
