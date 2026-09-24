@@ -1728,6 +1728,126 @@ def janela_de_creditos(raiz):
     return janela
 
 
+
+def _secao_de_ia(quadro):
+    """A parte de IA da janela de configuracoes. Devolve o aplicador."""
+    import webbrowser
+    import l2ia
+
+    ttk.Separator(quadro).pack(fill="x", pady=(16, 12))
+    ttk.Label(quadro, text=t("Inteligência artificial"),
+              font=("Segoe UI", 10, "bold")).pack(anchor="w")
+    ttk.Label(quadro, foreground="#666", justify="left", wraplength=430,
+              text=t("Usada para gerar ícone, botão e borda a partir de uma "
+                     "descrição. A chave fica guardada em texto no "
+                     "config.ini, ao lado do programa.")).pack(anchor="w",
+                                                               pady=(2, 8))
+
+    escolhido = tk.StringVar(value=l2ia.provedor())
+    campos = {}
+
+    linha_p = ttk.Frame(quadro)
+    linha_p.pack(fill="x")
+    ttk.Label(linha_p, text=t("provedor:")).pack(side="left")
+    for chave_p, ficha in l2ia.PROVEDORES.items():
+        ttk.Radiobutton(linha_p, text=ficha["nome"], value=chave_p,
+                        variable=escolhido,
+                        command=lambda: _mostrar_o_provedor(
+                            escolhido.get(), campos, aviso)).pack(
+            side="left", padx=(10, 0))
+
+    aviso = ttk.Label(quadro, foreground="#b58b2a", justify="left",
+                      wraplength=430)
+    aviso.pack(anchor="w", pady=(6, 0))
+
+    for chave_p, ficha in l2ia.PROVEDORES.items():
+        caixa = ttk.Frame(quadro)
+        grade = ttk.Frame(caixa)
+        grade.pack(fill="x")
+
+        ttk.Label(grade, text=t("chave da API:")).grid(row=0, column=0,
+                                                       sticky="w")
+        var_chave = tk.StringVar(value=l2ia.chave(chave_p))
+        entrada = ttk.Entry(grade, textvariable=var_chave, width=44,
+                            show="•")
+        entrada.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        ver = tk.BooleanVar(value=False)
+        ttk.Checkbutton(grade, text=t("ver"), variable=ver,
+                        command=lambda e=entrada, v=ver:
+                        e.config(show="" if v.get() else "•")).grid(
+            row=0, column=2, padx=(6, 0))
+
+        ttk.Label(grade, text=t("modelo:")).grid(row=1, column=0, sticky="w",
+                                                 pady=(6, 0))
+        var_modelo = tk.StringVar(value=l2ia.modelo(chave_p))
+        ttk.Entry(grade, textvariable=var_modelo, width=44).grid(
+            row=1, column=1, sticky="ew", padx=(6, 0), pady=(6, 0))
+        ttk.Label(grade, foreground="#666",
+                  text=ficha["dica_de_modelo"]).grid(row=2, column=1,
+                                                     sticky="w")
+        grade.columnconfigure(1, weight=1)
+
+        botoes = ttk.Frame(caixa)
+        botoes.pack(fill="x", pady=(8, 0))
+        ttk.Button(botoes, text=t("Criar a chave…"),
+                   command=lambda u=ficha["site_da_chave"]:
+                   webbrowser.open(u)).pack(side="left")
+        ttk.Button(botoes, text=t("Ver os modelos…"),
+                   command=lambda u=ficha["site_dos_modelos"]:
+                   webbrowser.open(u)).pack(side="left", padx=(6, 0))
+        estado = ttk.Label(botoes, foreground="#666")
+        estado.pack(side="left", padx=(10, 0))
+        ttk.Button(botoes, text=t("Testar"),
+                   command=lambda p=chave_p, c=var_chave, m=var_modelo,
+                   r=estado: _testar_a_ia(p, c, m, r)).pack(side="right")
+
+        campos[chave_p] = {"caixa": caixa, "chave": var_chave,
+                           "modelo": var_modelo}
+
+    _mostrar_o_provedor(escolhido.get(), campos, aviso)
+
+    def aplicar_ia():
+        for chave_p, campo in campos.items():
+            l2ia.guardar(chave_p, campo["chave"].get(), campo["modelo"].get(),
+                         escolher=False)
+        l2ia.guardar(escolhido.get(), escolher=True)
+
+    return aplicar_ia
+
+
+def _mostrar_o_provedor(qual, campos, aviso):
+    """Mostra so os campos do provedor escolhido, e o que ele sabe fazer."""
+    import l2ia
+    for chave_p, campo in campos.items():
+        if chave_p == qual:
+            campo["caixa"].pack(fill="x", pady=(8, 0))
+        else:
+            campo["caixa"].pack_forget()
+    ficha = l2ia.PROVEDORES.get(qual, {})
+    if ficha.get("imagem"):
+        aviso.config(text=t("Gera imagem e texto."))
+    else:
+        aviso.config(text=t("%s NÃO gera imagem: a API dele é de texto. Serve "
+                            "para escrever e melhorar o pedido, traduzir e "
+                            "descrever -- para gerar arte, escolha o Gemini.")
+                     % ficha.get("nome", qual))
+
+
+def _testar_a_ia(qual, var_chave, var_modelo, rotulo):
+    """Guarda o que esta na tela e faz uma chamada curta."""
+    import l2ia
+    l2ia.guardar(qual, var_chave.get(), var_modelo.get(), escolher=False)
+    rotulo.config(text=t("testando…"))
+    rotulo.update_idletasks()
+    try:
+        deu, recado = l2ia.testar(qual)
+    except Exception as erro:                       # noqa: BLE001
+        rotulo.config(text=t("não deu: %s") % str(erro)[:60])
+        return
+    rotulo.config(text=t("respondeu: %s") % recado if deu
+                  else t("não respondeu"))
+
+
 def janela_de_configuracoes(raiz, ocupado, refazer):
     """
     Configuracoes. Por enquanto so o idioma, mas ja com lugar para o resto.
@@ -1761,11 +1881,14 @@ def janela_de_configuracoes(raiz, ocupado, refazer):
                      "lado do programa: da para corrigir uma frase sem "
                      "recompilar nada.")).pack(anchor="w", pady=(10, 0))
 
+    aplicar_ia = _secao_de_ia(quadro)
+
     linha = ttk.Frame(quadro)
     linha.pack(fill="x", pady=(16, 0))
 
     def aplicar():
         codigo = escolha.get()
+        aplicar_ia()
         janela.destroy()
         if codigo == idioma.atual():
             return

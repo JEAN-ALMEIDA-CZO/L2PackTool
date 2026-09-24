@@ -29,6 +29,7 @@ import gui_icone
 import l2conferir
 import l2item
 import motor
+import gui_mundo
 import gui_projeto
 import projeto
 from idioma import t, N_
@@ -383,7 +384,7 @@ class JanelaItem:
         de_onde = ttk.Frame(aba)
         de_onde.pack(fill="x", pady=(8, 0))
         self.pasta_do_servidor = tk.StringVar(
-            value=motor.ler_opcao("conferir", "servidor", ""))
+            value=gui_mundo._servidor_do_projeto())
         self.botao_ler_servidor = ttk.Button(
             de_onde, text=t("Ler do servidor"), command=self.ler_do_servidor)
         self.botao_ler_servidor.pack(side="left", padx=(6, 0))

@@ -34,6 +34,7 @@ import l2conferir
 import l2item
 import l2multisell
 import motor
+import gui_mundo
 import gui_projeto
 from idioma import t, N_
 
@@ -138,7 +139,7 @@ class JanelaMultisell:
         linha = ttk.Frame(pai)
         linha.pack(fill="x", pady=(6, 0))
         self.pasta_do_servidor = tk.StringVar(
-            value=motor.ler_opcao("conferir", "servidor", ""))
+            value=gui_mundo._servidor_do_projeto())
         self.onde_ficam = ttk.Label(linha, text="",
                                     foreground=COR_TEXTO_FRACO)
         self.onde_ficam.pack(side="left", padx=(10, 0))

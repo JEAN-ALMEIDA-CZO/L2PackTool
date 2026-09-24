@@ -26,6 +26,7 @@ import ajuda
 import l2conferir
 import motor
 import tema
+import gui_mundo
 import gui_projeto
 from idioma import t, N_
 
@@ -233,7 +234,7 @@ class JanelaConferir:
         linha = ttk.Frame(caixa)
         linha.pack(fill="x")
         self.servidor = tk.StringVar(
-            value=motor.ler_opcao("conferir", "servidor", ""))
+            value=gui_mundo._servidor_do_projeto())
         self.botao_par = ttk.Button(linha, text=t("Conferir o par"),
                                     command=self.conferir_par)
         self.botao_par.pack(side="left", padx=(6, 0))

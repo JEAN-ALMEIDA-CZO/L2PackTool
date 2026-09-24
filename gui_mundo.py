@@ -44,16 +44,19 @@ COR_TEXTO_FRACO = tema.TEXTO_FRACO
 
 def _servidor_do_projeto():
     """
-    A pasta de dados do servidor: a do projeto, ou a guardada no config.
+    A pasta de dados do servidor do projeto -- e so dela.
 
-    O projeto ganha quando existe -- e o que o usuario ve escrito no alto da
-    janela, e seria estranho a tela usar outro caminho.
+    Havendo projeto, o que ele diz vale, inclusive quando ele diz que nao tem
+    servidor. A reserva do `config.ini` so entra quando nao ha projeto nenhum:
+    ela existe para quem usava o programa antes dos projetos, e usa-la com
+    projeto escolhido faria a tela ler o servidor de OUTRO projeto sem avisar.
     """
     try:
-        do_projeto = projeto.servidor()
+        if projeto.ha_projeto():
+            return projeto.servidor()
     except Exception:                               # noqa: BLE001
-        do_projeto = ""
-    return do_projeto or motor.ler_opcao("conferir", "servidor", "")
+        pass
+    return motor.ler_opcao("conferir", "servidor", "")
 
 
 class PainelServidor:

@@ -265,7 +265,8 @@ def acrescentar(T, cliente, nome_do_pacote, nome_do_objeto, imagem, trabalho,
 
 
 def montar_para_o_cliente(T, cliente, nome_do_pacote, nome_do_objeto, imagem,
-                          trabalho, aolog=None, instalar_no_cliente=True):
+                          trabalho, aolog=None, instalar_no_cliente=True,
+                          quadros=()):
     """
     O caminho inteiro: imagem -> pacote -> cliente.
 
@@ -308,7 +309,18 @@ def montar_para_o_cliente(T, cliente, nome_do_pacote, nome_do_objeto, imagem,
                                           trabalho / "antigos", aolog=aolog))
     if nome_do_objeto in imagens:
         anotar("%s ja existia no pacote e vai ser substituido" % nome_do_objeto)
-    imagens[nome_do_objeto] = Path(imagem)
+
+    if quadros:
+        # Animacao: cada quadro e um objeto, numerado. O nome com zero a
+        # esquerda mantem a ordem certa em qualquer lugar que ordene por
+        # texto -- o cliente e o umodel listam assim.
+        for i, quadro in enumerate(quadros):
+            imagens["%s_%02d" % (nome_do_objeto, i)] = Path(quadro)
+        anotar("%d quadros de animacao entram no pacote como %s_00..%s_%02d"
+               % (len(quadros), nome_do_objeto, nome_do_objeto,
+                  len(quadros) - 1))
+    else:
+        imagens[nome_do_objeto] = Path(imagem)
 
     pacote = montar_pacote(T, nome_do_pacote, imagens, trabalho / "montagem",
                            aolog=anotar)

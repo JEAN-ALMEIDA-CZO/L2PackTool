@@ -357,9 +357,12 @@ class PainelDeIcone(ttk.Frame):
         self.arquivo = tk.StringVar()
         ttk.Entry(caixa, textvariable=self.arquivo).grid(
             row=1, column=1, columnspan=2, sticky="ew", padx=(6, 0))
-        ttk.Button(caixa, text=t("Escolher…"),
-                   command=self.escolher_arquivo).grid(row=1, column=3,
-                                                       sticky="w", padx=(6, 0))
+        acoes_da_imagem = ttk.Frame(caixa)
+        acoes_da_imagem.grid(row=1, column=3, sticky="w", padx=(6, 0))
+        ttk.Button(acoes_da_imagem, text=t("Escolher…"),
+                   command=self.escolher_arquivo).pack(side="left")
+        ttk.Button(acoes_da_imagem, text=t("IA…"), width=5,
+                   command=self.gerar_com_ia).pack(side="left", padx=(4, 0))
 
         ttk.Label(caixa, text=t("nome do ícone:")).grid(row=2, column=0,
                                                         sticky="w",
@@ -398,6 +401,25 @@ class PainelDeIcone(ttk.Frame):
                           font=("Segoe UI", 8))
         rotulo.pack(expand=True)
         return rotulo
+
+
+    def gerar_com_ia(self):
+        """Abre a janela que pede a arte à IA e traz o resultado para cá."""
+        import gui_ia
+        feito = gui_ia.JanelaDeArte(self.raiz, self,
+                                    sugestao=self.nome_do_icone.get()).resposta
+        if not feito:
+            return
+        self.arquivo.set(str(feito["imagem"]))
+        if feito.get("nome") and not self.nome_do_icone.get().strip():
+            self.nome_do_icone.set(feito["nome"])
+        self.mostrar_previa_propria()
+        self.mostrar_referencia()
+        if feito.get("quadros"):
+            self.log(t("\nA IA gerou %d quadros de animação. Eles viram um "
+                       "pacote só, com os objetos numerados, ao criar.")
+                     % len(feito["quadros"]))
+        self.quadros_da_ia = feito.get("quadros") or []
 
     def escolher_arquivo(self):
         caminho = filedialog.askopenfilename(
@@ -597,6 +619,8 @@ class EscolherIcone:
             side="left", fill="x", expand=True, padx=(6, 0))
         ttk.Button(linha, text=t("Escolher…"),
                    command=self.escolher_arquivo).pack(side="left", padx=(6, 0))
+        ttk.Button(linha, text=t("Gerar com IA…"),
+                   command=self.gerar_com_ia).pack(side="left", padx=(6, 0))
 
         corpo = ttk.Frame(aba)
         corpo.pack(fill="x", pady=(10, 0))
@@ -739,6 +763,31 @@ class EscolherIcone:
         self.mostrar_previa_propria()
         self.mostrar_referencia()
 
+
+    def gerar_com_ia(self):
+        """
+        Pede a arte à IA e traz o resultado para o campo de imagem própria.
+
+        Mesma janela que o painel usa: o pedido é o mesmo venha de onde vier.
+        """
+        import gui_ia
+        feito = gui_ia.JanelaDeArte(self.raiz, self.dono,
+                                    sugestao=self.nome_do_icone.get()).resposta
+        if not feito:
+            return
+        self.arquivo.set(str(feito["imagem"]))
+        if feito.get("nome") and not self.nome_do_icone.get().strip():
+            self.nome_do_icone.set(feito["nome"])
+        self.quadros_da_ia = feito.get("quadros") or []
+        try:
+            self.mostrar_previa_propria()
+            self.mostrar_referencia()
+        except Exception:                           # noqa: BLE001
+            pass
+        if self.quadros_da_ia:
+            self.log(t("\nA IA gerou %d quadros. Eles entram no mesmo pacote, "
+                       "numerados, quando você criar.") % len(self.quadros_da_ia))
+
     def mostrar_previa_propria(self):
         """Mostra o desenho como ele vai ficar: 32x32, encaixado no centro."""
         caminho = self.arquivo.get().strip()
@@ -786,10 +835,11 @@ class EscolherIcone:
         self.estado.config(text=t("montando o pacote…"))
         self.log(t("\n=== criando %s.%s ===") % (pacote, nome))
         threading.Thread(target=self._criar_thread,
-                         args=(pacote, nome, self.arquivo.get().strip()),
+                         args=(pacote, nome, self.arquivo.get().strip(),
+                               list(getattr(self, "quadros_da_ia", []))),
                          daemon=True).start()
 
-    def _criar_thread(self, pacote, nome, arquivo):
+    def _criar_thread(self, pacote, nome, arquivo, quadros=()):
         def anotar(texto):
             try:
                 self.janela.after(0, self.log, "  " + texto)
@@ -800,7 +850,7 @@ class EscolherIcone:
             referencia, feito = l2icone.montar_para_o_cliente(
                 self.dono.T, self.dono.cliente.get(), pacote, nome, arquivo,
                 Path(self.dono.trabalho()) / "icone_proprio", aolog=anotar,
-                instalar_no_cliente=False)
+                instalar_no_cliente=False, quadros=quadros)
             erro = None
         except Exception as e:                      # noqa: BLE001
             referencia, feito, erro = None, None, e

@@ -273,14 +273,37 @@ def _inteiro(texto, padrao=0):
 
 
 def _tipo_legivel(tabela, linha):
-    """Ativa, passiva ou alternavel, lido do oper_type do cliente."""
-    return OPER_DO_CLIENTE.get(_inteiro(tabela.campo(linha, "oper_type"), 0),
-                               "")
+    """
+    Ativa, passiva ou alternavel -- e a coluna nao se chama igual em todas.
+
+    De C3 em diante e `oper_type`, com tres valores. Em C1 e C2 e
+    `operate_type`, com QUATRO: la as ativas se dividem em duas (golpe e
+    aura), e por isso o numero da passiva e outro. Usar a tabela errada nao
+    daria erro, so mostraria toda skill como ativa -- que era o que estava
+    acontecendo: 767 ativas e nenhuma passiva no C1.
+    """
+    for coluna, mapa in (("oper_type", OPER_DO_CLIENTE),
+                         ("operate_type", OPER_DO_CLIENTE_ANTIGO)):
+        cru = (tabela.campo(linha, coluna) or "").strip()
+        if not cru:
+            continue
+        if cru.upper() in ("ACTIVE", "PASSIVE", "TOGGLE"):
+            return cru.upper()
+        return mapa.get(_inteiro(cru, -1), "")
+    return ""
 
 
 # oper_type do skillgrp: 0 ativa, 1 passiva, 2 alternavel. Bate com o
 # operateType do servidor.
 OPER_DO_CLIENTE = {0: "ACTIVE", 1: "PASSIVE", 2: "TOGGLE"}
+
+# operate_type de C1 e C2. Medido nos dois clientes, por skill conhecida:
+#   0  golpe        Power Strike, Mortal Blow, Divine Heal
+#   1  aura/buff    Dash, War Cry, Majesty          -- ativa tambem
+#   2  passiva      Weapon Mastery, Armor Mastery, Critical Chance
+#   3  alternavel   Relax, Silent Walk, Hundred Fist
+OPER_DO_CLIENTE_ANTIGO = {0: "ACTIVE", 1: "ACTIVE", 2: "PASSIVE",
+                          3: "TOGGLE"}
 
 
 # ---------------------------------------------------------------------------

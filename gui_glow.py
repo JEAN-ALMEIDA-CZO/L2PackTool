@@ -30,6 +30,7 @@ import l2glow
 import l2item
 import l2npc
 import motor
+import gui_mundo
 import gui_projeto
 from idioma import t, N_
 
@@ -150,7 +151,7 @@ class JanelaGlow:
         linha.pack(fill="x", pady=(6, 0))
 
         self.pasta_do_servidor = tk.StringVar(
-            value=motor.ler_opcao("conferir", "servidor", ""))
+            value=gui_mundo._servidor_do_projeto())
         self.gravar_no_servidor = tk.BooleanVar(
             value=bool(motor.ler_opcao("conferir", "servidor", "")))
         ttk.Checkbutton(linha, variable=self.gravar_no_servidor,
@@ -1579,6 +1580,24 @@ class JanelaGlow:
             self.atualizar_botoes()
             return
         self.itens = itens
+
+        # Cronica sem glow: dizer agora, e nao quando o usuario clicar numa
+        # arma e receber um erro de dentro do programa.
+        if not l2glow.tem_glow(itens):
+            import l2item
+            cronica = l2item.rotulo_da_cronica(l2item.cronica_em_uso())
+            self.lista = []
+            self.preencher()
+            self.atualizar_botoes()
+            recado = t("%s não tem brilho de arma: as colunas de glow "
+                       "chegaram em crônicas posteriores.\n\nAs %d armas do "
+                       "cliente foram lidas e aparecem nas outras abas -- "
+                       "Itens edita nome, ícone e status delas.") % (
+                           cronica, len(armas))
+            self.log("\n" + recado)
+            messagebox.showinfo(t("Esta crônica não tem glow"), recado)
+            return
+
         self.lista = armas
         self.efeitos = efeitos
         self.resumo_do_glow()

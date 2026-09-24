@@ -92,6 +92,20 @@ def _tabela(itens):
     return tabela
 
 
+
+def tem_glow(itens):
+    """
+    Esta cronica prende brilho a arma?
+
+    As colunas de glow chegaram depois de C2. Perguntar antes evita oferecer
+    uma tela inteira que nao tem onde gravar.
+    """
+    tabela = itens.tabelas.get("weapon") if itens else None
+    if tabela is None:
+        return False
+    precisa = list(EFEITO.values()) + AJUSTES["a"] + AJUSTES["b"]
+    return not [c for c in precisa if c not in tabela.cabecalho]
+
 def _linha(itens, ident):
     tabela = _tabela(itens)
     coluna = tabela.cabecalho.index("id")
