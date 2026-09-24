@@ -56,6 +56,15 @@ TIPOS = (("icone", "ícone de item"),
 # ao lado aceita outro, porque ha cliente com icone de 64 e interface de 256.
 LADOS = {"icone": 32, "botao": 128, "borda": 256}
 
+# O fundo da arte. Transparente e o padrao porque icone entra sobre a moldura
+# do inventario, mas botao e moldura as vezes querem fundo solido -- e trocar
+# isso depois nao pode obrigar a gerar de novo.
+FUNDOS = (("transparente", None),
+          ("preto", "#000000"),
+          ("branco", "#ffffff"),
+          ("cinza escuro", "#1b1b1b"),
+          ("escolher cor…", "escolher"))
+
 
 class JanelaDeArte:
     """
@@ -76,6 +85,11 @@ class JanelaDeArte:
         # Quando a arte vem de um GIF, estes sao os quadros dele -- e eles
         # mandam na animacao, porque foram desenhados.
         self.quadros_do_arquivo = []
+        # A arte como veio, antes do fundo. Trocar de fundo nao pode custar
+        # outra geracao, nem pode perder a transparencia de volta.
+        self.gerada_original = None
+        self.cor_do_fundo = None
+        self.rodando = False
         self.trabalho = Path(motor.BASE) / "trabalho" / "ia"
         self.trabalho.mkdir(parents=True, exist_ok=True)
 
@@ -145,6 +159,14 @@ class JanelaDeArte:
         ttk.Combobox(topo, textvariable=self.lado, values=("32", "64", "128",
                                                            "256"),
                      state="readonly", width=5).pack(side="left", padx=(6, 0))
+        ttk.Label(topo, text=t("fundo:")).pack(side="left", padx=(12, 0))
+        self.fundo = tk.StringVar(value=FUNDOS[0][0])
+        caixa_fundo = ttk.Combobox(
+            topo, textvariable=self.fundo, state="readonly", width=12,
+            values=[rotulo for rotulo, _cor in FUNDOS])
+        caixa_fundo.pack(side="left", padx=(6, 0))
+        caixa_fundo.bind("<<ComboboxSelected>>", lambda _e: self._trocar_fundo())
+
         ajuda.ajuda(topo, lambda: t(
             "O tamanho que a arte terá dentro do jogo.@@"
             "Ícone de item é 32x32 na maioria das crônicas, e 64x64 em "
@@ -153,7 +175,7 @@ class JanelaDeArte:
             "desenhar um quadro grande — e manda na prévia real, ao lado da "
             "grande."))
         self.tipo.trace_add("write", lambda *_a: self._tamanho_do_tipo())
-        self.lado.trace_add("write", lambda *_a: self._mostrar_real(self.gerada))
+        self.lado.trace_add("write", lambda *_a: self._mudou_o_tamanho())
 
         linha = ttk.Frame(quadro)
         linha.pack(fill="x", pady=(8, 0))
@@ -318,8 +340,9 @@ class JanelaDeArte:
                                       style="Primario.TButton",
                                       command=self.gerar)
         self.botao_gerar.pack(side="left")
-        ttk.Button(acao, text=t("Abrir imagem…"),
-                   command=self.abrir_do_disco).pack(side="left", padx=(6, 0))
+        self.botao_abrir = ttk.Button(acao, text=t("Abrir imagem…"),
+                                      command=self.abrir_do_disco)
+        self.botao_abrir.pack(side="left", padx=(6, 0))
         self.botao_usar = ttk.Button(acao, text=t("Usar esta"),
                                      command=self.usar, state="disabled")
         self.botao_usar.pack(side="left", padx=(6, 0))
@@ -335,14 +358,17 @@ class JanelaDeArte:
     # -- o provedor --------------------------------------------------------
     def _conferir_o_provedor(self):
         """Diz de cara se dá para gerar, e o que fazer quando não dá."""
+        self._atualizar_botoes()
         da, porque = l2ia.pronto(para="imagem")
         if da:
             self.recado.config(
                 text=t("Usando %s, modelo %s.")
                 % (l2ia.PROVEDORES[l2ia.provedor()]["nome"], l2ia.modelo()))
             return
-        self.recado.config(text=porque)
-        self.botao_gerar.config(state="disabled")
+        self.recado.config(
+            text=t("%s\nO resto da tela continua valendo: “Abrir imagem…” "
+                   "traz um PNG ou um GIF seu, e daí dá para animar e gravar "
+                   "no cliente sem chave de API nenhuma.") % porque)
 
     # -- referências -------------------------------------------------------
     def juntar_referencia(self):
@@ -393,8 +419,8 @@ class JanelaDeArte:
             messagebox.showinfo(t("Falta dizer o quê"),
                                 t("Escreva o que a arte deve mostrar."))
             return
-        self.botao_gerar.config(state="disabled")
-        self.botao_usar.config(state="disabled")
+        self.rodando = True
+        self._atualizar_botoes()
         self.estado.config(text=t("pedindo à IA… isso leva alguns segundos."))
         threading.Thread(target=self._gerar_thread, daemon=True).start()
 
@@ -422,27 +448,122 @@ class JanelaDeArte:
         self.raiz.after(0, self._fim_da_geracao, imagem, alvo, erro)
 
     def _fim_da_geracao(self, imagem, alvo, erro):
+        self.rodando = False
         try:
-            self.botao_gerar.config(state="normal")
+            self._atualizar_botoes()
         except tk.TclError:
             return
         if erro is not None:
             self.estado.config(text="")
-            messagebox.showerror(t("Não deu para gerar"), str(erro))
+            messagebox.showerror(t("Não deu para gerar"), str(erro),
+                                 parent=self.janela)
             return
-        self.gerada = imagem
+        self.gerada_original = imagem
         self.caminho_gerado = alvo
-        self._mostrar(imagem)
-        self._mostrar_real(imagem)
-        lado = self.lado_no_cliente()
-        self.estado.config(
-            text=t("pronto: %dx%d — no cliente entra %dx%d, que é a prévia da "
-                   "direita. Veja se serve e use, ou gere de novo mudando as "
-                   "observações.") % (imagem.size[0], imagem.size[1], lado,
-                                      lado))
+        # O fundo escolhido vale para a arte nova também: quem pediu preto
+        # antes não quer transparente na próxima.
+        self.gerada = (l2ia.por_fundo(imagem, self.cor_do_fundo)
+                       if self.cor_do_fundo else imagem)
+        self._mostrar(self.gerada)
+        self._mostrar_real(self.gerada)
+        self._dizer_o_estado()
         self._dizer_o_modo()
-        self.botao_usar.config(state="normal")
-        self.botao_animar_cliente.config(state="normal")
+        self._atualizar_botoes()
+
+    # -- o estado da tela, decidido num lugar so ---------------------------
+    def _atualizar_botoes(self):
+        """
+        Liga e desliga cada botão conforme o que já existe de verdade.
+
+        Um botão habilitado é uma promessa. "Usar esta" antes de haver arte, ou
+        "Gerar" sem chave configurada, prometem o que a tela não pode cumprir
+        -- e o usuário só descobre no erro. Aqui o estado dos cinco sai do
+        mesmo lugar, para não haver dois pareceres sobre a mesma tela.
+        """
+        try:
+            tem_arte = self.gerada is not None
+            da_para_gerar, _porque = l2ia.pronto(para="imagem")
+
+            if self.rodando:
+                self.botao_gerar.config(text=t("Gerando…"), state="disabled")
+            else:
+                self.botao_gerar.config(
+                    text=t("Gerar de novo") if tem_arte else t("Gerar"),
+                    state="normal" if da_para_gerar else "disabled")
+
+            livre = "normal" if not self.rodando else "disabled"
+            self.botao_abrir.config(state=livre)
+            pronto_para_usar = ("normal" if tem_arte and not self.rodando
+                                else "disabled")
+            self.botao_usar.config(state=pronto_para_usar)
+            self.botao_animar_cliente.config(state=pronto_para_usar)
+        except (AttributeError, tk.TclError):
+            pass
+
+    def _dizer_o_estado(self):
+        """A frase sob a prévia, recalculada -- ela muda com o tamanho."""
+        try:
+            if self.gerada is None:
+                return
+            lado = self.lado_no_cliente()
+            largura, altura = self.gerada.size
+            if self.quadros_do_arquivo:
+                self.estado.config(
+                    text=t("%d quadros de %dx%d — no cliente entram %dx%d, que "
+                           "é a prévia da direita.")
+                    % (len(self.quadros_do_arquivo), largura, altura, lado,
+                       lado))
+            else:
+                self.estado.config(
+                    text=t("pronto: %dx%d — no cliente entra %dx%d, que é a "
+                           "prévia da direita. Veja se serve e use, ou gere de "
+                           "novo mudando as observações.")
+                    % (largura, altura, lado, lado))
+        except tk.TclError:
+            pass
+
+    # -- o fundo -----------------------------------------------------------
+    def _trocar_fundo(self):
+        """
+        Aplica o fundo escolhido sobre a arte que já existe.
+
+        Parte sempre do original: trocar preto por transparente tem de
+        devolver a transparência, e não empilhar um fundo sobre o outro.
+        """
+        escolha = dict(FUNDOS).get(self.fundo.get(), None)
+        if escolha == "escolher":
+            from tkinter import colorchooser
+
+            cor = colorchooser.askcolor(parent=self.janela,
+                                        title=t("A cor do fundo"))[1]
+            if not cor:
+                self.fundo.set(FUNDOS[0][0])
+                return
+            self.cor_do_fundo = cor
+        else:
+            self.cor_do_fundo = escolha
+
+        if self.gerada_original is None:
+            return
+        try:
+            self.gerada = l2ia.por_fundo(self.gerada_original,
+                                         self.cor_do_fundo)
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu para trocar o fundo"), str(erro),
+                                 parent=self.janela)
+            return
+        # O arquivo entregue tem de ser o que está na tela, e não o de antes.
+        try:
+            self.gerada.save(self.caminho_gerado)
+        except Exception:                           # noqa: BLE001
+            pass
+        self._mostrar(self.gerada)
+        self._mostrar_real(self.gerada)
+
+    def _mudou_o_tamanho(self):
+        """A prévia real e a frase acompanham a caixa de tamanho."""
+        self._mostrar_real(self.gerada)
+        self._dizer_o_estado()
 
     def _tamanho_do_tipo(self):
         """Ao trocar o que gerar, o tamanho vai para o comum daquele tipo."""
@@ -487,7 +608,13 @@ class JanelaDeArte:
         longo do tempo, e não cortada no fim, senão a volta fica pela metade.
         """
         if self.quadros_do_arquivo:
-            return l2ia.reamostrar(self.quadros_do_arquivo, quantos)
+            vindos = l2ia.reamostrar(self.quadros_do_arquivo, quantos)
+            if self.cor_do_fundo:
+                # O fundo escolhido vale para a animação também: preto na
+                # arte e transparente nos quadros seria o programa se
+                # contradizendo.
+                vindos = [l2ia.por_fundo(q, self.cor_do_fundo) for q in vindos]
+            return vindos
         return l2ia.animar(self.gerada, self.modo.get(), quantos)
 
     def _mostrar(self, imagem):
@@ -670,7 +797,8 @@ class JanelaDeArte:
                 parent=self.janela):
             return
 
-        self.botao_animar_cliente.config(state="disabled")
+        self.rodando = True
+        self._atualizar_botoes()
         self.estado.config(text=t("montando a corrente…"))
         threading.Thread(target=self._corrente_thread,
                          args=(caminho, nome, (largura, altura), quantos,
@@ -751,7 +879,8 @@ class JanelaDeArte:
                 parent=self.janela):
             return
 
-        self.botao_animar_cliente.config(state="disabled")
+        self.rodando = True
+        self._atualizar_botoes()
         self.estado.config(text=t("gravando os quadros…"))
         threading.Thread(target=self._aplicar_thread,
                          args=(caminho, familia, quantos), daemon=True).start()
@@ -772,8 +901,9 @@ class JanelaDeArte:
         self.raiz.after(0, self._fim_da_aplicacao, registro, erro)
 
     def _fim_da_aplicacao(self, registro, erro):
+        self.rodando = False
         try:
-            self.botao_animar_cliente.config(state="normal")
+            self._atualizar_botoes()
             self.estado.config(text="")
         except tk.TclError:
             return

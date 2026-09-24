@@ -401,6 +401,12 @@ class PainelDeIcone(ttk.Frame):
                                 wraplength=280, justify="left")
         self.estado.pack(side="left", padx=(10, 0))
 
+        # O botao segue o conteudo dos campos, e nao a ordem dos cliques:
+        # arte vinda da IA enche a imagem sem passar pelo "Escolher...".
+        for campo in (self.arquivo, self.nome_do_icone, self.pacote):
+            campo.trace_add("write", lambda *_a: self._atualizar_botoes())
+        self._atualizar_botoes()
+
     @staticmethod
     def _moldura(pai):
         moldura = tk.Frame(pai, bg=COR_FUNDO_ICONE, width=LADO + 10,
@@ -418,24 +424,33 @@ class PainelDeIcone(ttk.Frame):
     def gerar_com_ia(self):
         """Abre a janela que pede a arte à IA e traz o resultado para cá."""
         import gui_ia
+        # O painel e um Frame: quem tem `after` e `wait_window` aqui e a
+        # janela em que ele mora. `self.raiz` nunca existiu nesta classe --
+        # era AttributeError antes de a tela de IA chegar a abrir.
+        janela = self.winfo_toplevel()
         feito = gui_ia.JanelaDeArte(
-            self.raiz, self, sugestao=self.nome_do_icone.get(),
-            pai=self.winfo_toplevel()).resposta
+            janela, self, sugestao=self.nome_do_icone.get(),
+            pai=janela).resposta
         if not feito:
             return
         self.arquivo.set(str(feito["imagem"]))
         if feito.get("nome") and not self.nome_do_icone.get().strip():
             self.nome_do_icone.set(feito["nome"])
-        self.mostrar_previa_propria()
-        self.mostrar_referencia()
-        if feito.get("quadros"):
-            self.log(t("\nA IA gerou %d quadros de animação. Eles viram um "
-                       "pacote só, com os objetos numerados, ao criar.")
-                     % len(feito["quadros"]))
-        self.quadros_da_ia = feito.get("quadros") or []
         if feito.get("lado"):
             self.lado_do_icone.set(str(feito["lado"]))
-            self._mostrar_previa(self.arquivo.get().strip())
+        self.quadros_da_ia = feito.get("quadros") or []
+
+        # A prévia e o recado são os DESTE painel: `mostrar_previa_propria`,
+        # `mostrar_referencia` e `log` são da janela de escolher ícone, de
+        # onde este método foi copiado -- e chamá-los aqui era AttributeError.
+        self._mostrar_previa(self.arquivo.get().strip())
+        if self.quadros_da_ia:
+            self.estado.config(
+                text=t("arte pronta, com %d quadros de animação: eles viram um "
+                       "pacote só, numerados.") % len(self.quadros_da_ia))
+        else:
+            self.estado.config(text=t("arte pronta em %dx%d.")
+                               % (self.lado(), self.lado()))
 
     def escolher_arquivo(self):
         caminho = filedialog.askopenfilename(
@@ -448,11 +463,62 @@ class PainelDeIcone(ttk.Frame):
         if not self.nome_do_icone.get().strip():
             self.nome_do_icone.set(l2icone.limpar_nome(Path(caminho).stem))
         self._mostrar_previa(caminho)
-        self.botao_preparar.config(state="normal")
+        self._atualizar_botoes()
+
+    def _atualizar_botoes(self):
+        """
+        Liga "Preparar o ícone" quando houver de fato o que preparar.
+
+        Três coisas precisam existir: a imagem, um nome de ícone e um nome de
+        pacote que sirvam. Faltando alguma, o botão fica desligado E o rodapé
+        diz qual -- botão cinza sozinho não ensina nada.
+        """
+        try:
+            imagem = self.arquivo.get().strip()
+            nome = self.nome_do_icone.get().strip()
+            pacote = self.pacote.get().strip()
+        except tk.TclError:
+            return
+
+        if self.rodando:
+            falta = t("montando o pacote…")
+        elif not imagem:
+            falta = ""
+        elif not nome:
+            falta = t("falta o nome do ícone.")
+        elif not l2icone.nome_valido(nome):
+            falta = t("o nome do ícone só aceita letra, número e _, "
+                      "começando por letra.")
+        elif not pacote or not l2icone.nome_valido(pacote):
+            falta = t("o nome do pacote só aceita letra, número e _, "
+                      "começando por letra.")
+        else:
+            falta = None
+
+        try:
+            self.botao_preparar.config(
+                state="normal" if falta is None else "disabled")
+            anterior = getattr(self, "_queixa", "")
+            se_ve = self.estado.cget("text")
+            if falta:
+                # So fala quando ha o que dizer: com a tela vazia, silencio.
+                self.estado.config(text=falta)
+                self._queixa = falta
+            elif anterior and se_ve == anterior:
+                # A queixa perdeu o motivo. Deixar o texto seria acusar um
+                # erro que ja nao existe, com o botao habilitado ao lado.
+                self.estado.config(text="")
+                self._queixa = ""
+        except tk.TclError:
+            pass
 
     def _mostrar_previa(self, caminho):
         """Mostra como a imagem vai ficar depois do corte para o tamanho."""
         if Image is None:
+            return
+        if not str(caminho).strip():
+            # Campo vazio nao e erro: e a tela recem-aberta.
+            self.previa.config(image="", text="—")
             return
         try:
             destino = (Path(self.dono.trabalho()) / "icone_proprio"
@@ -494,7 +560,7 @@ class PainelDeIcone(ttk.Frame):
 
         motor.gravar_opcao("icone", "pacote", pacote)
         self.rodando = True
-        self.botao_preparar.config(state="disabled")
+        self._atualizar_botoes()
         self.estado.config(text=t("montando o pacote…"))
         threading.Thread(target=self._preparar_thread,
                          args=(pacote, nome, self.arquivo.get().strip(),
@@ -525,7 +591,7 @@ class PainelDeIcone(ttk.Frame):
 
     def _fim_preparo(self, referencia, feito, erro):
         self.rodando = False
-        self.botao_preparar.config(state="normal")
+        self._atualizar_botoes()
         if erro is not None:
             self.estado.config(text="")
             messagebox.showerror(t("Não deu para criar o ícone"), str(erro),

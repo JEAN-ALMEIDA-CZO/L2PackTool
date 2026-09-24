@@ -109,7 +109,22 @@ pedidas.
 **Tamanho.** A IA devolve 1024x1024; o ícone do cliente tem 32 ou 64. A caixa
 *no cliente* diz qual é o seu, entra no pedido e manda na prévia — ao lado da
 prévia grande aparece a arte no tamanho real, ampliada sem suavizar, que é o
-que o jogador vai ver. O pacote de ícone é montado nesse tamanho.
+que o jogador vai ver. O pacote de ícone é montado nesse tamanho, e a frase
+sob a prévia acompanha a caixa.
+
+**Fundo.** Transparente é o padrão, porque ícone entra sobre a moldura do
+inventário — mas botão e moldura às vezes querem cor. A caixa *fundo* compõe
+sobre preto, branco, cinza escuro ou uma cor sua, sem gastar outra geração: a
+arte original fica guardada, então voltar para transparente devolve a
+transparência. Vale também para os quadros da animação.
+
+**Os botões dizem a verdade.** Um botão habilitado é uma promessa, então o
+estado dos cinco sai de um lugar só: sem chave o *Gerar* fica desligado (e o
+recado lembra que *Abrir imagem…* não depende de chave); enquanto trabalha,
+ele vira *Gerando…* e o resto desliga; depois de gerar vira *Gerar de novo*, e
+só aí *Usar esta* e *Animar no cliente…* acendem. Na aba de itens, *Preparar o
+ícone* segue o conteúdo dos campos em vez da ordem dos cliques, e o rodapé diz
+o que falta — nome inválido não se adivinha olhando um botão cinza.
 
 **Erro de API vira frase.** Modelo que só devolve texto, chave inválida,
 modelo aposentado, cota estourada: cada um tem o seu recado com o que fazer, e

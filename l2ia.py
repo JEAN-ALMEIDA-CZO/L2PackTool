@@ -507,6 +507,25 @@ def quadros_de_arquivo(caminho):
     return quadros or None
 
 
+
+def por_fundo(imagem, cor=None):
+    """
+    A arte sobre um fundo solido, ou como esta se `cor` for None.
+
+    Icone de inventario quer transparencia -- e por isso que o pedido pede
+    fundo transparente --, mas botao e moldura as vezes querem cor. Compor
+    aqui, e nao pedir a IA, tem duas vantagens: nao custa outra geracao, e a
+    borda do desenho continua limpa, porque o alfa original e que decide onde
+    a cor aparece.
+    """
+    if Image is None:
+        raise ErroDeIA("falta o Pillow para trocar o fundo.")
+    imagem = imagem.convert("RGBA")
+    if not cor:
+        return imagem
+    fundo = Image.new("RGBA", imagem.size, cor)
+    return Image.alpha_composite(fundo, imagem)
+
 def reamostrar(quadros, quantos):
     """
     A mesma animacao com outra contagem de quadros.
