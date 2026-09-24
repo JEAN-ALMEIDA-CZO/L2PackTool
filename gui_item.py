@@ -329,8 +329,9 @@ class JanelaItem:
         ttk.Label(aba, text=t("destaque:")).grid(row=2, column=0, sticky="w",
                                                  pady=(6, 0))
         self.novo_destaque = tk.StringVar()
-        ttk.Entry(aba, textvariable=self.novo_destaque).grid(
-            row=2, column=1, columnspan=2, sticky="ew", padx=(6, 0), pady=(6, 0))
+        self.entrada_destaque = ttk.Entry(aba, textvariable=self.novo_destaque)
+        self.entrada_destaque.grid(row=2, column=1, columnspan=2, sticky="ew",
+                                   padx=(6, 0), pady=(6, 0))
 
         ttk.Label(aba, text=t("descrição:")).grid(row=3, column=0, sticky="w",
                                                   pady=(6, 0))
@@ -721,6 +722,41 @@ class JanelaItem:
         """A cronica do projeto -- e o cliente dele que vai ser lido."""
         return l2item.cronica_em_uso()
 
+
+    def acertar_o_destaque(self):
+        """
+        Liga ou desliga o campo de destaque conforme a crônica aceite.
+
+        O destaque mora na coluna `add_name` do itemname, que é de crônicas
+        posteriores -- C1 e C2 não a têm. Deixar o campo editável ali seria
+        convidar a escrever um valor que não tem onde ser gravado.
+        """
+        tem = True
+        if self.itens is not None:
+            try:
+                tem = self.itens.tem_destaque()
+            except Exception:                       # noqa: BLE001
+                tem = True
+        else:
+            # Antes de abrir as tabelas ainda da para saber pelo formato: as
+            # cronicas de texto (C1, C2) nao tem a coluna. Desligar o campo ja
+            # na abertura da aba evita o usuario escrever para nada.
+            try:
+                tem = motor.formato_da_cronica(
+                    l2item.cronica_em_uso()) != "texto"
+            except Exception:                       # noqa: BLE001
+                tem = True
+        try:
+            self.entrada_destaque.config(
+                state="normal" if tem else "disabled")
+        except tk.TclError:
+            return
+        if not tem:
+            self.novo_destaque.set("")
+            self.log(t("\nEsta crônica não tem destaque dourado: a coluna "
+                       "add_name só existe de crônicas posteriores. O campo "
+                       "fica desligado para não gravar onde não há onde."))
+
     def mostrar_cronica(self):
         """O rótulo da crônica em uso, ao lado do botão."""
         try:
@@ -793,6 +829,8 @@ class JanelaItem:
             return
 
         self.itens = itens
+        # A crônica manda no que a tela deixa editar.
+        self.acertar_o_destaque()
         self.gravados = []
         for chave, (deu, motivo) in sorted(itens.provas.items()):
             self.log(t("  %s: %s") % (itens.tabelas[chave].origem.name, motivo))
@@ -1757,7 +1795,15 @@ class NovoItem(tk.Toplevel):
         # esta e a palavra que o jogo desenha ao lado do nome. Apagar aqui
         # tira a palavra da copia, sem tocar no original.
         self.destaque = tk.StringVar(value=base.get("destaque", ""))
-        ttk.Entry(campos, textvariable=self.destaque, width=34).grid(
+        # Mesma regra da tela de tras: onde a cronica nao tem a coluna, o
+        # campo nasce desligado.
+        tem_destaque = True
+        try:
+            tem_destaque = dono.itens.tem_destaque() if dono.itens else True
+        except Exception:                           # noqa: BLE001
+            tem_destaque = True
+        ttk.Entry(campos, textvariable=self.destaque, width=34,
+                  state="normal" if tem_destaque else "disabled").grid(
             row=2, column=1, columnspan=2, sticky="ew", padx=(6, 0),
             pady=(6, 0))
 

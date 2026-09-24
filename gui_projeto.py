@@ -493,6 +493,15 @@ def avisar_falta(tela, faltas):
         registrar("")
         for frase in faltas:
             registrar("  " + frase)
+
+    # O rotulo e o registro sao para quem ja desconfia que algo deu errado.
+    # Quem clicou num botao e nao viu nada acontecer precisa ser interrompido,
+    # e e isso que a caixa faz.
+    try:
+        messagebox.showwarning(t("Falta configurar o projeto"),
+                               "\n\n".join(faltas))
+    except tk.TclError:
+        pass
     return True
 
 

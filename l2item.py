@@ -357,6 +357,20 @@ class Itens:
         saida.sort(key=lambda item: int(item["id"] or 0))
         return saida
 
+    def tem_destaque(self):
+        """
+        Esta cronica tem a palavra dourada ao lado do nome?
+
+        Ela mora na coluna `add_name` do itemname, que e de cronicas
+        posteriores: C1 e C2 nao a tem. Quem for oferecer o campo na tela
+        pergunta aqui antes.
+        """
+        try:
+            self.tabelas["nome"].coluna("add_name")
+            return True
+        except Exception:                           # noqa: BLE001
+            return False
+
     def icone_de(self, grupo, linha):
         """
         O icone deste item, em qualquer das colunas em que ele possa estar.

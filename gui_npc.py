@@ -76,12 +76,12 @@ PALPITES = (
 def achar_cliente():
     """O primeiro palpite que tiver um npcgrp.dat dentro. Vazio se nenhum."""
     guardado = motor.ler_opcao("cliente", "system", "")
-    if guardado and (Path(guardado) / "npcgrp.dat").exists():
+    if guardado and l2npc.achar_npcgrp(Path(guardado)):
         return guardado
 
     for raiz in PALPITES:
         system = Path(raiz) / "system"
-        if (system / "npcgrp.dat").exists():
+        if l2npc.achar_npcgrp(system):
             return str(system)
 
     return ""
@@ -604,12 +604,29 @@ class JanelaNpc:
             gui_projeto.avisar_falta(self, faltas)
             return
         system = Path(self.cliente.get())
-        if not (system / "npcgrp.dat").exists():
-            # A pasta do projeto existe, mas nao e um cliente: o npcgrp.dat e
-            # o que prova que e. Vale um recado proprio, porque o problema
-            # aqui nao e configuracao faltando -- e pasta errada.
+
+        # Esta aba existe para prender EFEITO num NPC, e isso é de crônicas
+        # posteriores: em C1 e C2 o npcgrp não tem as colunas rb_effect_*.
+        # Dizer isso agora poupa preencher a tela inteira para descobrir no
+        # fim.
+        import l2item
+        cronica = l2item.cronica_em_uso()
+        if motor.formato_da_cronica(cronica) == "texto":
+            messagebox.showinfo(
+                t("Efeito de NPC não existe nesta crônica"),
+                t("%s não prende efeito ao NPC: as colunas rb_effect_* "
+                  "chegaram em crônicas posteriores, com a aura dos raid "
+                  "bosses.\n\nNesta crônica funcionam as abas de Itens, "
+                  "Habilidades, Mob, Conferir Cliente e L2Crypt.")
+                % l2item.rotulo_da_cronica(cronica))
+            return
+
+        if l2npc.achar_npcgrp(system) is None:
+            # A pasta do projeto existe, mas nao e um cliente: o npcgrp e o
+            # que prova que e. Vale um recado proprio, porque o problema aqui
+            # nao e configuracao faltando -- e pasta errada.
             gui_projeto.avisar_falta(self, [
-                t("Não achei npcgrp.dat em %s. A pasta do cliente do projeto "
+                t("Não achei o npcgrp em %s. A pasta do cliente do projeto "
                   "aponta para o lugar errado.") % system])
             return
 
@@ -1423,7 +1440,7 @@ class JanelaNpc:
             return
 
         system = Path(self.cliente.get())
-        if not (system / "npcgrp.dat").exists():
+        if l2npc.achar_npcgrp(system) is None:
             messagebox.showerror(t("Pasta errada"), t("Aponte a pasta system do cliente."))
             return
 

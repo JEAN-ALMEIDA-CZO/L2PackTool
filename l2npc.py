@@ -2030,6 +2030,26 @@ class NpcgrpTexto(object):
         return saida
 
 
+
+def achar_npcgrp(system):
+    """
+    O npcgrp deste cliente, seja ele `.dat` ou `.txt`.
+
+    Ate o C2 as tabelas sao texto e o arquivo se chama `npcgrp.txt`. Procurar
+    so pelo `.dat` fazia a tela dizer que a pasta do cliente estava errada
+    quando ela estava certa.
+    """
+    system = Path(system)
+    for nome in ("npcgrp.dat", "npcgrp.txt"):
+        alvo = system / nome
+        if alvo.is_file():
+            return alvo
+    # Cliente antigo nao e consistente na caixa alta do nome do arquivo.
+    for achado in list(system.glob("*.dat")) + list(system.glob("*.txt")):
+        if achado.stem.lower() == "npcgrp":
+            return achado
+    return None
+
 def abrir_npcgrp(system, T, trabalho, cronica=None):
     """
     O npcgrp desta cronica, binario ou de texto.

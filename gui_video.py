@@ -93,9 +93,15 @@ class JanelaVideo:
         linha_mod.pack(fill="x", pady=(8, 0))
         ttk.Label(linha_mod, text=t("Lobby modelo:")).pack(side="left")
         self.escolhido = tk.StringVar()
-        self.combo_modelo = ttk.Combobox(linha_mod, state="readonly", width=34,
+        # A largura sai do maior nome: com catorze lobbys, "Chaotic Throne 2:
+        # Freya - High Five Part 1" nao cabe em 34, e nome cortado obriga a
+        # abrir a lista para saber o que esta escolhido.
+        valores = self._valores_do_combo()
+        largura = min(64, max([34] + [len(v) + 2 for v in valores]))
+        self.combo_modelo = ttk.Combobox(linha_mod, state="readonly",
+                                         width=largura,
                                          textvariable=self.escolhido,
-                                         values=self._valores_do_combo())
+                                         values=valores)
         self.combo_modelo.pack(side="left", padx=(6, 0))
         self.combo_modelo.bind("<<ComboboxSelected>>", self.ao_trocar_modelo)
         if self.modelo:

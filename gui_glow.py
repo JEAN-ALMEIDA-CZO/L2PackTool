@@ -2338,7 +2338,15 @@ class NovaArma(tk.Toplevel):
         # do item original, e esta e a palavra que o jogo mostra ao lado do
         # nome. Apagar o campo tira a palavra da copia, sem tocar no original.
         self.destaque = tk.StringVar(value=base.get("destaque", ""))
-        ttk.Entry(campos, textvariable=self.destaque, width=32).grid(
+        # Onde a cronica nao tem a coluna `add_name` -- C1 e C2 -- o campo
+        # nasce desligado: escrever nele seria escrever para lugar nenhum.
+        tem_destaque = True
+        try:
+            tem_destaque = dono.itens.tem_destaque() if dono.itens else True
+        except Exception:                           # noqa: BLE001
+            tem_destaque = True
+        ttk.Entry(campos, textvariable=self.destaque, width=32,
+                  state="normal" if tem_destaque else "disabled").grid(
             row=2, column=1, columnspan=2, sticky="ew", padx=(6, 0),
             pady=(6, 0))
 
