@@ -10,9 +10,11 @@
     "skillgrp",
     "skillname-e",
     "npcgrp",
-    "npcname-e"
+    "npcname-e",
+    "transformdata"
   ],
   "nao_provadas": [],
   "conferido_em": "2026-09-24",
-  "cliente_usado": "akumu L2NA P831, limpo, chaves originais (-l)"
+  "cliente_usado": "akumu L2NA P831, limpo, chaves originais (-l)",
+  "transformdata": "100 transformacoes, identico ao original"
 }

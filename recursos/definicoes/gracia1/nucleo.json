@@ -11,10 +11,12 @@
     "skillgrp",
     "skillname-e",
     "npcgrp",
-    "npcname-e"
+    "npcname-e",
+    "transformdata"
   ],
   "nao_provadas": [],
   "conferido_em": "2026-09-24",
   "cliente_usado": "Clientes/07_Gracia_Part1, limpo. Medido: 2.837 armas, 2.066 armaduras, 8.104 etcitem, 13.007 nomes de item, 48.778 skills, 8.437 NPCs -- as oito tabelas identicas ao original na ida e volta.",
-  "observacao": "As definicoes do Gracia Part 2 (CT2_2en) sao IDENTICAS a estas nas oito tabelas -- so o transformdata difere entre as duas pastas da biblioteca. Medido no cliente: as duas passam em 8 de 8, e por isso a deteccao nao as separa. Cliente de Part 2 lido com este nucleo le certo."
+  "observacao": "As definicoes do Gracia Part 2 (CT2_2en) sao IDENTICAS a estas nas oito tabelas -- so o transformdata difere entre as duas pastas da biblioteca. Medido no cliente: as duas passam em 8 de 8, e por isso a deteccao nao as separa. Cliente de Part 2 lido com este nucleo le certo.",
+  "transformdata": "114 transformacoes, identico ao original"
 }

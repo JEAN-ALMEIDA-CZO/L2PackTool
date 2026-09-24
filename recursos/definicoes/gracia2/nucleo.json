@@ -1,0 +1,21 @@
+{
+  "rotulo": "CT2.2 - Gracia Part 2",
+  "ordem": 100,
+  "formato": "binario",
+  "origem_das_definicoes": "biblioteca do L2FileEdit, pasta CT2_2en",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcgrp",
+    "npcname-e",
+    "transformdata"
+  ],
+  "nao_provadas": [],
+  "conferido_em": "2026-09-24",
+  "cliente_usado": "Clientes/08_Gracia_Part2, limpo. Medido: 2.938 armas, 2.148 armaduras, 8.408 etcitem, 13.494 nomes de item, 49.270 skills, 8.625 NPCs, 130 transformacoes.",
+  "observacao": "O npcgrp volta igual menos o ultimo bit de 9 valores de ponto flutuante -- arredondamento na ida e volta do numero, nao campo deslocado; e o mesmo que acontece em C4 e C5. As outras oito tabelas voltam identicas.\\nAs definicoes das oito primeiras tabelas sao IDENTICAS as do Gracia Part 1: o que separa as duas cronicas e o transformdata, que aqui tem um campo a mais (val3). Medido nas duas direcoes: a definicao de uma nao descreve o cliente da outra."
+}

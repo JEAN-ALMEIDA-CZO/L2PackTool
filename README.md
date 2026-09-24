@@ -4,7 +4,7 @@
 
 # L2PackTool
 
-**Ferramentas de cliente e servidor para Lineage II — de C1 a Gracia Part 1.**
+**Ferramentas de cliente e servidor para Lineage II — de C1 a Gracia Part 2.**
 
 Criar NPC com efeito, item, arma, habilidade e loja; trocar a tela de entrada
 por um vídeo seu; ampliar textura por IA; abrir e fechar os arquivos do
@@ -36,7 +36,7 @@ um script, montar a tela de vídeo num lobby, animar textura em lote
 
 ## As crônicas
 
-O programa abre nove, e cada uma é um **núcleo**: uma pasta com a definição de
+O programa abre dez, e cada uma é um **núcleo**: uma pasta com a definição de
 cada tabela e um manifesto dizendo o que foi provado nela — e provado quer
 dizer medido, num cliente de verdade, pela ida e volta byte a byte. A lista
 sai em ordem de lançamento, e não de alfabeto: a posição vem do manifesto, e
@@ -52,7 +52,8 @@ crônica nova entra no lugar certo só por existir.
 | C6 — Interlude | 8 de 8 | binário |
 | CT1 — The Kamael | 8 de 8 | binário |
 | CT1.5 — Hellbound | 8 de 8 | binário |
-| CT2.1 — Gracia Part 1 | 8 de 8 | binário |
+| CT2.1 — Gracia Part 1 | 9 de 9 | binário |
+| CT2.2 — Gracia Part 2 | 9 de 9 | binário |
 
 Até o C2 as tabelas do cliente são **texto** (`weapongrp.txt`, com os campos
 escritos por nome); de C3 em diante são binário descrito por `.ddf`. O
@@ -64,10 +65,18 @@ escrito como não provado, e a tabela correspondente é recusada em vez de ler
 campo deslocado.
 
 **Ele descobre a crônica sozinho.** Ao apontar a pasta do cliente, o programa
-mede três tabelas contra cada definição instalada e escolhe a que reproduz o
+mede quatro tabelas contra cada definição instalada e escolhe a que reproduz o
 arquivo. Uma tabela só não bastaria: várias atravessam crônicas sem mudar. Se
 a crônica do projeto estiver errada, o erro diz qual é a certa, em vez de
-falar em `field 13 / 57`.
+falar em `field 13 / 57`. Tabela que o cliente não tem não conta contra
+ninguém — por isso um cliente de C3 continua saindo com confiança "certa"
+medindo três.
+
+A quarta é o `transformdata`, e ela entrou por necessidade: **Gracia Part 1 e
+Part 2 têm definição idêntica** em weapongrp, itemname-e e npcgrp, e sem ela um
+cliente de Part 2 sairia como Part 1, com confiança "certa" — o pior tipo de
+erro. O Part 2 acrescenta um campo nessa tabela, e a separação foi medida nas
+duas direções: a definição de uma não descreve o cliente da outra.
 
 **O tipo da habilidade tem duas escalas.** A coluna `oper_type` do `skillgrp`
 não quer dizer o mesmo em todas as crônicas, e isso foi medido por habilidade

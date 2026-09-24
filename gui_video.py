@@ -416,13 +416,21 @@ class JanelaVideo:
             self.olhar_o_instalado()
 
     def _da_cronica_do_projeto(self, modelo):
-        """Este lobby é da mesma crônica que o projeto?"""
-        dele = (modelo or {}).get("cronica") or ""
-        if not dele:
+        """
+        Este lobby serve a crônica do projeto?
+
+        Um lobby pode declarar mais de uma: a tela de entrada do Gracia é a
+        mesma no Part 1 e no Part 2. Cartão com um nome só continua valendo,
+        e vem como lista de um.
+        """
+        delas = (modelo or {}).get("cronica") or []
+        if isinstance(delas, str):
+            delas = [delas] if delas else []
+        if not delas:
             return None                 # não declarado: não dá para comparar
         try:
             import projeto
-            return dele == (projeto.cronica() or "")
+            return (projeto.cronica() or "") in delas
         except Exception:                           # noqa: BLE001
             return None
 

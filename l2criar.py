@@ -962,21 +962,49 @@ NOME_DO_CARTAO = "lobby.json"
 
 
 def _cartao_do_zip(caminho):
-    """Nome, se leva video e de onde a camera olha -- sem descompactar nada."""
+    """
+    Nome, se leva video e de onde a camera olha -- sem descompactar nada.
+
+    Cartao ilegivel custa o CARTAO, e nao o lobby: um `\\n` a mais no fim do
+    JSON ja fez o lobby do Gracia sumir da lista sem dar erro nenhum, que e o
+    pior jeito de falhar -- nao ha o que procurar. Zip que nem abre continua
+    fora, porque esse nao ha como usar.
+    """
     cartao = {}
     try:
-        with zipfile.ZipFile(caminho) as pacote:
-            for dentro in pacote.namelist():
-                baixo = dentro.lower()
+        pacote = zipfile.ZipFile(caminho)
+    except Exception:                               # noqa: BLE001
+        return None
+    with pacote:
+        for dentro in pacote.namelist():
+            baixo = dentro.lower()
+            try:
                 if baixo.endswith(NOME_DO_CARTAO):
-                    cartao.update(json.loads(pacote.read(dentro).decode("utf-8")))
+                    cartao.update(json.loads(
+                        pacote.read(dentro).decode("utf-8")))
                 elif baixo.endswith("lobbyinfo.txt") and "nome" not in cartao:
                     texto = pacote.read(dentro).decode("latin-1")
                     if '"' in texto:
                         cartao["nome"] = texto.split('"')[1].strip()
-    except Exception:                               # noqa: BLE001
-        return None
+            except Exception:                       # noqa: BLE001
+                continue
     return cartao
+
+
+
+def _cronicas_do_cartao(cartao):
+    """
+    De que cronica(s) e o lobby: sempre uma lista, vazia quando nao diz.
+
+    O cartao antigo traz um nome so (`"cronica": "kamael"`) e continua
+    valendo; o novo pode trazer varios, porque ha lobby que serve mais de uma
+    cronica -- o do Gracia atende o Part 1 e o Part 2, que compartilham a
+    tela de entrada.
+    """
+    bruto = cartao.get("cronicas") or cartao.get("cronica") or ""
+    if isinstance(bruto, str):
+        bruto = [bruto]
+    return [str(c).strip() for c in bruto if str(c).strip()]
 
 
 def _ler_embutido(caminho):
@@ -998,8 +1026,10 @@ def _ler_embutido(caminho):
             # origem: quem instala nao tem por que anunciar de onde ele veio.
             "nome_do_arquivo": "%s.usx" % versao.NOME,
             # de que cronica e este lobby, quando o cartao diz. Vazio quer
-            # dizer "nao declarado", e nao "serve em qualquer uma".
-            "cronica": (cartao.get("cronica") or "").strip(),
+            # dizer "nao declarado", e nao "serve em qualquer uma". Pode ser
+            # uma lista: a tela de entrada do Gracia e a mesma no Part 1 e no
+            # Part 2, e um zip so atende as duas.
+            "cronica": _cronicas_do_cartao(cartao),
             # do cartao: se este lobby e o que recebe video, de onde a camera
             # do login olha, e se e ele que vem escolhido ao abrir a aba
             "video": bool(cartao.get("video")),

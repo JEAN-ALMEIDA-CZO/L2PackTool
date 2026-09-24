@@ -44,7 +44,14 @@ import motor
 # As tabelas que mais mudam de uma cronica para outra, e por isso as que
 # melhor separam. A ordem importa: a primeira decide sozinha na maioria dos
 # casos, e as outras entram para desempatar.
-TABELAS_DE_PROVA = ("weapongrp", "itemname-e", "npcgrp")
+#
+# O `transformdata` entrou por necessidade, e nao por zelo: Gracia Part 1 e
+# Part 2 tem definicao IDENTICA nas tres primeiras, e sem uma quarta um
+# cliente de Part 2 sairia como Part 1 com confianca "certa". A definicao do
+# Part 2 acrescenta um campo, e ai as duas se separam -- medido nos dois
+# clientes, nas duas direcoes. Cliente que nao tem a tabela nao e penalizado:
+# ver `detectar`.
+TABELAS_DE_PROVA = ("weapongrp", "itemname-e", "npcgrp", "transformdata")
 
 # Tabelas que so existem de C2 em diante. Serve para separar as duas cronicas
 # de texto, que o mesmo leitor abre sem reclamar.
@@ -128,24 +135,31 @@ def detectar(T, system, trabalho, preferida=None, aoprogresso=None):
                 "detalhe": "as tabelas são texto, e não .dat: %s" % porque,
                 "placar": {}}
 
-    placar, quantas = {}, len(TABELAS_DE_PROVA)
+    placar, medidas = {}, {}
     lista = candidatas(preferida)
     for i, cronica in enumerate(lista):
-        acertos = 0
+        acertos, existentes = 0, 0
         for tabela in TABELAS_DE_PROVA:
             if aoprogresso:
                 aoprogresso(i, len(lista),
                             "%s / %s" % (l2item.rotulo_da_cronica(cronica),
                                          tabela))
-            if _provar(T, system, trabalho, cronica, tabela):
+            resultado = _provar(T, system, trabalho, cronica, tabela)
+            if resultado is None:
+                continue        # tabela que este cliente nao tem: nao conta
+            existentes += 1
+            if resultado:
                 acertos += 1
         placar[cronica] = acertos
-        # Passou em todas: nao ha o que procurar depois disso. E o caminho
-        # comum quando a cronica ja escolhida esta certa.
-        if acertos == quantas:
+        medidas[cronica] = existentes
+        # Passou em TODAS as que existem: nao ha o que procurar depois disso.
+        # E o caminho comum quando a cronica ja escolhida esta certa.
+        if existentes and acertos == existentes:
             return {"cronica": cronica, "confianca": "certa",
-                    "detalhe": "passou nas %d tabelas medidas" % quantas,
+                    "detalhe": "passou nas %d tabelas medidas" % existentes,
                     "placar": placar}
+
+    quantas = max(medidas.values() or [len(TABELAS_DE_PROVA)])
 
     melhor = max(placar, key=lambda c: placar[c]) if placar else None
     if not melhor or not placar[melhor]:
