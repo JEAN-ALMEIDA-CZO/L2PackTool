@@ -56,9 +56,10 @@ class JanelaDeArte:
     caminhos, na ordem do ciclo.
     """
 
-    def __init__(self, raiz, dono, sugestao="", tipo="icone"):
+    def __init__(self, raiz, dono, sugestao="", tipo="icone", pai=None):
         self.raiz = raiz
         self.dono = dono
+        self.pai = pai or raiz
         self.resposta = None
         self.gerada = None          # PIL.Image do que a IA devolveu
         self.previa_tk = None
@@ -66,9 +67,20 @@ class JanelaDeArte:
         self.trabalho = Path(motor.BASE) / "trabalho" / "ia"
         self.trabalho.mkdir(parents=True, exist_ok=True)
 
-        self.janela = ajuda.por_icone(tk.Toplevel(raiz))
+        self.janela = ajuda.por_icone(tk.Toplevel(self.pai))
         self.janela.title(t("Gerar arte com IA"))
-        self.janela.transient(raiz)
+        self.janela.transient(self.pai)
+
+        # Quem chamou pode ser modal -- a tela de escolher icone e. Nesse
+        # caso ela esta com o grab do Tk, e todo clique iria para la: esta
+        # janela apareceria e nao responderia. Toma-se o bastao aqui e
+        # devolve-se ao fechar, senao a de tras fica sem modalidade depois.
+        self._grab_anterior = self.janela.grab_current()
+        try:
+            self.janela.grab_set()
+        except tk.TclError:
+            pass
+        self.janela.protocol("WM_DELETE_WINDOW", self.fechar)
 
         quadro = ttk.Frame(self.janela, padding=12)
         quadro.pack(fill="both", expand=True)
@@ -79,9 +91,29 @@ class JanelaDeArte:
         self._montar_animacao(quadro)
         self._montar_previa_e_acao(quadro)
 
+        self._explicar_o_modo()
         self._conferir_o_provedor()
-        self.janela.bind("<Escape>", lambda _e: self.janela.destroy())
+        self.janela.bind("<Escape>", lambda _e: self.fechar())
+        self.janela.lift()
+        self.janela.focus_force()
         raiz.wait_window(self.janela)
+
+    def fechar(self):
+        """Fecha devolvendo o grab a quem o tinha."""
+        try:
+            self.janela.grab_release()
+        except tk.TclError:
+            pass
+        anterior = getattr(self, "_grab_anterior", None)
+        if anterior is not None:
+            try:
+                anterior.grab_set()
+            except tk.TclError:
+                pass
+        try:
+            self.janela.destroy()
+        except tk.TclError:
+            pass
 
     # -- as partes da tela -------------------------------------------------
     def _montar_topo(self, quadro, tipo, sugestao):
@@ -172,12 +204,29 @@ class JanelaDeArte:
                         variable=self.animar).pack(side="left")
         ttk.Label(linha, text=t("modo:")).pack(side="left", padx=(12, 0))
         self.modo = tk.StringVar(value=l2ia.MODOS[0])
-        ttk.Combobox(linha, textvariable=self.modo, values=l2ia.MODOS,
-                     state="readonly", width=12).pack(side="left", padx=(6, 0))
+        caixa_modo = ttk.Combobox(linha, textvariable=self.modo,
+                                  values=l2ia.MODOS, state="readonly",
+                                  width=12)
+        caixa_modo.pack(side="left", padx=(6, 0))
+        # Doze modos e nome de uma palavra: sem a explicação ao lado, escolher
+        # vira tentativa e erro.
+        self.diz_o_modo = ttk.Label(linha, foreground=tema.TEXTO_FRACO)
+        self.diz_o_modo.pack(side="left", padx=(8, 0))
+        caixa_modo.bind("<<ComboboxSelected>>",
+                        lambda _e: self._explicar_o_modo())
         ttk.Label(linha, text=t("quadros:")).pack(side="left", padx=(12, 0))
         self.quantos = tk.StringVar(value="8")
         ttk.Spinbox(linha, from_=2, to=32, width=5,
                     textvariable=self.quantos).pack(side="left", padx=(6, 0))
+
+
+    def _explicar_o_modo(self):
+        """Diz em uma linha o que o modo escolhido faz."""
+        try:
+            self.diz_o_modo.config(text=t(l2ia.EXPLICACAO.get(self.modo.get(),
+                                                              "")))
+        except tk.TclError:
+            pass
 
     def _montar_previa_e_acao(self, quadro):
         baixo = ttk.Frame(quadro)
@@ -204,10 +253,14 @@ class JanelaDeArte:
         self.botao_usar = ttk.Button(acao, text=t("Usar esta"),
                                      command=self.usar, state="disabled")
         self.botao_usar.pack(side="left", padx=(6, 0))
+        self.botao_animar_cliente = ttk.Button(
+            acao, text=t("Aplicar numa animação do cliente…"),
+            command=self.aplicar_no_cliente, state="disabled")
+        self.botao_animar_cliente.pack(side="left", padx=(6, 0))
         ttk.Button(acao, text=t("Ver o pedido"),
                    command=self.ver_o_pedido).pack(side="left", padx=(6, 0))
         ttk.Button(acao, text=t("Fechar"),
-                   command=self.janela.destroy).pack(side="right")
+                   command=self.fechar).pack(side="right")
 
     # -- o provedor --------------------------------------------------------
     def _conferir_o_provedor(self):
@@ -293,6 +346,7 @@ class JanelaDeArte:
                                   "gere de novo mudando as observações.")
                            % imagem.size)
         self.botao_usar.config(state="normal")
+        self.botao_animar_cliente.config(state="normal")
 
     def _mostrar(self, imagem):
         if ImageTk is None or imagem is None:
@@ -328,6 +382,157 @@ class JanelaDeArte:
         self.resposta = {"imagem": str(self.caminho_gerado),
                          "nome": _nome_do_objeto(self.objeto.get()),
                          "quadros": quadros}
+        self.fechar()
+
+
+
+    # -- pôr a animação no cliente -----------------------------------------
+    def aplicar_no_cliente(self):
+        """
+        Troca o desenho de uma sequência que o cliente já toca.
+
+        É assim que o Lineage 2 anima a interface: famílias de textura
+        numeradas -- `ToggleEffect001..013`, `cooltime000..359` -- que o
+        código do cliente escolhe a cada instante. Trocar o desenho delas é
+        animação nova no jogo, hoje, sem mexer em interface.
+        """
+        import l2anima
+        import l2conferir
+        import projeto
+
+        if self.gerada is None:
+            return
+        cliente = (projeto.cliente() or "").strip()
+        inicio = str(l2conferir.raiz_do_cliente(cliente)) if cliente else None
+        caminho = filedialog.askopenfilename(
+            title=t("O pacote com a animação (ex.: L2_SkillTime.utx)"),
+            initialdir=inicio, parent=self.janela,
+            filetypes=[(t("Pacote de textura"), "*.utx")])
+        if not caminho:
+            return
+
+        self.estado.config(text=t("lendo o pacote…"))
+        self.janela.update_idletasks()
+        try:
+            _pacote, achadas = l2anima.familias_do_arquivo(
+                motor.carregar_config(), caminho)
+        except Exception as erro:                   # noqa: BLE001
+            self.estado.config(text="")
+            messagebox.showerror(t("Não deu para ler o pacote"), str(erro),
+                                 parent=self.janela)
+            return
+        self.estado.config(text="")
+        if not achadas:
+            messagebox.showinfo(
+                t("Sem animação aqui"),
+                t("Não achei sequência numerada em %s.\n\nUma animação da "
+                  "interface é uma família de texturas com número no fim do "
+                  "nome, como ToggleEffect001..013. Sem isso, não há o que "
+                  "trocar.") % Path(caminho).name, parent=self.janela)
+            return
+
+        familia = EscolherSequencia(self.janela, achadas).resposta
+        if not familia:
+            return
+
+        quantos = familia["quantos"]
+        if not messagebox.askyesno(
+                t("Trocar os quadros de %s?") % familia["prefixo"],
+                t("Serão regravados %d quadros de %dx%d, no formato %s, "
+                  "dentro de %s.\n\nO original vai para backup_animacao "
+                  "antes.\n\nFeche o jogo antes: o cliente segura o arquivo "
+                  "enquanto roda.\n\nTrocar?")
+                % (quantos, familia["largura"], familia["altura"],
+                   familia["formato"], Path(caminho).name),
+                parent=self.janela):
+            return
+
+        self.botao_animar_cliente.config(state="disabled")
+        self.estado.config(text=t("gravando os quadros…"))
+        threading.Thread(target=self._aplicar_thread,
+                         args=(caminho, familia, quantos), daemon=True).start()
+
+    def _aplicar_thread(self, caminho, familia, quantos):
+        import l2anima
+        registro = []
+        try:
+            T = motor.carregar_config()
+            quadros = l2ia.animar(self.gerada, self.modo.get(), quantos)
+            pronto = l2anima.trocar_quadros(
+                T, caminho, familia["prefixo"], quadros,
+                self.trabalho / "animacao", aolog=registro.append)
+            l2anima.instalar(T, pronto, caminho, aolog=registro.append)
+            erro = None
+        except Exception as e:                      # noqa: BLE001
+            erro = e
+        self.raiz.after(0, self._fim_da_aplicacao, registro, erro)
+
+    def _fim_da_aplicacao(self, registro, erro):
+        try:
+            self.botao_animar_cliente.config(state="normal")
+            self.estado.config(text="")
+        except tk.TclError:
+            return
+        if erro is not None:
+            messagebox.showerror(t("Não deu para aplicar"), str(erro),
+                                 parent=self.janela)
+            return
+        messagebox.showinfo(
+            t("Animação trocada"),
+            t("%s\n\nFeche e abra o jogo para ver: o cliente lê o pacote no "
+              "arranque.") % "\n".join(registro[-3:]), parent=self.janela)
+
+
+class EscolherSequencia:
+    """A lista de famílias achadas no pacote. Devolve a escolhida em `.resposta`."""
+
+    def __init__(self, pai, familias):
+        self.resposta = None
+        self.familias = familias
+
+        self.janela = ajuda.por_icone(tk.Toplevel(pai))
+        self.janela.title(t("Qual animação trocar"))
+        self.janela.transient(pai)
+        self.janela.grab_set()
+
+        quadro = ttk.Frame(self.janela, padding=12)
+        quadro.pack(fill="both", expand=True)
+        ttk.Label(quadro, justify="left", wraplength=460,
+                  foreground=tema.TEXTO_FRACO,
+                  text=t("Cada linha é uma sequência que o cliente toca "
+                         "sozinho. Os quadros são trocados no mesmo tamanho e "
+                         "no mesmo formato -- os nomes não mudam, e por isso "
+                         "o cliente continua achando o que procura.")
+                  ).pack(anchor="w")
+
+        self.lista = tk.Listbox(quadro, height=8, width=58,
+                                background=tema.PAINEL, foreground=tema.TEXTO,
+                                selectbackground=tema.OURO_FUNDO,
+                                highlightthickness=1,
+                                highlightbackground=tema.BORDA,
+                                borderwidth=0, font=tema.CORPO)
+        self.lista.pack(fill="both", expand=True, pady=(8, 0))
+        for familia in familias:
+            self.lista.insert("end", "%-18s %4d quadros   %dx%d   %s"
+                              % (familia["prefixo"], familia["quantos"],
+                                 familia["largura"], familia["altura"],
+                                 familia["formato"]))
+        self.lista.selection_set(0)
+        self.lista.bind("<Double-1>", lambda _e: self.aceitar())
+
+        botoes = ttk.Frame(quadro)
+        botoes.pack(fill="x", pady=(10, 0))
+        ttk.Button(botoes, text=t("Usar esta"), style="Primario.TButton",
+                   command=self.aceitar).pack(side="left")
+        ttk.Button(botoes, text=t("Cancelar"),
+                   command=self.janela.destroy).pack(side="right")
+
+        pai.wait_window(self.janela)
+
+    def aceitar(self):
+        marcado = self.lista.curselection()
+        if marcado:
+            self.resposta = self.familias[marcado[0]]
         self.janela.destroy()
 
 

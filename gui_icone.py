@@ -406,8 +406,9 @@ class PainelDeIcone(ttk.Frame):
     def gerar_com_ia(self):
         """Abre a janela que pede a arte à IA e traz o resultado para cá."""
         import gui_ia
-        feito = gui_ia.JanelaDeArte(self.raiz, self,
-                                    sugestao=self.nome_do_icone.get()).resposta
+        feito = gui_ia.JanelaDeArte(
+            self.raiz, self, sugestao=self.nome_do_icone.get(),
+            pai=self.winfo_toplevel()).resposta
         if not feito:
             return
         self.arquivo.set(str(feito["imagem"]))
@@ -771,8 +772,9 @@ class EscolherIcone:
         Mesma janela que o painel usa: o pedido é o mesmo venha de onde vier.
         """
         import gui_ia
-        feito = gui_ia.JanelaDeArte(self.raiz, self.dono,
-                                    sugestao=self.nome_do_icone.get()).resposta
+        feito = gui_ia.JanelaDeArte(
+            self.raiz, self.dono, sugestao=self.nome_do_icone.get(),
+            pai=self.janela).resposta
         if not feito:
             return
         self.arquivo.set(str(feito["imagem"]))

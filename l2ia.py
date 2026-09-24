@@ -305,50 +305,256 @@ def _tipo_da_imagem(caminho):
 #   pulso      brilho sobe e desce. Serve para botao que "respira".
 #   giro       a arte gira. Serve para moldura circular e para selo.
 #   varredura  um brilho atravessa a imagem. Serve para borda de botao.
-MODOS = ("pulso", "giro", "varredura")
+# Os modos, na ordem em que aparecem na tela: do mais discreto ao mais
+# chamativo. Quem escolhe animacao para um icone de inventario quase sempre
+# quer os primeiros; os ultimos sao para pecas de interface.
+MODOS = ("pulso", "fade", "giro", "balanco", "flutuar", "zoom", "tremor",
+         "varredura", "contorno", "cintilar", "onda", "matiz")
+
+# O que cada um faz, em uma linha, para a tela poder explicar sem manual.
+EXPLICACAO = {
+    "pulso": "o brilho sobe e desce",
+    "fade": "aparece e some, sem mudar de forma",
+    "giro": "dá uma volta inteira",
+    "balanco": "gira um pouco para cada lado",
+    "flutuar": "sobe e desce no lugar",
+    "zoom": "aproxima e afasta",
+    "tremor": "treme e volta ao lugar",
+    "varredura": "um brilho atravessa a arte",
+    "contorno": "uma luz corre pela borda",
+    "cintilar": "faíscas acendem e apagam",
+    "onda": "ondula como água",
+    "matiz": "a cor gira pelo espectro",
+}
 
 
 def animar(imagem, modo="pulso", quadros=8, forca=0.6):
     """
     Devolve `quadros` imagens a partir de uma so, em ciclo fechado.
 
-    Ciclo fechado quer dizer que o ultimo quadro leva de volta ao primeiro
-    sem salto -- e o que faz a animacao do cliente nao piscar. Por isso as
-    contas usam seno: no fim da volta o valor e o mesmo do comeco.
+    Ciclo fechado: o quadro depois do ultimo e o primeiro. E o que faz a
+    animacao do cliente nao dar um pulo a cada volta -- e num icone que roda
+    o tempo todo, o pulo e a unica coisa que se enxerga.
+
+    Por isso nada aqui usa acaso por quadro: ate o que parece faisca tem
+    posicao fixa e brilho em seno.
     """
     if Image is None:
         raise ErroDeIA("falta o Pillow para montar a animação.")
-    import math
 
     base = imagem.convert("RGBA") if hasattr(imagem, "convert") \
         else Image.open(imagem).convert("RGBA")
-    saida = []
-    for i in range(quadros):
-        fase = 2 * math.pi * i / quadros
-        if modo == "giro":
-            quadro = base.rotate(360.0 * i / quadros, resample=Image.BICUBIC)
-        elif modo == "varredura":
-            quadro = _varrer(base, i / float(quadros), forca)
-        else:
-            fator = 1.0 + forca * 0.5 * (1 + math.sin(fase)) / 2.0
-            quadro = ImageEnhance.Brightness(base).enhance(fator)
-        saida.append(quadro)
-    return saida
+    fabrica = _FABRICAS.get(modo, _pulso)
+    return [fabrica(base, i / float(quadros), forca) for i in range(quadros)]
 
 
-def _varrer(base, posicao, forca):
+def _seno(fase):
+    """0 a 1 e de volta a 0, fechando o ciclo."""
+    import math
+    return (1 - math.cos(2 * math.pi * fase)) / 2.0
+
+
+def _pulso(base, fase, forca):
+    return ImageEnhance.Brightness(base).enhance(1.0 + forca * _seno(fase))
+
+
+def _fade(base, fase, forca):
+    """Mexe so no alfa: a forma fica, a presenca varia."""
+    copia = base.copy()
+    alfa = copia.getchannel("A").point(
+        lambda v: int(v * (1.0 - forca * _seno(fase))))
+    copia.putalpha(alfa)
+    return copia
+
+
+def _giro(base, fase, _forca):
+    return base.rotate(360.0 * fase, resample=Image.BICUBIC)
+
+
+def _balanco(base, fase, forca):
+    """Gira pouco, para um lado e para o outro. 15 graus na forca cheia."""
+    import math
+    angulo = 15.0 * forca * math.sin(2 * math.pi * fase)
+    return base.rotate(angulo, resample=Image.BICUBIC)
+
+
+def _flutuar(base, fase, forca):
+    """Sobe e desce sem sair do quadro -- o deslocamento e do tamanho."""
+    import math
+    largura, altura = base.size
+    desloca = int(round(altura * 0.08 * forca * math.sin(2 * math.pi * fase)))
+    quadro = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    quadro.paste(base, (0, desloca), base)
+    return quadro
+
+
+def _zoom(base, fase, forca):
+    """
+    Aproxima e afasta mantendo o tamanho do quadro.
+
+    A imagem cresce e e RECORTADA no centro, em vez de o quadro crescer: um
+    icone que muda de tamanho de quadro para quadro nao entra num pacote.
+    """
+    largura, altura = base.size
+    escala = 1.0 + 0.18 * forca * _seno(fase)
+    nova = base.resize((max(1, int(largura * escala)),
+                        max(1, int(altura * escala))), Image.LANCZOS)
+    esquerda = (nova.size[0] - largura) // 2
+    topo = (nova.size[1] - altura) // 2
+    return nova.crop((esquerda, topo, esquerda + largura, topo + altura))
+
+
+def _tremor(base, fase, forca):
+    """
+    Treme e volta. O desenho do tremor e fixo: seno em x, dobro em y.
+
+    Acaso por quadro daria um tremor diferente a cada volta, e ai a animacao
+    nunca fecharia.
+    """
+    import math
+    largura, altura = base.size
+    amplitude = max(1, int(min(largura, altura) * 0.04 * forca))
+    dx = int(round(amplitude * math.sin(2 * math.pi * fase)))
+    dy = int(round(amplitude * math.sin(4 * math.pi * fase)))
+    quadro = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    quadro.paste(base, (dx, dy), base)
+    return quadro
+
+
+def _varredura(base, fase, forca):
     """Um brilho diagonal atravessando a imagem, em ciclo."""
     largura, altura = base.size
-    brilho = Image.new("L", (largura, altura), 0)
     faixa = max(4, largura // 6)
-    centro = int((posicao * (largura + 2 * faixa)) - faixa)
+    centro = int((fase * (largura + 2 * faixa)) - faixa)
+    brilho = Image.new("L", (largura, altura), 0)
+    pixels = brilho.load()
     for x in range(max(0, centro - faixa), min(largura, centro + faixa)):
-        forca_x = int(255 * forca * (1 - abs(x - centro) / float(faixa)))
+        valor = int(255 * forca * (1 - abs(x - centro) / float(faixa)))
         for y in range(altura):
-            brilho.putpixel((x, y), max(0, forca_x))
+            pixels[x, y] = max(0, valor)
     luz = Image.merge("RGBA", (brilho, brilho, brilho,
                                Image.new("L", (largura, altura), 0)))
     return ImageChops.add(base, luz)
+
+
+def _contorno(base, fase, forca):
+    """
+    Uma luz correndo pela borda, dando a volta.
+
+    Serve para moldura: o centro fica intacto e so a moldura acende. A
+    posicao anda pelo PERIMETRO, entao a volta fecha sozinha.
+    """
+    largura, altura = base.size
+    perimetro = 2 * (largura + altura)
+    andado = fase * perimetro
+    comprimento = max(6, perimetro // 8)
+
+    brilho = Image.new("L", (largura, altura), 0)
+    pixels = brilho.load()
+    for passo in range(int(comprimento)):
+        posicao = (andado + passo) % perimetro
+        forca_luz = int(255 * forca * (1 - passo / float(comprimento)))
+        x, y = _ponto_do_perimetro(posicao, largura, altura)
+        for ex in range(max(0, x - 1), min(largura, x + 2)):
+            for ey in range(max(0, y - 1), min(altura, y + 2)):
+                pixels[ex, ey] = max(pixels[ex, ey], forca_luz)
+    luz = Image.merge("RGBA", (brilho, brilho, brilho, brilho))
+    return Image.alpha_composite(base, luz)
+
+
+def _ponto_do_perimetro(posicao, largura, altura):
+    """Onde cai esta distancia, andando pela borda no sentido horario."""
+    if posicao < largura:
+        return int(posicao), 0
+    posicao -= largura
+    if posicao < altura:
+        return largura - 1, int(posicao)
+    posicao -= altura
+    if posicao < largura:
+        return largura - 1 - int(posicao), altura - 1
+    posicao -= largura
+    return 0, altura - 1 - int(posicao)
+
+
+def _cintilar(base, fase, forca):
+    """
+    Faiscas acendendo e apagando sobre a arte.
+
+    As posicoes sao fixas -- tiradas de uma semente constante -- e o que
+    varia e o brilho de cada uma, cada qual com a sua fase. Assim a faisca
+    pisca, mas sempre no mesmo lugar, e a volta fecha.
+    """
+    import math
+    import random
+
+    largura, altura = base.size
+    sorteio = random.Random(20260924)
+    brilho = Image.new("L", (largura, altura), 0)
+    pixels = brilho.load()
+    quantas = max(3, (largura * altura) // 600)
+    for i in range(quantas):
+        x = sorteio.randrange(largura)
+        y = sorteio.randrange(altura)
+        propria = sorteio.random()
+        valor = math.sin(2 * math.pi * (fase + propria))
+        if valor <= 0:
+            continue
+        luz = int(255 * forca * valor)
+        for ex in range(max(0, x - 1), min(largura, x + 2)):
+            for ey in range(max(0, y - 1), min(altura, y + 2)):
+                perto = 255 if (ex == x and ey == y) else 120
+                pixels[ex, ey] = max(pixels[ex, ey], luz * perto // 255)
+    luz_rgba = Image.merge("RGBA", (brilho, brilho, brilho, brilho))
+    return Image.alpha_composite(base, luz_rgba)
+
+
+def _onda(base, fase, forca):
+    """
+    Ondula: cada linha anda um pouco para o lado, seguindo um seno.
+
+    A onda ANDA com a fase, e o deslocamento de cada linha volta ao inicio no
+    fim do ciclo.
+    """
+    import math
+    largura, altura = base.size
+    amplitude = max(1, int(largura * 0.05 * forca))
+    quadro = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    for y in range(altura):
+        desloca = int(round(amplitude * math.sin(
+            2 * math.pi * (y / float(altura) + fase))))
+        linha = base.crop((0, y, largura, y + 1))
+        quadro.paste(linha, (desloca, y))
+    return quadro
+
+
+def _matiz(base, fase, _forca):
+    """
+    A cor gira pelo espectro, e o alfa nao e tocado.
+
+    Uma volta inteira de matiz fecha por definicao: 360 graus e o mesmo que
+    zero.
+    """
+    from PIL import Image as _Image
+
+    alfa = base.getchannel("A")
+    hsv = base.convert("RGB").convert("HSV")
+    matiz, saturacao, valor = hsv.split()
+    # A roda de matiz do Pillow vai de 0 a 255, e a volta inteira sao 256
+    # passos -- somar 255 deixa a volta um passo curta, e o ultimo quadro nao
+    # fecha no primeiro.
+    passo = int(round(256 * fase)) % 256
+    matiz = matiz.point(lambda v: (v + passo) % 256)
+    girada = _Image.merge("HSV", (matiz, saturacao, valor)).convert("RGBA")
+    girada.putalpha(alfa)
+    return girada
+
+
+_FABRICAS = {
+    "pulso": _pulso, "fade": _fade, "giro": _giro, "balanco": _balanco,
+    "flutuar": _flutuar, "zoom": _zoom, "tremor": _tremor,
+    "varredura": _varredura, "contorno": _contorno, "cintilar": _cintilar,
+    "onda": _onda, "matiz": _matiz,
+}
 
 
 def montar_sequencia(T, nome_do_pacote, nome_base, quadros, trabalho,
