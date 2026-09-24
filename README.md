@@ -26,7 +26,7 @@ cliente. Tudo numa janela só, em português, inglês e espanhol.
 | **Mob** | os monstros: status, drop e spawn |
 | **Lobby Vídeo** | a tela de entrada: catorze lobbys prontos (C1 a High Five), ou o seu vídeo |
 | **Texture Upscaler** | amplia as texturas de um `.utx` por IA e remonta o pacote *(em testes)* |
-| **Arquivos** | abre e fecha `.dat`, `.utx`, `.u`, `.unr`, `.ini` |
+| **Arquivos** | abre e fecha `.dat`, `.utx`, `.u`, `.unr`, `.ini`, e trata o cliente oficial: chave, loader e patcher |
 | **Conferir Cliente** | varre o cliente e diz o que falta |
 
 Há também uma **linha de comando** (`L2PackTool-cli`) para o que se repete:
@@ -76,9 +76,45 @@ se for a original, **converte a pasta `system` inteira primeiro**: cada arquivo
 é aberto, fechado com a outra chave, aberto de novo e comparado byte a byte, e
 o original só é trocado se bater — com cópia em `backup_chaves`.
 
-Falta um passo que não é deste programa: o jogo precisa conhecer a chave nova,
-e isso é o `patcher` ou o `loader` do l2encdec. O L2Crypt põe o loader certo ao
-lado do cliente e explica; iniciar o jogo por ele é com você.
+Falta o jogo conhecer a chave nova, e isso o programa também faz. Na primeira
+instalação num cliente oficial ele põe o `loader` da crônica ao lado do
+executável e, se o `l2.exe` ainda não foi tratado, oferece rodar o `patcher`
+uma vez — que exige administrador, e por isso é pedido com o aviso do Windows,
+não escondido. A resposta fica guardada: quem recusou não é perguntado de novo,
+e quem aceitou não repete. O `l2.exe` original vai para
+`l2.exe.antes-do-patcher` antes de qualquer coisa, e a mudança é conferida
+depois — se o arquivo não mudou, o programa diz isso em vez de garantir que
+deu certo.
+
+## Arte por IA
+
+Onde o programa aceita uma imagem sua — ícone de item, de habilidade, textura
+de botão — ele aceita também **gerar** uma. Em *Configurações* você escolhe o
+provedor (Gemini ou Claude), cola a sua chave e escreve o **modelo à mão**: os
+nomes de modelo mudam e são aposentados, então nenhum fica preso no código, e
+há um link para a lista de cada fabricante ao lado do campo.
+
+O pedido enviado não é o seu texto solto: há um prompt fixo, escrito para
+ícone de Lineage II moderno — fundo transparente, leitura em 32x32, silhueta
+antes do detalhe —, ao qual se somam as suas observações e as imagens de
+referência que você anexar. O botão *Ver o pedido* mostra exatamente o que sai.
+
+**Animação.** Doze movimentos (pulso, giro, varredura, contorno, cintilar,
+onda, matiz e outros), todos em ciclo fechado: o quadro depois do último é o
+primeiro, porque num ícone que roda o tempo todo o pulo da volta é a única
+coisa que se enxerga.
+
+E os quadros vão para onde o cliente os toca. O Lineage II anima a interface
+sem material nenhum: são famílias de textura numeradas dentro do `.utx` —
+`cooltime000..359`, `ToggleEffect001..013` — que o código do cliente escolhe a
+cada instante. O programa lê o pacote, lista as famílias que achou com quantos
+quadros e de que tamanho, e regrava o desenho de cada uma no mesmo tamanho e
+formato. O original vai para `backup_animacao` com data e hora.
+
+O limite está dito na própria tela: isso troca o desenho de uma animação que
+**existe**. Um nome que o código do cliente não conhece fica parado dentro do
+pacote, sem ninguém para tocá-lo — animação nova em superfície 3D pede
+`MaterialSequence`, que é outro assunto.
 
 
 ## Instalar
