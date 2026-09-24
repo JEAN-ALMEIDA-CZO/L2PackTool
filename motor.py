@@ -56,6 +56,11 @@ ALVOS = {
     "ucc":      ["UCC.exe"],
     "l2asm":    ["l2asm.exe"],
     "l2disasm": ["l2disasm.exe"],
+    # Opcionais, e do mesmo pacote do l2encdec: o patcher troca as chaves
+    # dentro do l2.exe, os loaders as injetam ao iniciar. O programa usa o
+    # loader; o patcher fica reconhecido para quem preferir aquele caminho.
+    "patcher":  ["patcher.exe"],
+    "loader":   ["loaderCT1++.exe", "loader.exe"],
     # So para video: GIF e animacao o Pillow le sozinho.
     "ffmpeg":   ["ffmpeg.exe"],
 }

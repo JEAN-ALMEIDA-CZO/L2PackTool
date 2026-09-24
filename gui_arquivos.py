@@ -137,8 +137,22 @@ class JanelaArquivos:
             linha_prep, text=t("Pôr o loader no cliente"),
             command=self.por_o_loader)
         self.botao_loader.pack(side="left", padx=(6, 0))
+        self.botao_patcher = ttk.Button(
+            linha_prep, text=t("Preparar o l2.exe"),
+            command=self.preparar_o_exe)
+        self.botao_patcher.pack(side="left", padx=(6, 0))
         self.recado_prep = ttk.Label(linha_prep, style="Miudo.TLabel")
         self.recado_prep.pack(side="left", padx=(10, 0))
+        # O estado do patcher fica a vista: ele e o outro caminho, e quem o
+        # procura precisa saber se esta ali e se presta.
+        try:
+            import l2chaves
+            _pronto, frase = l2chaves.estado_do_patcher(self.T)
+            ttk.Label(prep, style="Miudo.TLabel", wraplength=700,
+                      justify="left", text=t(frase)).pack(anchor="w",
+                                                          pady=(6, 0))
+        except Exception:                           # noqa: BLE001
+            pass
         ajuda.ajuda(linha_prep, lambda: t(
             "Reescreve cada tabela da pasta system do cliente apontado no "
             "projeto.@@"
@@ -186,6 +200,67 @@ class JanelaArquivos:
 
     # ---- ajudantes -------------------------------------------------------
 
+
+
+    def preparar_o_exe(self):
+        """
+        Roda o patcher no cliente do projeto, com aviso e com cópia.
+
+        É o outro caminho para o mesmo problema: em vez de abrir o jogo pelo
+        loader, troca as chaves dentro do l2.exe e o jogo abre normalmente.
+        Pede administrador — o Windows mostra o pedido, e quem aceita é o
+        usuário.
+        """
+        import l2chaves
+        import projeto
+
+        cliente = (projeto.cliente() or "").strip()
+        if not cliente:
+            messagebox.showinfo(t("Sem cliente"),
+                                t("Aponte a pasta do cliente em Projetos."))
+            return
+        system = l2conferir.raiz_do_cliente(cliente) / "system"
+
+        pronto, frase = l2chaves.estado_do_patcher(self.T)
+        if not pronto:
+            messagebox.showinfo(t("Patcher indisponível"), t(frase))
+            return
+
+        alvo = l2chaves.exe_do_jogo(system)
+        if alvo is None:
+            messagebox.showerror(
+                t("Não achei o executável"),
+                t("Não achei o executável do jogo em %s.") % system)
+            return
+
+        if not messagebox.askyesno(
+                t("Preparar o %s?") % alvo.name,
+                t("O patcher troca as chaves dentro do %s. Depois disso o "
+                  "jogo abre normalmente por ele, sem precisar do "
+                  "loader.\n\nUma cópia do executável fica guardada em "
+                  "backup_chaves antes de qualquer coisa.\n\nO Windows vai "
+                  "pedir permissão de administrador: o patcher exige.\n\n"
+                  "Feche o jogo antes. Continuar?") % alvo.name):
+            return
+
+        self.botao_patcher.config(state="disabled")
+        self.recado_prep.config(text=t("esperando o patcher…"))
+        self.raiz.update_idletasks()
+        try:
+            mudou, recado = l2chaves.preparar_o_exe(self.T, system,
+                                                    aolog=self.log)
+        except Exception as erro:                   # noqa: BLE001
+            self.botao_patcher.config(state="normal")
+            self.recado_prep.config(text="")
+            messagebox.showerror(t("O patcher não rodou"), str(erro))
+            return
+        self.botao_patcher.config(state="normal")
+        self.recado_prep.config(text="")
+        self.log(recado)
+        if mudou:
+            messagebox.showinfo(t("Executável preparado"), recado)
+        else:
+            messagebox.showwarning(t("Nada mudou"), recado)
 
     def por_o_loader(self):
         """

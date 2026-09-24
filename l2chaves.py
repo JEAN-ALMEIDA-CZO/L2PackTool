@@ -39,6 +39,7 @@ arquivo pela metade. As duas metades continuam legiveis pelo programa, que
 tenta as duas chaves de qualquer jeito.
 """
 
+import json
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -256,10 +257,15 @@ def garantir_para_gravar(T, system, trabalho, aolog=None):
         return True, resumo
 
     diga("Loader posto em %s." % onde)
-    diga("ABRA O JOGO POR ELE, e não pelo l2.exe: é o loader que ensina ao "
-         "cliente a chave em que o programa grava. Sem isso o jogo não lê "
-         "nem o que já estava lá antes.")
     resumo["loader"] = onde
+
+    # O loader ja resolve. O patcher resolve melhor -- sem depender de por
+    # onde o jogo e aberto -- e por isso e tentado uma vez, aqui.
+    _tentou, preparou = preparar_se_precisar(T, system, aolog=diga)
+    resumo["exe_preparado"] = preparou
+    if not preparou:
+        diga("ABRA O JOGO PELO LOADER, e não pelo l2.exe: é ele que ensina "
+             "ao cliente a chave em que o programa grava.")
     return True, resumo
 
 
@@ -304,3 +310,201 @@ def por_o_loader(T, cliente, cronica=None, aolog=None):
         aolog("Inicie o jogo por ele: e o que faz o cliente entender as "
               "tabelas convertidas.")
     return destino
+
+
+def estado_do_patcher(T):
+    """
+    Em que pe esta o patcher: (esta_pronto, frase para a tela).
+
+    Tres casos, e os tres merecem frase diferente: nao instalado, instalado e
+    vazio -- que acontece e nao avisa --, e pronto.
+    """
+    caminho = T.get("patcher")
+    if not caminho or not Path(caminho).exists():
+        return False, ("patcher não instalado — o programa não precisa dele: "
+                       "usa o loader, que faz o mesmo sem alterar o l2.exe")
+    tamanho = Path(caminho).stat().st_size
+    if not tamanho:
+        return False, ("o patcher instalado tem 0 byte (veio assim no pacote) "
+                       "— o programa usa o loader, que não depende dele")
+    return True, ("patcher pronto em %s — o programa não o executa: ele "
+                  "altera o l2.exe, e essa é uma decisão sua" % caminho)
+
+
+# Os nomes que o executavel do jogo pode ter. A ordem importa: o `l2.exe` e o
+# que o patcher procura por padrao.
+EXES_DO_JOGO = ("l2.exe", "L2.exe", "LineageII.exe")
+
+
+def exe_do_jogo(system):
+    """O executavel do jogo dentro do system, ou None."""
+    system = Path(system)
+    for nome in EXES_DO_JOGO:
+        alvo = system / nome
+        if alvo.is_file():
+            return alvo
+    return None
+
+
+def preparar_o_exe(T, system, aolog=None):
+    """
+    Roda o patcher no cliente, para o jogo passar a conhecer a chave nova.
+
+    Devolve (mudou, recado). Pede elevacao -- o Windows mostra o pedido, e
+    quem aceita e o usuario. Antes disso o executavel do jogo vai para a
+    pasta de copias: se o patcher fizer besteira, o original esta guardado.
+    """
+    import ctypes
+    import shutil
+    import time
+
+    system = Path(system)
+
+    def diga(texto):
+        if aolog:
+            aolog(texto)
+
+    pronto, frase = estado_do_patcher(T)
+    if not pronto:
+        raise ErroDeChave(frase)
+
+    alvo = exe_do_jogo(system)
+    if alvo is None:
+        raise ErroDeChave(
+            "não achei o executável do jogo em %s -- procurei por %s."
+            % (system, ", ".join(EXES_DO_JOGO)))
+
+    guarda = system / PASTA_DE_COPIAS
+    guarda.mkdir(parents=True, exist_ok=True)
+    copia = guarda / (alvo.name + ".antes-do-patcher")
+    if not copia.exists():
+        shutil.copy2(alvo, copia)
+        diga("Cópia do %s em %s" % (alvo.name, copia))
+
+    # O patcher precisa do l2encdec ao lado, e trabalha na pasta em que roda.
+    origem = Path(T["patcher"]).parent
+    levados = []
+    for nome in ("patcher.exe", "l2encdec.exe", "libgmp-10.dll", "libz-1.dll",
+                 "libmysql_d.dll"):
+        de = origem / nome
+        if de.is_file() and not (system / nome).exists():
+            shutil.copy2(de, system / nome)
+            levados.append(nome)
+
+    antes = alvo.stat().st_mtime, alvo.stat().st_size
+    diga("Chamando o patcher -- o Windows vai pedir permissão de "
+         "administrador.")
+
+    # ShellExecute com "runas" e o que faz o Windows mostrar o pedido de
+    # elevacao. O subprocess normal nao consegue: ele so herda o que ja tem.
+    resultado = ctypes.windll.shell32.ShellExecuteW(
+        None, "runas", str(system / "patcher.exe"), "-n", str(system), 1)
+    if resultado <= 32:
+        for nome in levados:
+            (system / nome).unlink(missing_ok=True)
+        raise ErroDeChave(
+            "o Windows não deixou rodar o patcher (código %d). Se a janela de "
+            "permissão apareceu e foi recusada, é só isso." % resultado)
+
+    # O ShellExecute nao espera. Espera-se o arquivo mudar, com teto: o
+    # patcher trabalha em segundos, e esperar para sempre travaria a tela.
+    for _ in range(120):
+        time.sleep(1)
+        try:
+            agora = alvo.stat().st_mtime, alvo.stat().st_size
+        except OSError:
+            continue
+        if agora != antes:
+            break
+
+    for nome in levados:
+        (system / nome).unlink(missing_ok=True)
+
+    mudou = (alvo.stat().st_mtime, alvo.stat().st_size) != antes
+    if mudou:
+        diga("O %s foi preparado: o jogo passa a abrir normalmente por ele."
+             % alvo.name)
+        return True, ("%s preparado. O original está em %s." % (alvo.name, copia))
+    return False, ("o %s não mudou. Ou o patcher foi recusado na janela de "
+                   "permissão, ou ele não achou o que trocar -- o loader "
+                   "continua valendo, e não depende disto." % alvo.name)
+
+
+# Onde fica anotado que este cliente ja foi preparado. Mora junto das copias,
+# porque e a mesma historia: o que foi feito neste cliente e como desfazer.
+MARCA_DO_EXE = ".exe-preparado.json"
+
+# Clientes em que o usuario recusou a elevacao nesta sessao. Insistir a cada
+# gravacao ensinaria a clicar em "nao" sem ler.
+_recusaram = set()
+
+
+def _assinatura_do_exe(alvo):
+    return {"nome": alvo.name, "tamanho": alvo.stat().st_size,
+            "data": int(alvo.stat().st_mtime)}
+
+
+def exe_ja_preparado(system):
+    """Este cliente ja passou pelo patcher, e continua o mesmo arquivo?"""
+    alvo = exe_do_jogo(system)
+    if alvo is None:
+        return False
+    marca = Path(system) / PASTA_DE_COPIAS / MARCA_DO_EXE
+    if not marca.is_file():
+        return False
+    try:
+        anotado = json.loads(marca.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return anotado == _assinatura_do_exe(alvo)
+
+
+def anotar_exe_preparado(system):
+    """Guarda a assinatura do executavel recem-preparado."""
+    alvo = exe_do_jogo(system)
+    if alvo is None:
+        return
+    pasta = Path(system) / PASTA_DE_COPIAS
+    pasta.mkdir(parents=True, exist_ok=True)
+    (pasta / MARCA_DO_EXE).write_text(
+        json.dumps(_assinatura_do_exe(alvo), indent=1), encoding="utf-8")
+
+
+def preparar_se_precisar(T, system, aolog=None):
+    """
+    Prepara o executavel do jogo, se houver patcher e ainda nao tiver sido.
+
+    Devolve (tentou, mudou). Nada aqui e obrigatorio: sem patcher, ou com a
+    elevacao recusada, o loader ja resolve -- e e isso que o recado diz.
+    """
+    def diga(texto):
+        if aolog:
+            aolog(texto)
+
+    system = Path(system)
+    if str(system) in _recusaram:
+        return False, False
+    pronto, _frase = estado_do_patcher(T)
+    if not pronto or exe_do_jogo(system) is None:
+        return False, False
+    if exe_ja_preparado(system):
+        return False, False
+
+    diga("O jogo ainda abre com a chave antiga. Vou preparar o executável "
+         "com o patcher -- o Windows vai pedir permissão de administrador.")
+    try:
+        mudou, recado = preparar_o_exe(T, system, aolog=diga)
+    except Exception as erro:                       # noqa: BLE001
+        diga("Não deu para preparar o executável: %s" % erro)
+        diga("Não faz falta: o loader já está no lugar e resolve o mesmo.")
+        _recusaram.add(str(system))
+        return True, False
+
+    if mudou:
+        anotar_exe_preparado(system)
+        diga("Pronto: o jogo pode ser aberto normalmente, sem o loader.")
+    else:
+        diga(recado)
+        diga("O loader continua valendo -- abra o jogo por ele.")
+        _recusaram.add(str(system))
+    return True, mudou

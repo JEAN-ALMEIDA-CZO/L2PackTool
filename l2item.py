@@ -358,11 +358,20 @@ class Itens:
         return saida
 
     def icone_de(self, grupo, linha):
+        """
+        O icone deste item, em qualquer das colunas em que ele possa estar.
+
+        Nao e sempre a primeira. O Interlude poe em `icon[0]`; o C3 poe em
+        `icon[4]` e deixa as quatro primeiras vazias -- olhando so a primeira,
+        6.218 dos 6.391 itens do C3 pareciam nao ter icone.
+        """
         tabela = self.tabelas[grupo]
-        for nome in ("icon[0]", "icon", "icons[0]"):
+        candidatas = ["icon[%d]" % i for i in range(5)]
+        candidatas += ["icon", "icons[0]", "icon_name"]
+        for nome in candidatas:
             try:
                 valor = tabela.campo(linha, nome)
-            except Exception:
+            except Exception:                       # noqa: BLE001
                 continue
             if valor:
                 return valor
