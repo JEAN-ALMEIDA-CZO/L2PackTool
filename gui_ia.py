@@ -44,9 +44,17 @@ except ImportError:                                 # noqa: BLE001
 
 LADO_DA_PREVIA = 128
 
-TIPOS = (("icone", "ícone de item (32x32)"),
+# A previa do tamanho real e menor de proposito: ela mostra 32 ou 64 pixels
+# ampliados, e ampliar demais nao acrescenta informacao nenhuma.
+LADO_DA_PREVIA_REAL = 96
+
+TIPOS = (("icone", "ícone de item"),
          ("botao", "botão de interface"),
          ("borda", "moldura / borda"))
+
+# O tamanho comum de cada coisa no cliente. E so o ponto de partida: a caixa
+# ao lado aceita outro, porque ha cliente com icone de 64 e interface de 256.
+LADOS = {"icone": 32, "botao": 128, "borda": 256}
 
 
 class JanelaDeArte:
@@ -65,6 +73,9 @@ class JanelaDeArte:
         self.gerada = None          # PIL.Image do que a IA devolveu
         self.previa_tk = None
         self.referencias = []
+        # Quando a arte vem de um GIF, estes sao os quadros dele -- e eles
+        # mandam na animacao, porque foram desenhados.
+        self.quadros_do_arquivo = []
         self.trabalho = Path(motor.BASE) / "trabalho" / "ia"
         self.trabalho.mkdir(parents=True, exist_ok=True)
 
@@ -126,6 +137,23 @@ class JanelaDeArte:
         for chave, rotulo in TIPOS:
             ttk.Radiobutton(topo, text=t(rotulo), value=chave,
                             variable=self.tipo).pack(side="left", padx=(8, 0))
+
+        # O tamanho do jogo, e nao o da geracao: a IA devolve 1024x1024
+        # sempre, e o que importa e para que tamanho a arte vai encolher.
+        ttk.Label(topo, text=t("no cliente:")).pack(side="left", padx=(16, 0))
+        self.lado = tk.StringVar(value=str(LADOS.get(tipo, 32)))
+        ttk.Combobox(topo, textvariable=self.lado, values=("32", "64", "128",
+                                                           "256"),
+                     state="readonly", width=5).pack(side="left", padx=(6, 0))
+        ajuda.ajuda(topo, lambda: t(
+            "O tamanho que a arte terá dentro do jogo.@@"
+            "Ícone de item é 32x32 na maioria das crônicas, e 64x64 em "
+            "algumas. Botão e moldura são maiores.@@"
+            "Entra no pedido à IA — desenhar pensando em 32x32 é diferente de "
+            "desenhar um quadro grande — e manda na prévia real, ao lado da "
+            "grande."))
+        self.tipo.trace_add("write", lambda *_a: self._tamanho_do_tipo())
+        self.lado.trace_add("write", lambda *_a: self._mostrar_real(self.gerada))
 
         linha = ttk.Frame(quadro)
         linha.pack(fill="x", pady=(8, 0))
@@ -205,16 +233,16 @@ class JanelaDeArte:
                         variable=self.animar).pack(side="left")
         ttk.Label(linha, text=t("modo:")).pack(side="left", padx=(12, 0))
         self.modo = tk.StringVar(value=l2ia.MODOS[0])
-        caixa_modo = ttk.Combobox(linha, textvariable=self.modo,
-                                  values=l2ia.MODOS, state="readonly",
-                                  width=12)
-        caixa_modo.pack(side="left", padx=(6, 0))
+        self.caixa_modo = ttk.Combobox(linha, textvariable=self.modo,
+                                       values=l2ia.MODOS, state="readonly",
+                                       width=12)
+        self.caixa_modo.pack(side="left", padx=(6, 0))
         # Doze modos e nome de uma palavra: sem a explicação ao lado, escolher
         # vira tentativa e erro.
         self.diz_o_modo = ttk.Label(linha, foreground=tema.TEXTO_FRACO)
         self.diz_o_modo.pack(side="left", padx=(8, 0))
-        caixa_modo.bind("<<ComboboxSelected>>",
-                        lambda _e: self._explicar_o_modo())
+        self.caixa_modo.bind("<<ComboboxSelected>>",
+                             lambda _e: self._explicar_o_modo())
         ttk.Label(linha, text=t("quadros:")).pack(side="left", padx=(12, 0))
         self.quantos = tk.StringVar(value="8")
         ttk.Spinbox(linha, from_=2, to=32, width=5,
@@ -226,6 +254,26 @@ class JanelaDeArte:
         ttk.Spinbox(linha, from_=1, to=60, width=5,
                     textvariable=self.taxa).pack(side="left", padx=(6, 0))
 
+
+    def _dizer_o_modo(self):
+        """
+        Liga ou desliga a escolha de movimento, conforme de onde vêm os quadros.
+
+        Com animação trazida de arquivo não há movimento a escolher: os
+        quadros já existem. Deixar a caixa habilitada prometeria um efeito
+        que não vai ser aplicado.
+        """
+        try:
+            if self.quadros_do_arquivo:
+                self.caixa_modo.config(state="disabled")
+                self.diz_o_modo.config(
+                    text=t("%d quadros vindos do arquivo")
+                    % len(self.quadros_do_arquivo))
+            else:
+                self.caixa_modo.config(state="readonly")
+                self._explicar_o_modo()
+        except tk.TclError:
+            pass
 
     def _explicar_o_modo(self):
         """Diz em uma linha o que o modo escolhido faz."""
@@ -244,6 +292,19 @@ class JanelaDeArte:
                                 background=tema.ABISSO, highlightthickness=1,
                                 highlightbackground=tema.BORDA)
         self.previa.pack(side="left")
+
+        # A prévia que importa: o tamanho final, ampliado SEM suavizar. É o
+        # único jeito de ver antes que o detalhe de 1024 vira borrão em 32.
+        coluna = ttk.Frame(baixo)
+        coluna.pack(side="left", padx=(8, 0))
+        self.previa_real = tk.Canvas(coluna, width=LADO_DA_PREVIA_REAL,
+                                     height=LADO_DA_PREVIA_REAL,
+                                     background=tema.ABISSO,
+                                     highlightthickness=1,
+                                     highlightbackground=tema.BORDA)
+        self.previa_real.pack()
+        self.diz_o_tamanho = ttk.Label(coluna, style="Miudo.TLabel")
+        self.diz_o_tamanho.pack()
 
         direita = ttk.Frame(baixo)
         direita.pack(side="left", fill="x", expand=True, padx=(12, 0))
@@ -303,10 +364,19 @@ class JanelaDeArte:
 
     # -- gerar -------------------------------------------------------------
     def _pedido(self):
+        """
+        O pedido como ele vai: com o tamanho do jogo e com as referências.
+
+        Quantas referências vão junto muda a natureza do pedido -- com imagem
+        anexada o modelo EDITA o que recebeu, sem ela desenha do zero --, e o
+        `montar_prompt` precisa saber disso.
+        """
         return l2ia.montar_prompt(
             self.tipo.get(),
             self.observacoes.get("1.0", "end").strip(),
-            self.objeto.get())
+            self.objeto.get(),
+            referencias=len(self.referencias),
+            lado=self.lado_no_cliente())
 
     def ver_o_pedido(self):
         janela = ajuda.por_icone(tk.Toplevel(self.janela))
@@ -329,11 +399,23 @@ class JanelaDeArte:
         threading.Thread(target=self._gerar_thread, daemon=True).start()
 
     def _gerar_thread(self):
+        # Arte nova apaga a animação antiga: os quadros que vieram do GIF não
+        # têm nada a ver com o desenho que a IA acabou de fazer.
+        self.quadros_do_arquivo = []
         try:
             dados = l2ia.gerar_imagem(self._pedido(), self.referencias)
             alvo = self.trabalho / "gerada.png"
             alvo.write_bytes(dados)
             imagem = Image.open(alvo).convert("RGBA") if Image else None
+            # Hoje a resposta é sempre um quadro só -- essas APIs não devolvem
+            # animação. Perguntar mesmo assim custa nada, e no dia em que
+            # devolverem, a animação entra em vez de virar quadro parado.
+            try:
+                vindos = l2ia.quadros_de_arquivo(alvo)
+            except Exception:                       # noqa: BLE001
+                vindos = None
+            if vindos:
+                self.quadros_do_arquivo = vindos
             erro = None
         except Exception as e:                      # noqa: BLE001
             imagem, alvo, erro = None, None, e
@@ -351,11 +433,62 @@ class JanelaDeArte:
         self.gerada = imagem
         self.caminho_gerado = alvo
         self._mostrar(imagem)
-        self.estado.config(text=t("pronto: %dx%d. Veja se serve e use, ou "
-                                  "gere de novo mudando as observações.")
-                           % imagem.size)
+        self._mostrar_real(imagem)
+        lado = self.lado_no_cliente()
+        self.estado.config(
+            text=t("pronto: %dx%d — no cliente entra %dx%d, que é a prévia da "
+                   "direita. Veja se serve e use, ou gere de novo mudando as "
+                   "observações.") % (imagem.size[0], imagem.size[1], lado,
+                                      lado))
+        self._dizer_o_modo()
         self.botao_usar.config(state="normal")
         self.botao_animar_cliente.config(state="normal")
+
+    def _tamanho_do_tipo(self):
+        """Ao trocar o que gerar, o tamanho vai para o comum daquele tipo."""
+        try:
+            self.lado.set(str(LADOS.get(self.tipo.get(), 32)))
+        except tk.TclError:
+            pass
+
+    def lado_no_cliente(self):
+        """O tamanho final, em pixels. Sempre um número utilizável."""
+        return _inteiro(self.lado.get(), 32)
+
+    def _mostrar_real(self, imagem):
+        """
+        A prévia no tamanho do jogo, ampliada sem suavizar.
+
+        Ampliar com NEAREST é de propósito: mostra o pixel como ele vai ficar.
+        Suavizar aqui enganaria -- a tela ficaria bonita e o jogo, não.
+        """
+        if ImageTk is None or imagem is None:
+            return
+        lado = self.lado_no_cliente()
+        try:
+            pequena = l2ia.encaixar(imagem, lado)
+        except Exception:                           # noqa: BLE001
+            return
+        vezes = max(1, LADO_DA_PREVIA_REAL // lado)
+        ampliada = pequena.resize((lado * vezes, lado * vezes), Image.NEAREST)
+        self.previa_real_tk = ImageTk.PhotoImage(ampliada)
+        self.previa_real.delete("all")
+        self.previa_real.create_image(LADO_DA_PREVIA_REAL // 2,
+                                      LADO_DA_PREVIA_REAL // 2,
+                                      image=self.previa_real_tk)
+        self.diz_o_tamanho.config(text=t("%dx%d no jogo") % (lado, lado))
+
+    def quadros_da_animacao(self, quantos):
+        """
+        Os quadros a usar: os do GIF que veio, ou o movimento feito aqui.
+
+        Quando o usuário trouxe uma animação, ela manda -- foi desenhada, e
+        nenhum movimento sintético melhora isso. A contagem é reamostrada ao
+        longo do tempo, e não cortada no fim, senão a volta fica pela metade.
+        """
+        if self.quadros_do_arquivo:
+            return l2ia.reamostrar(self.quadros_do_arquivo, quantos)
+        return l2ia.animar(self.gerada, self.modo.get(), quantos)
 
     def _mostrar(self, imagem):
         if ImageTk is None or imagem is None:
@@ -372,23 +505,33 @@ class JanelaDeArte:
         """Fecha devolvendo o caminho -- e os quadros, se houver animação."""
         if self.gerada is None:
             return
+        lado = self.lado_no_cliente()
         quadros = []
         if self.animar.get():
+            quantos = max(2, min(48, _inteiro(self.quantos.get(), 8)))
             try:
-                quantos = max(2, min(32, int(self.quantos.get())))
-            except ValueError:
-                quantos = 8
-            try:
-                imagens = l2ia.animar(self.gerada, self.modo.get(), quantos)
+                imagens = self.quadros_da_animacao(quantos)
             except Exception as erro:               # noqa: BLE001
-                messagebox.showerror(t("Não deu para animar"), str(erro))
+                messagebox.showerror(t("Não deu para animar"), str(erro),
+                                     parent=self.janela)
                 return
             for i, imagem in enumerate(imagens):
                 alvo = self.trabalho / ("quadro_%02d.png" % i)
-                imagem.save(alvo)
+                l2ia.encaixar(imagem, lado).save(alvo)
                 quadros.append(str(alvo))
 
-        self.resposta = {"imagem": str(self.caminho_gerado),
+        # A arte sai no tamanho do jogo, e não nos 1024 da IA. Quem monta o
+        # pacote encolheria de qualquer forma; encolher aqui é o que faz a
+        # prévia e o arquivo entregue serem a mesma coisa.
+        pronta = self.trabalho / ("arte_%d.png" % lado)
+        try:
+            l2ia.encaixar(self.gerada, lado).save(pronta)
+        except Exception:                           # noqa: BLE001
+            pronta = self.caminho_gerado
+
+        self.resposta = {"imagem": str(pronta),
+                         "original": str(self.caminho_gerado),
+                         "lado": lado,
                          "nome": _nome_do_objeto(self.objeto.get()),
                          "quadros": quadros}
         self.fechar()
@@ -404,26 +547,44 @@ class JanelaDeArte:
         API para animá-la.
         """
         caminho = filedialog.askopenfilename(
-            title=t("A imagem que vai virar arte"), parent=self.janela,
-            filetypes=[(t("Imagem"), "*.png *.jpg *.jpeg *.bmp *.tga *.webp"),
+            title=t("A imagem ou o GIF que vai virar arte"),
+            parent=self.janela,
+            filetypes=[(t("Imagem ou animação"),
+                        "*.png *.jpg *.jpeg *.bmp *.tga *.webp *.gif"),
                        (t("Todos os arquivos"), "*.*")])
         if not caminho:
             return
         try:
-            imagem = Image.open(caminho).convert("RGBA")
+            animada = l2ia.quadros_de_arquivo(caminho)
+            imagem = (animada[0] if animada
+                      else Image.open(caminho).convert("RGBA"))
         except Exception as erro:                   # noqa: BLE001
             messagebox.showerror(t("Não consegui abrir a imagem"), str(erro),
                                  parent=self.janela)
             return
+        # Animação trazida pronta manda: os quadros dela foram desenhados, e
+        # nenhum movimento sintético melhora isso.
+        self.quadros_do_arquivo = animada or []
+        if animada:
+            self.animar.set(True)
+            self.quantos.set(str(len(animada)))
+            self._dizer_o_modo()
         alvo = self.trabalho / ("minha" + Path(caminho).suffix.lower())
         alvo.parent.mkdir(parents=True, exist_ok=True)
         imagem.save(alvo) if alvo.suffix == ".png" else shutil.copy2(caminho,
                                                                      alvo)
         self._fim_da_geracao(imagem, alvo, None)
-        self.estado.config(text=t("%s: %dx%d. Dá para animar direto, ou gerar "
-                                  "outra com a IA.")
-                           % (Path(caminho).name, imagem.size[0],
-                              imagem.size[1]))
+        if self.quadros_do_arquivo:
+            self.estado.config(
+                text=t("%s: %d quadros de %dx%d. A animação é a do arquivo; o "
+                       "modo de movimento não se aplica.")
+                % (Path(caminho).name, len(self.quadros_do_arquivo),
+                   imagem.size[0], imagem.size[1]))
+        else:
+            self.estado.config(
+                text=t("%s: %dx%d. Dá para animar direto, ou gerar outra com "
+                       "a IA.") % (Path(caminho).name, imagem.size[0],
+                                   imagem.size[1]))
 
     # -- pôr a animação no cliente -----------------------------------------
     def animar_no_cliente(self):
@@ -520,7 +681,7 @@ class JanelaDeArte:
         registro = []
         try:
             T = motor.carregar_config()
-            quadros = l2ia.animar(self.gerada, self.modo.get(), quantos)
+            quadros = self.quadros_da_animacao(quantos)
             feito = l2anima.animar_textura_do_cliente(
                 T, caminho, textura, quadros, self.trabalho / "corrente",
                 aolog=registro.append, taxa=float(taxa), tamanho=tamanho)
@@ -600,7 +761,7 @@ class JanelaDeArte:
         registro = []
         try:
             T = motor.carregar_config()
-            quadros = l2ia.animar(self.gerada, self.modo.get(), quantos)
+            quadros = self.quadros_da_animacao(quantos)
             pronto = l2anima.trocar_quadros(
                 T, caminho, familia["prefixo"], quadros,
                 self.trabalho / "animacao", aolog=registro.append)

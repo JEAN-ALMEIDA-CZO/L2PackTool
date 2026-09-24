@@ -96,15 +96,36 @@ nomes de modelo mudam e são aposentados, então nenhum fica preso no código, e
 há um link para a lista de cada fabricante ao lado do campo.
 
 O pedido enviado não é o seu texto solto: há um prompt fixo, escrito para
-ícone de Lineage II moderno — fundo transparente, leitura em 32x32, silhueta
-antes do detalhe —, ao qual se somam as suas observações e as imagens de
-referência que você anexar. O botão *Ver o pedido* mostra exatamente o que sai.
+ícone de Lineage II moderno — fundo transparente, leitura em tamanho pequeno,
+silhueta antes do detalhe —, ao qual se somam as suas observações e o tamanho
+que a arte vai ter no jogo. O botão *Ver o pedido* mostra exatamente o que sai.
+
+**Imagem de referência muda o pedido.** Sem imagem anexada o modelo desenha a
+partir da descrição. Com imagem, ela deixa de ser inspiração e passa a ser o
+ponto de partida: o pedido manda o modelo ler a imagem primeiro, preservar o
+objeto, a silhueta, a paleta e o ângulo, e aplicar **somente** as mudanças
+pedidas.
+
+**Tamanho.** A IA devolve 1024x1024; o ícone do cliente tem 32 ou 64. A caixa
+*no cliente* diz qual é o seu, entra no pedido e manda na prévia — ao lado da
+prévia grande aparece a arte no tamanho real, ampliada sem suavizar, que é o
+que o jogador vai ver. O pacote de ícone é montado nesse tamanho.
+
+**Erro de API vira frase.** Modelo que só devolve texto, chave inválida,
+modelo aposentado, cota estourada: cada um tem o seu recado com o que fazer, e
+o texto original da API vai no fim, para quem for procurar na internet.
 
 **Animação.** Doze movimentos (pulso, giro, varredura, contorno, cintilar,
 onda, matiz e outros), todos em ciclo fechado: o quadro depois do último é o
 primeiro, porque num ícone que roda o tempo todo o pulo da volta é a única
 coisa que se enxerga. A arte pode vir da IA ou do disco — animar um PNG seu
 não pede chave de API nenhuma.
+
+**GIF.** Modelo de imagem devolve um quadro, nunca um GIF — não há resposta
+animada nessas APIs. O contrário funciona: *Abrir imagem…* aceita GIF, WEBP
+animado e APNG, e aí os quadros do arquivo **são** a animação, reamostrados ao
+longo do tempo para a contagem que o destino pede. Quadro desenhado ganha de
+movimento sintético, então o modo de movimento sai de cena nesse caso.
 
 E os quadros vão para dentro do jogo por um dos dois caminhos que o Lineage II
 tem. O programa pergunta qual, porque não são a mesma coisa:

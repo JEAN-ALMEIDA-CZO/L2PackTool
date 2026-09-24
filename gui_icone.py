@@ -347,10 +347,10 @@ class PainelDeIcone(ttk.Frame):
 
         ttk.Label(caixa, justify="left", wraplength=430,
                   foreground=COR_TEXTO_FRACO,
-                  text=t("A imagem é ajustada para 32x32 e vira um pacote de "
-                         "textura seu. Ele sai junto com as tabelas e entra no "
-                         "cliente em Instalar no cliente — os pacotes do jogo "
-                         "não são tocados.")).grid(
+                  text=t("A imagem é ajustada para o tamanho escolhido e vira "
+                         "um pacote de textura seu. Ele sai junto com as "
+                         "tabelas e entra no cliente em Instalar no cliente — "
+                         "os pacotes do jogo não são tocados.")).grid(
             row=0, column=0, columnspan=4, sticky="w", pady=(0, 6))
 
         ttk.Label(caixa, text=t("imagem:")).grid(row=1, column=0, sticky="w")
@@ -363,6 +363,18 @@ class PainelDeIcone(ttk.Frame):
                    command=self.escolher_arquivo).pack(side="left")
         ttk.Button(acoes_da_imagem, text=t("IA…"), width=5,
                    command=self.gerar_com_ia).pack(side="left", padx=(4, 0))
+        # 32 na maioria das cronicas, 64 em algumas: forcar um dos dois
+        # jogaria fora metade do desenho no cliente errado.
+        ttk.Label(acoes_da_imagem, text=t("tamanho:")).pack(side="left",
+                                                            padx=(8, 0))
+        self.lado_do_icone = tk.StringVar(value="32")
+        caixa_lado = ttk.Combobox(acoes_da_imagem,
+                                  textvariable=self.lado_do_icone,
+                                  values=("32", "64"), state="readonly",
+                                  width=4)
+        caixa_lado.pack(side="left", padx=(4, 0))
+        caixa_lado.bind("<<ComboboxSelected>>", lambda _e: self._mostrar_previa(
+            self.arquivo.get().strip()))
 
         ttk.Label(caixa, text=t("nome do ícone:")).grid(row=2, column=0,
                                                         sticky="w",
@@ -421,6 +433,9 @@ class PainelDeIcone(ttk.Frame):
                        "pacote só, com os objetos numerados, ao criar.")
                      % len(feito["quadros"]))
         self.quadros_da_ia = feito.get("quadros") or []
+        if feito.get("lado"):
+            self.lado_do_icone.set(str(feito["lado"]))
+            self._mostrar_previa(self.arquivo.get().strip())
 
     def escolher_arquivo(self):
         caminho = filedialog.askopenfilename(
@@ -436,13 +451,14 @@ class PainelDeIcone(ttk.Frame):
         self.botao_preparar.config(state="normal")
 
     def _mostrar_previa(self, caminho):
-        """Mostra como a imagem vai ficar depois do corte para 32x32."""
+        """Mostra como a imagem vai ficar depois do corte para o tamanho."""
         if Image is None:
             return
         try:
             destino = (Path(self.dono.trabalho()) / "icone_proprio"
                        / "previa.png")
-            l2icone.preparar(caminho, destino, T=self.dono.T)
+            l2icone.preparar(caminho, destino, lado=self.lado(),
+                             T=self.dono.T)
             foto = ImageTk.PhotoImage(Image.open(destino))
         except Exception as erro:                   # noqa: BLE001
             self.previa.config(image="", text="?")
@@ -481,15 +497,24 @@ class PainelDeIcone(ttk.Frame):
         self.botao_preparar.config(state="disabled")
         self.estado.config(text=t("montando o pacote…"))
         threading.Thread(target=self._preparar_thread,
-                         args=(pacote, nome, self.arquivo.get().strip()),
+                         args=(pacote, nome, self.arquivo.get().strip(),
+                               self.lado()),
                          daemon=True).start()
 
-    def _preparar_thread(self, pacote, nome, arquivo):
+    def lado(self):
+        """O tamanho escolhido para o ícone, em pixels."""
+        try:
+            return int(self.lado_do_icone.get())
+        except (AttributeError, TypeError, ValueError):
+            return l2icone.LADO
+
+    def _preparar_thread(self, pacote, nome, arquivo, lado=None):
         trabalho = Path(self.dono.trabalho()) / "icone_proprio"
         try:
             referencia, feito = l2icone.montar_para_o_cliente(
                 self.dono.T, self.dono.cliente.get(), pacote, nome, arquivo,
-                trabalho, instalar_no_cliente=False)
+                trabalho, instalar_no_cliente=False,
+                lado=lado or l2icone.LADO)
             erro = None
         except Exception as e:                      # noqa: BLE001
             referencia, feito, erro = None, None, e
@@ -606,10 +631,11 @@ class EscolherIcone:
 
         ttk.Label(aba, justify="left", wraplength=420,
                   foreground=COR_TEXTO_FRACO,
-                  text=t("Escolha uma imagem sua. Ela é ajustada para 32x32 e "
-                         "vira um pacote de textura, que entra no cliente "
-                         "junto com as tabelas, em Instalar no cliente. O "
-                         "pacote é seu -- os do jogo não são tocados.")
+                  text=t("Escolha uma imagem sua. Ela é ajustada para o "
+                         "tamanho escolhido e vira um pacote de textura, que "
+                         "entra no cliente junto com as tabelas, em Instalar "
+                         "no cliente. O pacote é seu -- os do jogo não são "
+                         "tocados.")
                   ).pack(anchor="w")
 
         linha = ttk.Frame(aba)
@@ -622,6 +648,14 @@ class EscolherIcone:
                    command=self.escolher_arquivo).pack(side="left", padx=(6, 0))
         ttk.Button(linha, text=t("Gerar com IA…"),
                    command=self.gerar_com_ia).pack(side="left", padx=(6, 0))
+        ttk.Label(linha, text=t("tamanho:")).pack(side="left", padx=(10, 0))
+        self.lado_do_icone = tk.StringVar(value="32")
+        caixa_lado = ttk.Combobox(linha, textvariable=self.lado_do_icone,
+                                  values=("32", "64"), state="readonly",
+                                  width=4)
+        caixa_lado.pack(side="left", padx=(4, 0))
+        caixa_lado.bind("<<ComboboxSelected>>",
+                        lambda _e: self.mostrar_previa_propria())
 
         corpo = ttk.Frame(aba)
         corpo.pack(fill="x", pady=(10, 0))
@@ -780,6 +814,8 @@ class EscolherIcone:
         self.arquivo.set(str(feito["imagem"]))
         if feito.get("nome") and not self.nome_do_icone.get().strip():
             self.nome_do_icone.set(feito["nome"])
+        if feito.get("lado"):
+            self.lado_do_icone.set(str(feito["lado"]))
         self.quadros_da_ia = feito.get("quadros") or []
         try:
             self.mostrar_previa_propria()
@@ -791,14 +827,17 @@ class EscolherIcone:
                        "numerados, quando você criar.") % len(self.quadros_da_ia))
 
     def mostrar_previa_propria(self):
-        """Mostra o desenho como ele vai ficar: 32x32, encaixado no centro."""
+        """
+        Mostra o desenho como ele vai ficar: no tamanho escolhido, encaixado
+        no centro.
+        """
         caminho = self.arquivo.get().strip()
         if Image is None or not caminho:
             return
         try:
             pronta = l2icone.preparar(
                 caminho, Path(self.dono.trabalho()) / "previa_icone.png",
-                T=self.dono.T)
+                lado=self.lado(), T=self.dono.T)
             imagem = motor.abrir_imagem(pronta, self.dono.T)
         except Exception as erro:                   # noqa: BLE001
             self.log(t("Não deu para ler a imagem: %s") % erro)
@@ -838,10 +877,18 @@ class EscolherIcone:
         self.log(t("\n=== criando %s.%s ===") % (pacote, nome))
         threading.Thread(target=self._criar_thread,
                          args=(pacote, nome, self.arquivo.get().strip(),
-                               list(getattr(self, "quadros_da_ia", []))),
+                               list(getattr(self, "quadros_da_ia", [])),
+                               self.lado()),
                          daemon=True).start()
 
-    def _criar_thread(self, pacote, nome, arquivo, quadros=()):
+    def lado(self):
+        """O tamanho escolhido para o ícone, em pixels."""
+        try:
+            return int(self.lado_do_icone.get())
+        except (AttributeError, TypeError, ValueError):
+            return l2icone.LADO
+
+    def _criar_thread(self, pacote, nome, arquivo, quadros=(), lado=None):
         def anotar(texto):
             try:
                 self.janela.after(0, self.log, "  " + texto)
@@ -852,7 +899,8 @@ class EscolherIcone:
             referencia, feito = l2icone.montar_para_o_cliente(
                 self.dono.T, self.dono.cliente.get(), pacote, nome, arquivo,
                 Path(self.dono.trabalho()) / "icone_proprio", aolog=anotar,
-                instalar_no_cliente=False, quadros=quadros)
+                instalar_no_cliente=False, quadros=quadros,
+                lado=lado or l2icone.LADO)
             erro = None
         except Exception as e:                      # noqa: BLE001
             referencia, feito, erro = None, None, e

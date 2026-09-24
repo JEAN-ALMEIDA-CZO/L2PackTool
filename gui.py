@@ -1844,7 +1844,10 @@ def _testar_a_ia(qual, var_chave, var_modelo, rotulo):
     except Exception as erro:                       # noqa: BLE001
         rotulo.config(text=t("não deu: %s") % str(erro)[:60])
         return
-    rotulo.config(text=t("respondeu: %s") % recado if deu
+    # Dizer "respondeu" e so meia verdade: o teste e de TEXTO, e um modelo de
+    # texto passa nele e falha na hora de desenhar. Melhor dizer o que foi
+    # testado do que dar um OK que nao cobre o uso principal.
+    rotulo.config(text=t("respondeu ao teste de texto: %s") % recado if deu
                   else t("não respondeu"))
 
 

@@ -175,20 +175,163 @@ MOLDES = {"icone": BASE_DO_PROMPT, "botao": BASE_DO_BOTAO,
           "borda": BASE_DA_BORDA}
 
 
-def montar_prompt(tipo, observacoes="", nome_do_item=""):
+# O que dizer quando vai imagem junto. Sem isto o modelo trata a referencia
+# como "inspiracao" e devolve outro desenho parecido -- e o usuario queria
+# AQUELE desenho, com a mudanca que pediu.
+COM_REFERENCIA = (
+    "IMPORTANTE -- LEIA A IMAGEM ENVIADA ANTES DE DESENHAR.\n"
+    "Vai junto %s. Ela não é inspiração: é o PONTO DE PARTIDA.\n"
+    "1) Primeiro identifique o que há nela: que objeto é, de que material, "
+    "em que ângulo, com que cores e que luz.\n"
+    "2) PRESERVE isso. O mesmo objeto, a mesma silhueta, a mesma paleta e o "
+    "mesmo ângulo devem continuar reconhecíveis no resultado.\n"
+    "3) Aplique SOMENTE as mudanças pedidas abaixo. O que não foi pedido "
+    "fica como está.\n"
+    "Não troque o objeto por outro, não mude o enquadramento e não redesenhe "
+    "do zero."
+)
+
+SEM_REFERENCIA = (
+    "Não há imagem de referência: desenhe a partir da descrição abaixo."
+)
+
+
+def montar_prompt(tipo, observacoes="", nome_do_item="", referencias=0,
+                  lado=0):
     """
-    O pedido completo: a parte fixa, o que o item e, e o que o usuario pediu.
+    O pedido completo: a parte fixa, a referencia, o objeto e o que se pediu.
 
     A parte fixa vem primeiro e nao e editavel na tela de proposito -- e ela
     que mantem o resultado utilizavel como icone. O que o usuario escreve
     entra depois, como detalhe, e nao como substituto.
+
+    `referencias` e QUANTAS imagens vao junto, porque o pedido muda de
+    natureza com elas: sem imagem se desenha do zero, com imagem se EDITA a
+    que veio. `lado` e o tamanho final no jogo, que entra no pedido para o
+    modelo nao encher de detalhe que some ao encolher.
     """
     partes = [MOLDES.get(tipo, BASE_DO_PROMPT)]
+    if referencias:
+        quantas = ("uma imagem de referência" if referencias == 1
+                   else "%d imagens de referência" % referencias)
+        partes.append(COM_REFERENCIA % quantas)
+    else:
+        partes.append(SEM_REFERENCIA)
     if nome_do_item.strip():
         partes.append("O objeto é: %s." % nome_do_item.strip())
     if observacoes.strip():
         partes.append("Pedido de quem encomendou: %s" % observacoes.strip())
+    if lado:
+        partes.append(
+            "A arte será reduzida para %dx%d pixels no jogo. Desenhe pensando "
+            "nesse tamanho: formas grandes, poucos detalhes finos, contraste "
+            "alto -- detalhe pequeno demais vira sujeira ao encolher."
+            % (lado, lado))
     return "\n\n".join(partes)
+
+
+
+# ---------------------------------------------------------------------------
+# O erro da API, dito de um jeito que se possa agir
+# ---------------------------------------------------------------------------
+# A API responde com JSON. Mostrar esse JSON na tela nao ajuda ninguem: a
+# pessoa escolheu `gemini-2.5-flash` -- que existe, aceita a chave e responde
+# -- e recebeu de volta chaves, aspas e "INVALID_ARGUMENT". O que faltava era
+# a frase seguinte: esse modelo so devolve texto, escolha um de imagem.
+#
+# Cada entrada aqui e (pedaco da mensagem da API, o que dizer). A ordem
+# importa: a primeira que casar vale, entao o mais especifico vem antes.
+RECADOS_DA_API = (
+    ("only supports text output",
+     "o modelo %(modelo)s só devolve texto -- ele não desenha. Para gerar "
+     "arte escolha um modelo de IMAGEM em Configurações: no Gemini o nome "
+     "costuma trazer `image` (ex.: gemini-2.5-flash-image). O botão \"Ver os "
+     "modelos…\" abre a lista do fabricante."),
+    ("does not support image generation",
+     "o modelo %(modelo)s não gera imagem. Escolha um modelo de imagem em "
+     "Configurações -- no Gemini o nome costuma trazer `image`."),
+    ("api key not valid",
+     "a chave da API não foi aceita. Confira se copiou a chave inteira, sem "
+     "espaço no fim, e se ela é do %(provedor)s."),
+    ("api_key_invalid",
+     "a chave da API não foi aceita. Confira se copiou a chave inteira, sem "
+     "espaço no fim, e se ela é do %(provedor)s."),
+    ("expired",
+     "a chave da API expirou. Crie outra no site do %(provedor)s e cole em "
+     "Configurações."),
+    ("is not found",
+     "o modelo %(modelo)s não existe nessa API. Nome de modelo muda e é "
+     "aposentado: confira na lista do fabricante, em Configurações."),
+    ("not supported for generatecontent",
+     "o modelo %(modelo)s não atende esse tipo de pedido. Veja na lista do "
+     "fabricante qual serve para imagem."),
+    ("quota",
+     "a cota da sua chave acabou (ou o limite por minuto estourou). Espere um "
+     "pouco, ou veja o plano da chave no site do %(provedor)s."),
+    ("rate limit",
+     "pedidos demais em pouco tempo. Espere alguns segundos e tente de novo."),
+    ("billing",
+     "a conta do %(provedor)s está sem forma de pagamento ativa para esse "
+     "modelo."),
+    ("overloaded",
+     "o servidor do %(provedor)s está sobrecarregado agora. Tente de novo em "
+     "alguns instantes."),
+    ("safety",
+     "o pedido foi recusado pelo filtro de conteúdo do %(provedor)s. Troque "
+     "as palavras das observações e tente de novo."),
+    ("blocked",
+     "o pedido foi bloqueado pelo filtro de conteúdo do %(provedor)s. Troque "
+     "as palavras das observações e tente de novo."),
+)
+
+# Quando a mensagem nao casa com nada, o codigo HTTP ainda diz alguma coisa.
+RECADOS_POR_CODIGO = {
+    400: "a API recusou o pedido.",
+    401: "a chave da API não foi aceita.",
+    403: "a chave não tem permissão para esse modelo.",
+    404: "a API não achou esse modelo.",
+    429: "pedidos demais, ou cota esgotada.",
+    500: "a API teve um erro interno. Tente de novo.",
+    503: "a API está indisponível agora. Tente de novo em alguns instantes.",
+}
+
+
+def mensagem_da_api(corpo):
+    """A frase que a API mandou, sem o JSON em volta."""
+    try:
+        dados = json.loads(corpo)
+    except (TypeError, ValueError):
+        return (corpo or "").strip()
+    erro = dados.get("error") if isinstance(dados, dict) else None
+    if isinstance(erro, dict):
+        return str(erro.get("message") or erro.get("status") or "").strip()
+    if isinstance(erro, str):
+        return erro.strip()
+    return (corpo or "").strip()
+
+
+def explicar_erro(codigo, corpo, qual=None):
+    """
+    O erro da API em uma frase, com o que fazer -- e o original no fim.
+
+    O original fica porque mensagem traduzida nao se pesquisa: quem for
+    procurar na internet precisa do texto como a API o escreveu.
+    """
+    qual = qual or provedor()
+    ficha = PROVEDORES.get(qual, {})
+    dados = {"modelo": modelo(qual) or "escolhido",
+             "provedor": ficha.get("nome", qual)}
+
+    dito = mensagem_da_api(corpo)
+    procura = dito.lower()
+    for pedaco, recado in RECADOS_DA_API:
+        if pedaco in procura:
+            return "%s\n\n(a API disse: %s)" % (recado % dados, dito[:300])
+
+    geral = RECADOS_POR_CODIGO.get(codigo, "a API respondeu %s." % codigo)
+    if dito:
+        return "%s\n\n(a API disse: %s)" % (geral, dito[:300])
+    return geral
 
 
 # ---------------------------------------------------------------------------
@@ -203,10 +346,10 @@ def _pedir(url, corpo, cabecalhos):
     except urllib.error.HTTPError as erro:
         detalhe = ""
         try:
-            detalhe = erro.read().decode("utf-8", "replace")[:400]
+            detalhe = erro.read().decode("utf-8", "replace")[:2000]
         except Exception:                           # noqa: BLE001
             pass
-        raise ErroDeIA("a API respondeu %s. %s" % (erro.code, detalhe))
+        raise ErroDeIA(explicar_erro(erro.code, detalhe))
     except urllib.error.URLError as erro:
         raise ErroDeIA("não consegui falar com a API: %s" % erro.reason)
 
@@ -228,9 +371,9 @@ def gerar_imagem(prompt, referencias=(), qual=None, aolog=None):
 
     partes = [{"text": prompt}]
     for caminho in referencias:
-        dados = Path(caminho).read_bytes()
+        tipo, dados = _referencia_em_bytes(caminho)
         partes.append({"inline_data": {
-            "mime_type": _tipo_da_imagem(caminho),
+            "mime_type": tipo,
             "data": base64.b64encode(dados).decode("ascii")}})
 
     url = ("https://generativelanguage.googleapis.com/v1beta/models/"
@@ -242,14 +385,49 @@ def gerar_imagem(prompt, referencias=(), qual=None, aolog=None):
                       {"Content-Type": "application/json",
                        "x-goog-api-key": chave(qual)})
 
+    ditos = []
     for candidato in resposta.get("candidates", []):
         for parte in candidato.get("content", {}).get("parts", []):
             dados = (parte.get("inlineData") or parte.get("inline_data") or {})
             if dados.get("data"):
                 return base64.b64decode(dados["data"])
-    raise ErroDeIA("a resposta não trouxe imagem nenhuma. O modelo escolhido "
-                   "gera imagem? Veja a lista de modelos em Configurações.")
+            if parte.get("text"):
+                ditos.append(parte["text"].strip())
 
+    # O modelo respondeu, mas com texto. E o que um modelo de texto faz quando
+    # lhe pedem desenho -- e o que ele escreveu costuma dizer o motivo, entao
+    # engolir isso seria esconder a resposta.
+    recado = ("o modelo %s respondeu sem imagem. Se ele for de texto, escolha "
+              "um modelo de IMAGEM em Configurações -- no Gemini o nome "
+              "costuma trazer `image`." % (modelo(qual) or "escolhido"))
+    if ditos:
+        recado += "\n\n(o modelo escreveu: %s)" % " ".join(ditos)[:300]
+    raise ErroDeIA(recado)
+
+
+
+def _referencia_em_bytes(caminho):
+    """
+    (tipo, bytes) de uma imagem de referencia, ja num formato que a API le.
+
+    GIF animado entra pelo PRIMEIRO QUADRO: mandar o arquivo inteiro faria o
+    modelo receber um formato que ele nao interpreta, e o que interessa numa
+    referencia e o desenho, nao o movimento.
+    """
+    caminho = Path(caminho)
+    animada = None
+    if caminho.suffix.lower() in (".gif", ".webp", ".apng"):
+        try:
+            animada = quadros_de_arquivo(caminho)
+        except Exception:                           # noqa: BLE001
+            animada = None
+    if animada:
+        import io
+
+        memoria = io.BytesIO()
+        animada[0].save(memoria, "PNG")
+        return "image/png", memoria.getvalue()
+    return _tipo_da_imagem(caminho), caminho.read_bytes()
 
 def melhorar_texto(pedido, qual=None):
     """Passa um texto pela IA -- para refinar o pedido, traduzir, descrever."""
@@ -296,6 +474,78 @@ def _tipo_da_imagem(caminho):
     return {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
             ".webp": "image/webp", ".bmp": "image/bmp"}.get(fim, "image/png")
 
+
+
+# ---------------------------------------------------------------------------
+# GIF: o que a IA nao faz, e o que o programa faz
+# ---------------------------------------------------------------------------
+# A API de imagem devolve UM quadro, em PNG. Nao existe resposta animada: nem
+# o Gemini nem nenhum outro modelo de imagem devolve GIF. Entao animacao
+# gerada continua saindo daqui, de um quadro so.
+#
+# O que existe e o contrario: o usuario JA TER um GIF pronto. Nesse caso os
+# quadros dele valem mais do que qualquer movimento sintetico, porque foram
+# desenhados. `quadros_de_arquivo` le GIF, WEBP animado e APNG.
+def quadros_de_arquivo(caminho):
+    """
+    Os quadros de uma imagem animada, ou None se ela for parada.
+
+    Cada quadro vem RGBA e ja composto sobre o anterior -- GIF guarda quadro
+    parcial, so o pedaco que mudou, e usar o pedaco solto daria buraco.
+    """
+    if Image is None:
+        raise ErroDeIA("falta o Pillow para ler a imagem.")
+
+    from PIL import ImageSequence
+
+    with Image.open(caminho) as arquivo:
+        if getattr(arquivo, "n_frames", 1) <= 1:
+            return None
+        quadros = []
+        for quadro in ImageSequence.Iterator(arquivo):
+            quadros.append(quadro.convert("RGBA"))
+    return quadros or None
+
+
+def reamostrar(quadros, quantos):
+    """
+    A mesma animacao com outra contagem de quadros.
+
+    Serve para encaixar um GIF de 40 quadros numa sequencia de 13 do cliente:
+    escolhe-se ao longo do tempo, em vez de cortar o fim -- cortar o fim
+    deixaria a volta pela metade.
+    """
+    quadros = list(quadros)
+    if not quadros or quantos <= 0 or len(quadros) == quantos:
+        return quadros
+    passo = len(quadros) / float(quantos)
+    return [quadros[min(len(quadros) - 1, int(i * passo))]
+            for i in range(quantos)]
+
+
+def encaixar(imagem, lado):
+    """
+    A imagem no tamanho do jogo, quadrada, sem esticar.
+
+    A IA devolve 1024x1024 e o icone do cliente tem 32 ou 64: encolher e
+    obrigatorio, e LANCZOS e o que preserva o traco. Imagem nao quadrada e
+    centralizada num quadrado transparente, porque esticar deforma.
+    """
+    if Image is None:
+        raise ErroDeIA("falta o Pillow para preparar a imagem.")
+    imagem = imagem.convert("RGBA")
+    if imagem.size == (lado, lado):
+        return imagem
+    largura, altura = imagem.size
+    escala = float(lado) / max(largura, altura)
+    novo = (max(1, int(round(largura * escala))),
+            max(1, int(round(altura * escala))))
+    menor = imagem.resize(novo, Image.LANCZOS)
+    if novo == (lado, lado):
+        return menor
+    fundo = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
+    fundo.paste(menor, ((lado - novo[0]) // 2, (lado - novo[1]) // 2))
+    return fundo
 
 # ---------------------------------------------------------------------------
 # A animacao, feita aqui e nao pela IA

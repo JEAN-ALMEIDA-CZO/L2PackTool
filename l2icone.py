@@ -157,9 +157,14 @@ def preparar(origem, destino, lado=LADO, T=None):
 # ---------------------------------------------------------------------------
 # O pacote
 # ---------------------------------------------------------------------------
-def montar_pacote(T, nome_do_pacote, imagens, trabalho, aolog=None):
+def montar_pacote(T, nome_do_pacote, imagens, trabalho, aolog=None,
+                  lado=LADO):
     """
     Constroi o .utx a partir de {nome do objeto: caminho de imagem}.
+
+    `lado` e o tamanho de cada imagem dentro do pacote. O padrao e 32, que e o
+    icone da maioria das cronicas, mas ha cliente com icone de 64 -- e forcar
+    32 nesse caso jogaria fora metade do desenho.
 
     Devolve o caminho do .utx pronto, ainda no diretorio de trabalho.
     """
@@ -181,8 +186,8 @@ def montar_pacote(T, nome_do_pacote, imagens, trabalho, aolog=None):
     for nome, origem in sorted(imagens.items()):
         if not nome_valido(nome):
             raise ErroDeIcone("o nome %r nao serve para objeto do pacote." % nome)
-        preparar(origem, prontas / (nome + ".png"), T=T)
-    anotar("%d imagem(ns) preparada(s) em %dx%d" % (len(imagens), LADO, LADO))
+        preparar(origem, prontas / (nome + ".png"), lado=lado, T=T)
+    anotar("%d imagem(ns) preparada(s) em %dx%d" % (len(imagens), lado, lado))
 
     dds = trabalho / "dds"
     shutil.rmtree(dds, ignore_errors=True)
@@ -266,7 +271,7 @@ def acrescentar(T, cliente, nome_do_pacote, nome_do_objeto, imagem, trabalho,
 
 def montar_para_o_cliente(T, cliente, nome_do_pacote, nome_do_objeto, imagem,
                           trabalho, aolog=None, instalar_no_cliente=True,
-                          quadros=()):
+                          quadros=(), lado=LADO):
     """
     O caminho inteiro: imagem -> pacote -> cliente.
 
@@ -323,7 +328,7 @@ def montar_para_o_cliente(T, cliente, nome_do_pacote, nome_do_objeto, imagem,
         imagens[nome_do_objeto] = Path(imagem)
 
     pacote = montar_pacote(T, nome_do_pacote, imagens, trabalho / "montagem",
-                           aolog=anotar)
+                           aolog=anotar, lado=lado)
     if instalar_no_cliente:
         instalar(pacote, cliente, aolog=anotar)
     return "%s.%s" % (nome_do_pacote, nome_do_objeto), pacote
