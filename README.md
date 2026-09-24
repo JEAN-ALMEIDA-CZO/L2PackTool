@@ -4,7 +4,7 @@
 
 # L2PackTool
 
-**Ferramentas de cliente e servidor para Lineage II — Interlude.**
+**Ferramentas de cliente e servidor para Lineage II — de C1 a Hellbound.**
 
 Criar NPC com efeito, item, arma, habilidade e loja; trocar a tela de entrada
 por um vídeo seu; ampliar textura por IA; abrir e fechar os arquivos do
@@ -24,7 +24,7 @@ cliente. Tudo numa janela só, em português, inglês e espanhol.
 | **Glow** | o brilho das armas, e cópia de arma com o glow escolhido |
 | **Multisell** | as lojas, lendo os itens do cliente |
 | **Mob** | os monstros: status, drop e spawn |
-| **Lobby Vídeo** | a tela de entrada: sete lobbys prontos (C1 a C6), ou o seu vídeo |
+| **Lobby Vídeo** | a tela de entrada: catorze lobbys prontos (C1 a High Five), ou o seu vídeo |
 | **Texture Upscaler** | amplia as texturas de um `.utx` por IA e remonta o pacote *(em testes)* |
 | **Arquivos** | abre e fecha `.dat`, `.utx`, `.u`, `.unr`, `.ini` |
 | **Conferir Cliente** | varre o cliente e diz o que falta |
@@ -32,6 +32,54 @@ cliente. Tudo numa janela só, em português, inglês e espanhol.
 Há também uma **linha de comando** (`L2PackTool-cli`) para o que se repete:
 ampliar uma pasta inteira, abrir cem arquivos, conferir um cliente dentro de
 um script, montar a tela de vídeo num lobby.
+
+## As crônicas
+
+O programa abre oito, e cada uma é um **núcleo**: uma pasta com a definição de
+cada tabela e um manifesto dizendo o que foi provado nela — e provado quer
+dizer medido, num cliente de verdade, pela ida e volta byte a byte.
+
+| Crônica | Tabelas | Formato |
+| --- | --- | --- |
+| C1 — Harbingers of War | 8 de 8 | texto |
+| C2 — Age of Splendor | 8 de 8 | texto |
+| C3 — Rise of Darkness | 8 de 8 | binário |
+| C4 — Scions of Destiny | 8 de 8 | binário |
+| C5 — Oath of Blood | 8 de 8 | binário |
+| C6 — Interlude | 8 de 8 | binário |
+| CT1 — The Kamael | 8 de 8 | binário |
+| CT1.5 — Hellbound | 8 de 8 | binário |
+
+Até o C2 as tabelas do cliente são **texto** (`weapongrp.txt`, com os campos
+escritos por nome); de C3 em diante são binário descrito por `.ddf`. O
+programa lê e grava os dois, e as abas não precisam saber qual é.
+
+Acrescentar uma crônica é largar uma pasta em `recursos/definicoes/` — nem o
+nome na tela exige mexer em código. O que ela não conseguir provar fica
+escrito como não provado, e a tabela correspondente é recusada em vez de ler
+campo deslocado.
+
+**Ele descobre a crônica sozinho.** Ao apontar a pasta do cliente, o programa
+mede três tabelas contra cada definição instalada e escolhe a que reproduz o
+arquivo. Uma tabela só não bastaria: várias atravessam crônicas sem mudar. Se
+a crônica do projeto estiver errada, o erro diz qual é a certa, em vez de
+falar em `field 13 / 57`.
+
+## Cliente oficial
+
+Cliente recém-baixado vem fechado com as chaves da NCSoft. O programa lê essas
+chaves, mas só sabe gravar com as do l2encdec — a chave privada da NCSoft
+nunca foi publicada.
+
+Antes de instalar qualquer tabela, ele confere em que chave o cliente está e,
+se for a original, **converte a pasta `system` inteira primeiro**: cada arquivo
+é aberto, fechado com a outra chave, aberto de novo e comparado byte a byte, e
+o original só é trocado se bater — com cópia em `backup_chaves`.
+
+Falta um passo que não é deste programa: o jogo precisa conhecer a chave nova,
+e isso é o `patcher` ou o `loader` do l2encdec. O L2Crypt põe o loader certo ao
+lado do cliente e explica; iniciar o jogo por ele é com você.
+
 
 ## Instalar
 
@@ -79,7 +127,7 @@ Precisa de [PyInstaller](https://pyinstaller.org) e, para o instalador, do
 gui*.py            as abas da interface
 l2*.py             o motor: pacotes Unreal, tabelas .dat, mapas, XML do servidor
 recursos/manual/   o manual que abre dentro do programa, em três idiomas
-recursos/definicoes/  o formato de cada tabela .dat
+recursos/definicoes/  um núcleo por crônica: definições e o que foi provado
 idiomas/           as traduções da interface
 instalador.iss     o script do instalador
 LEIA-ME.md         a documentação longa, com o porquê de cada decisão

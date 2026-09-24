@@ -531,7 +531,7 @@ class JanelaConferir:
             nomes_skills = dict((h["id"], h["nome"]) for h in skills.listar())
 
             self.progresso(0.9, t("lendo os NPCs do cliente"))
-            grupo = l2npc.Npcgrp(raiz / "system", self.T, trabalho)
+            grupo = l2npc.abrir_npcgrp(raiz / "system", self.T, trabalho)
             nomes = l2npc.Npcname(raiz / "system", self.T, trabalho).nomes()
             do_cliente_npcs = dict((l[0], nomes.get(l[0], ""))
                                    for l in grupo.linhas)

@@ -202,15 +202,32 @@ def _decifrar(T, origem, trabalho):
     return aberto
 
 
+
+def coluna_do_id(tabela, chave):
+    """
+    Onde esta o id nesta tabela.
+
+    No binario e uma posicao fixa por tabela, escrita em COLUNA_ID. No texto
+    a coluna tem nome e pode estar em qualquer lugar -- entao se pergunta a
+    ela. Perguntar primeiro e o que faz o mesmo codigo servir aos dois.
+    """
+    try:
+        return tabela.coluna("id")
+    except Exception:                               # noqa: BLE001
+        return COLUNA_ID.get(chave, 0)
+
+
 def abrir_tabela(T, system, arquivo, trabalho, cronica=None):
     """Uma tabela do cliente, com a definicao ja medida nele."""
     cronica = cronica or cronica_em_uso()
     if motor.formato_da_cronica(cronica) == "texto":
-        raise ErroDeItem(
-            "as tabelas de %s são texto, e não .dat: o programa já sabe ler e "
-            "gravar esse formato (l2texto), mas esta tela ainda fala só o "
-            "binário. Escolha um projeto de C3 em diante."
-            % rotulo_da_cronica(cronica))
+        # C1 e C2 guardam as tabelas em texto. O adaptador as entrega com a
+        # mesma cara da binaria, e o resto do codigo nao precisa saber.
+        import l2compat
+        alvo = l2compat.caminho_de_texto(system, arquivo)
+        if not alvo.is_file():
+            raise ErroDeItem("nao achei %s em %s" % (alvo.name, system))
+        return l2compat.TabelaCompativel(alvo, T, trabalho)
     origem = Path(system) / arquivo
     if not origem.is_file():
         raise ErroDeItem("nao achei %s em %s" % (arquivo, system))
@@ -310,8 +327,9 @@ class Itens:
                 return padrao
 
         saida = {}
+        onde = coluna_do_id(tabela, "nome")
         for linha in tabela.linhas:
-            saida[linha[0]] = (coluna(linha, "name"),
+            saida[linha[onde]] = (coluna(linha, "name"),
                                coluna(linha, "description"),
                                coluna(linha, "add_name"))
         return saida
@@ -322,7 +340,7 @@ class Itens:
         saida = []
         for chave, _arquivo, rotulo in GRUPOS:
             tabela = self.tabelas[chave]
-            coluna = COLUNA_ID[chave]
+            coluna = coluna_do_id(tabela, chave)
             for linha in tabela.linhas:
                 ident = linha[coluna]
                 nome, descricao, destaque = nomes.get(ident, ("", "", ""))
@@ -365,7 +383,7 @@ class Itens:
         usados = set()
         for chave, _arquivo, _rotulo in GRUPOS:
             tabela = self.tabelas[chave]
-            coluna = COLUNA_ID[chave]
+            coluna = coluna_do_id(tabela, chave)
             for linha in tabela.linhas:
                 try:
                     usados.add(int(linha[coluna]))
@@ -400,12 +418,13 @@ class Itens:
             if not substituir:
                 raise ErroDeItem("o id %s ja existe (%s). Escolha outro, ou "
                                  "mande substituir." % (id_novo, ja_em))
-            self.tabelas[ja_em].remover_linha(str(id_novo), COLUNA_ID[ja_em])
+            self.tabelas[ja_em].remover_linha(
+                str(id_novo), coluna_do_id(self.tabelas[ja_em], ja_em))
             self.alteradas.add(ja_em)
 
         tabela = self.tabelas[grupo]
         novo = list(base)
-        novo[COLUNA_ID[grupo]] = str(id_novo)
+        novo[coluna_do_id(tabela, grupo)] = str(id_novo)
         for coluna, valor in (trocas or {}).items():
             try:
                 tabela.definir(novo, coluna, valor)
@@ -439,7 +458,7 @@ class Itens:
                                      "de onde copiar o formato de uma entrada.")
                 modelo = tabela.linhas[0]
             linha = list(modelo)
-            linha[0] = str(ident)
+            linha[coluna_do_id(tabela, "nome")] = str(ident)
             tabela.linhas.append(linha)
 
         # O NOME vai cru. Contadas as 9.432 linhas do itemname-e deste
@@ -448,8 +467,12 @@ class Itens:
         # no inventario. Ja a DESCRICAO tem `a,` em todas as 9.432, e nenhuma
         # termina em `\0`.
         tabela.definir(linha, "name", nome)
-        tabela.definir(linha, "description",
-                       "a,%s" % descricao if descricao else "a,")
+        if getattr(tabela, "e_texto", False):
+            # No texto a descricao e o texto, e os colchetes sao do adaptador.
+            tabela.definir(linha, "description", descricao)
+        else:
+            tabela.definir(linha, "description",
+                           "a,%s" % descricao if descricao else "a,")
         # `None` quer dizer "deixa como esta" -- numa copia, o destaque do
         # item base continua valendo. Texto vazio apaga de proposito.
         if destaque is not None:
@@ -464,7 +487,8 @@ class Itens:
         """Tira o item das quatro tabelas. Devolve de onde ele saiu."""
         saiu = []
         for chave, _arquivo, _rotulo in GRUPOS:
-            if self.tabelas[chave].remover_linha(str(ident), COLUNA_ID[chave]):
+            if self.tabelas[chave].remover_linha(
+                    str(ident), coluna_do_id(self.tabelas[chave], chave)):
                 saiu.append(chave)
                 self.alteradas.add(chave)
         if self.tabelas["nome"].remover_linha(str(ident)):

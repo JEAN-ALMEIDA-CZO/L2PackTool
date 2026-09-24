@@ -1197,6 +1197,25 @@ class JanelaNpc:
         self.desenho_regua = ImageTk.PhotoImage(imagem)
         self.rotulo_regua.config(image=self.desenho_regua)
 
+
+    def _recado_das_texturas(self):
+        """
+        O que dizer sobre as texturas do NPC base, se houver mais de uma.
+
+        A malha sozinha nao conta essa historia: as texturas estao no
+        npcgrp. Procura-se a linha pela malha escolhida; nao achando, cala-se
+        -- avisar errado seria pior do que nao avisar.
+        """
+        try:
+            grp = l2npc.Npcgrp(self.system(), self.T, self.trabalho())
+            for linha in grp.linhas:
+                if grp.campo(linha, "mesh") == self.malha_atual:
+                    return l2npc.recado_das_texturas(
+                        l2npc.texturas_do_npc(grp, linha))
+        except Exception:                           # noqa: BLE001
+            pass
+        return ""
+
     def ver_malha(self):
         """
         Abre o visualizador 3D do umodel na malha do NPC base.
@@ -1220,6 +1239,9 @@ class JanelaNpc:
 
         self.log(t("\nAbrindo a malha %s (%s) no visualizador do umodel.")
                  % (self.malha_atual, Path(pacote).name))
+        recado = self._recado_das_texturas()
+        if recado:
+            self.log("\n" + recado)
         self.log(t("  ele mostra o boneco e as animações; o efeito, não -- "
                  "partícula so o jogo desenha."))
 

@@ -1,0 +1,17 @@
+{
+  "rotulo": "CT1.5 - Hellbound",
+  "origem_das_definicoes": "biblioteca do L2FileEdit, pasta CT1_5",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcgrp",
+    "npcname-e"
+  ],
+  "nao_provadas": [],
+  "conferido_em": "2026-09-24",
+  "cliente_usado": "akumu L2NA P831, limpo, chaves originais (-l)"
+}

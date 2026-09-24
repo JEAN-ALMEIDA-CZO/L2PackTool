@@ -236,9 +236,30 @@ def garantir_para_gravar(T, system, trabalho, aolog=None):
     diga("Conversão: %d arquivos convertidos, %d já estavam, %d falharam."
          % (resumo["convertidos"], resumo["ja_estavam"],
             len(resumo["falhas"])))
-    diga("Falta um passo que não é deste programa: o JOGO ainda não conhece a "
-         "chave nova. Use o patcher ou o loader do l2encdec para iniciar o "
-         "cliente -- sem isso o jogo não lê nem o que já estava lá.")
+    # O jogo ainda nao conhece a chave nova -- ela mora no l2.exe. O loader
+    # resolve isso ao iniciar, sem alterar o executavel, e por isso ele e
+    # posto aqui: converter e nao poder ver o resultado no jogo seria dar meio
+    # passo.
+    try:
+        import projeto
+        cronica = projeto.cronica()
+    except Exception:                               # noqa: BLE001
+        cronica = None
+    raiz = Path(system).parent if Path(system).name.lower() == "system" \
+        else Path(system)
+    try:
+        onde = por_o_loader(T, raiz, cronica, aolog=None)
+    except Exception as erro:                       # noqa: BLE001
+        diga("Falta um passo que este programa não faz: o jogo ainda não "
+             "conhece a chave nova, e não consegui pôr o loader no lugar "
+             "(%s). Use o patcher ou o loader do l2encdec." % erro)
+        return True, resumo
+
+    diga("Loader posto em %s." % onde)
+    diga("ABRA O JOGO POR ELE, e não pelo l2.exe: é o loader que ensina ao "
+         "cliente a chave em que o programa grava. Sem isso o jogo não lê "
+         "nem o que já estava lá antes.")
+    resumo["loader"] = onde
     return True, resumo
 
 

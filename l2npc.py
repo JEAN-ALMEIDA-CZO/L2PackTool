@@ -893,11 +893,6 @@ def exigir_provada(tabela, cronica=None):
             cronica = projeto.cronica()
         except Exception:                           # noqa: BLE001
             cronica = None
-    if motor.formato_da_cronica(cronica) == "texto":
-        raise ErroDat(
-            "as tabelas desta cronica sao texto, e nao .dat: ha leitor e "
-            "gravador para elas (l2texto), mas esta tela ainda fala so o "
-            "binario.")
     if motor.tabela_provada(cronica, tabela):
         return
     raise ErroDat(
@@ -1947,6 +1942,109 @@ def _ler_psk(dados):
             saida["esqueleto"] = []
     return saida if (saida["altura"] is not None or saida["ossos"]) else None
 
+
+
+def texturas_do_npc(grp, linha):
+    """
+    As texturas que o npcgrp manda aplicar neste NPC.
+
+    Sao as colunas `tex1[*]`, e ha clientes com dois conjuntos (o segundo
+    entra em NPC que troca de aparencia). Devolve a lista sem repetir e sem
+    vazio, na ordem em que aparecem.
+    """
+    achadas = []
+    for coluna in grp.cabecalho:
+        if not coluna.lower().startswith("tex"):
+            continue
+        if coluna.lower().startswith("cnt_"):
+            continue
+        valor = (grp.campo(linha, coluna) or "").strip()
+        if valor and valor not in achadas:
+            achadas.append(valor)
+    return achadas
+
+
+def recado_das_texturas(texturas):
+    """
+    O que dizer ao abrir o visualizador, quando ha mais de uma textura.
+
+    Uma textura so: a malha ja a traz, e a janela sai certa -- nao ha o que
+    explicar. Mais de uma: o cliente aplica as outras por cima, o umodel nao,
+    e a diferenca aparece como parte sem textura.
+    """
+    if len(texturas) <= 1:
+        return ""
+    return ("Este NPC usa %d texturas, que o cliente aplica sobre a malha:\n"
+            "  %s\n\n"
+            "O visualizador mostra só a que está embutida no material da "
+            "malha -- as partes em xadrez ou em cor chapada são as outras. "
+            "Não é textura faltando no cliente: nenhum visualizador de fora "
+            "do jogo faz essa troca, que o motor faz ao criar o boneco."
+            % (len(texturas), "\n  ".join(texturas)))
+
+
+# A coluna que diz se o NPC tem efeito. Nao existe nas cronicas de texto, e e
+# por ela que se sabe se vale oferecer a funcao.
+COLUNA_DO_EFEITO = "rb_effect_on"
+
+
+class NpcgrpTexto(object):
+    """
+    O npcgrp de C1 e C2, com os atalhos que as telas usam.
+
+    Herdaria da TabelaCompativel se o l2compat pudesse ser importado no topo
+    -- mas ele importa o l2texto, que importa este modulo. Composicao resolve
+    sem ciclo: tudo o que nao esta aqui e perguntado a tabela de dentro.
+    """
+
+    def __init__(self, system, T, trabalho, cronica=None):
+        import l2compat
+        alvo = l2compat.caminho_de_texto(system, "npcgrp.dat")
+        if not alvo.is_file():
+            raise ErroDat("nao achei o npcgrp desta cronica em %s" % system)
+        self.tabela = l2compat.TabelaCompativel(alvo, T, trabalho, "npcgrp")
+        self.cronica_em_uso = cronica
+
+    def __getattr__(self, nome):
+        return getattr(self.tabela, nome)
+
+    def tem_efeito(self):
+        """Esta cronica prende efeito ao NPC pelo npcgrp?"""
+        try:
+            self.tabela.coluna(COLUNA_DO_EFEITO)
+            return True
+        except ValueError:
+            return False
+
+    def resumo(self):
+        """Uma linha por NPC, com o que a tela mostra. Sem efeito, que nao ha."""
+        saida = []
+        for linha in self.tabela.linhas:
+            saida.append({
+                "tag": self.tabela.campo(linha, "id"),
+                "classe": self.tabela.campo(linha, "class"),
+                "malha": self.tabela.campo(linha, "mesh"),
+                "efeito": "",
+                "escala": "",
+            })
+        return saida
+
+
+def abrir_npcgrp(system, T, trabalho, cronica=None):
+    """
+    O npcgrp desta cronica, binario ou de texto.
+
+    Quem chama nao precisa saber qual e: os dois respondem `linhas`, `campo`
+    e `resumo`.
+    """
+    if cronica is None:
+        try:
+            cronica = projeto.cronica()
+        except Exception:                           # noqa: BLE001
+            cronica = None
+    if motor.formato_da_cronica(cronica) == "texto":
+        return NpcgrpTexto(system, T, trabalho, cronica)
+    return Npcgrp(system, T, trabalho, cronica)
 
 def abrir_visualizador(T, cliente, malha):
     """

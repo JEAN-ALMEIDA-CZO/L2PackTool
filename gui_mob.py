@@ -808,11 +808,14 @@ class JanelaMob:
             return
 
         try:
-            grp = l2npc.Npcgrp(self.system(), self.T, self.trabalho())
-            malha = ""
+            grp = l2npc.abrir_npcgrp(self.system(), self.T, self.trabalho())
+            malha, texturas = "", []
             for linha in grp.linhas:
                 if linha[0] == ident:
                     malha = grp.campo(linha, "mesh")
+                    # O cliente aplica estas por cima do material da malha; o
+                    # visualizador nao, e a diferenca parece textura faltando.
+                    texturas = l2npc.texturas_do_npc(grp, linha)
                     break
         except Exception as erro:                   # noqa: BLE001
             messagebox.showerror(t("Não deu para ler o npcgrp.dat"), str(erro))
@@ -835,6 +838,10 @@ class JanelaMob:
 
         self.log(t("\nAbrindo a malha %s (%s) no visualizador do umodel.")
                  % (malha, Path(pacote).name))
+        recado = l2npc.recado_das_texturas(texturas)
+        if recado:
+            self.log("\n" + recado)
+            messagebox.showinfo(t("Sobre as texturas deste NPC"), recado)
 
     def _montar_rodape(self, pai):
         acao = ttk.Frame(pai)
