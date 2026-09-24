@@ -202,9 +202,11 @@ do que já anda, a família. Os dois guardam o original antes de gravar.
 
 ## Instalar
 
-Baixe o instalador na página de [**Releases**](../../releases). Ele instala em
-`%LocalAppData%\Programs\L2PackTool`, sem pedir administrador, e já traz as
-ferramentas de terceiros dentro.
+Baixe o instalador da [**versão mais nova**](../../releases/latest) — hoje a
+**1.4.0**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
+administrador, e já traz as ferramentas de terceiros dentro. Instalar por cima
+atualiza no lugar; o que mudou em cada versão está no
+[CHANGELOG](CHANGELOG.md).
 
 Para rodar do código:
 

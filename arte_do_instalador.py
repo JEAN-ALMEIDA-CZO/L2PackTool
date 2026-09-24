@@ -20,7 +20,6 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 import tema
-import versao
 
 BASE = Path(__file__).parent
 PASTA = BASE / "recursos" / "instalador"
@@ -76,11 +75,11 @@ def painel(escala):
     desenho.line([(meio - braco, y), (meio + braco, y)],
                  fill=cor(tema.OURO), width=max(1, int(escala)))
 
-    # a versao, discreta, no rodape
-    texto = "v" + ".".join(versao.TEXTO.split(".")[:3])
-    caixa = desenho.textbbox((0, 0), texto)
-    desenho.text(((largura - caixa[2]) // 2, altura - int(18 * escala)),
-                 texto, fill=cor(tema.TEXTO_APAGADO))
+    # A versao NAO entra aqui. Desenhada, ela obrigaria a regerar os cinco
+    # BMPs a cada numero novo -- e a esquecer de regerar em algum deles, que
+    # e como um instalador acaba anunciando a versao errada. O numero vive
+    # nos lugares onde e lido por programa: o recurso dos executaveis, o
+    # cabecalho do instalador, o nome do arquivo de saida e a tela de Sobre.
     return imagem
 
 
