@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="recursos/logo.png" alt="L2PackTool" width="120">
+<img src="recursos/logo.png" alt="L2PackTool" width="200">
 
 # L2PackTool
 
