@@ -297,6 +297,10 @@ def instalar(gravados, system, aolog=None):
     segunda instalacao guardaria por cima o arquivo gerado na primeira.
     """
     system = Path(system)
+    # Como nos itens: se o cliente ainda esta nas chaves da NCSoft, converte
+    # antes -- gravar numa chave e deixar o resto noutra nao da erro, da
+    # cliente quebrado em silencio.
+    l2item._garantir_chave(system, aolog)
     guarda = system / PASTA_GUARDA
     guarda.mkdir(parents=True, exist_ok=True)
     postos = []

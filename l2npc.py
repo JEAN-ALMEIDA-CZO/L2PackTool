@@ -2375,6 +2375,19 @@ def criar_npc(T, system, trabalho, saida, base_tag, novo_tag, efeitos,
     return relatorio
 
 
+
+def _garantir_chave_do_cliente(system, aolog=None):
+    """Converte o cliente para a chave em que gravamos, se precisar."""
+    try:
+        import l2chaves
+        T = motor.carregar_config()
+        l2chaves.garantir_para_gravar(
+            T, system, Path(motor.BASE) / "trabalho" / "chaves", aolog=aolog)
+    except Exception as erro:                       # noqa: BLE001
+        if aolog:
+            aolog("  nao deu para conferir a chave do cliente: %s" % erro)
+
+
 def instalar(relatorio, system, aolog=None):
     """
     Copia o que foi gerado para o cliente, guardando antes o que estava la.
@@ -2385,6 +2398,10 @@ def instalar(relatorio, system, aolog=None):
     """
     system = Path(system)
     feitos = []
+
+    # Cliente oficial vira cliente convertido antes de receber qualquer
+    # tabela: as duas chaves no mesmo cliente nao convivem.
+    _garantir_chave_do_cliente(system, aolog)
 
     # Os do servidor e o fonte nao vao para o cliente.
     alvos = [(c, Path(o)) for c, o in relatorio["arquivos"].items()

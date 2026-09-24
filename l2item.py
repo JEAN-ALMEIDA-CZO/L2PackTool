@@ -500,6 +500,25 @@ def _limpar(texto):
 PASTA_GUARDA = "backup_itens"
 
 
+
+def _garantir_chave(system, aolog=None):
+    """
+    Converte o cliente para a chave em que o programa grava, se precisar.
+
+    Importado aqui dentro e nao no topo porque o l2chaves importa o l2npc,
+    que importa este modulo -- e um ciclo que so existe na hora de instalar.
+    """
+    try:
+        import l2chaves
+        T = motor.carregar_config()
+        l2chaves.garantir_para_gravar(T, system,
+                                      Path(motor.BASE) / "trabalho" / "chaves",
+                                      aolog=aolog)
+    except Exception as erro:                       # noqa: BLE001
+        if aolog:
+            aolog("  não deu para conferir a chave do cliente: %s" % erro)
+
+
 def instalar(gravados, system, aolog=None):
     """
     Poe as tabelas geradas no cliente, guardando as originais na primeira vez.
@@ -509,6 +528,10 @@ def instalar(gravados, system, aolog=None):
     unica copia do que o cliente tinha de fabrica.
     """
     system = Path(system)
+    # Antes de por qualquer coisa: o cliente esta na chave em que gravamos?
+    # Se nao estiver, converte -- senao o cliente fica com duas chaves e o
+    # jogo nao le nenhuma das duas metades.
+    _garantir_chave(system, aolog)
     guarda = system / PASTA_GUARDA
     guarda.mkdir(parents=True, exist_ok=True)
     postos = []

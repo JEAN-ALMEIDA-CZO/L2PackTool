@@ -200,3 +200,86 @@ def desfazer(system, guarda, aolog=None):
         if aolog:
             aolog("  %s devolvido" % arquivo.name)
     return voltaram
+
+
+def garantir_para_gravar(T, system, trabalho, aolog=None):
+    """
+    Deixa o cliente pronto para receber gravacao, convertendo se precisar.
+
+    Devolve (fez_alguma_coisa, resumo). Chamada antes de instalar: e o ponto
+    em que o programa deixa de escrever numa chave e ler noutra.
+
+    Nao pergunta. Quem mandou gravar ja disse o que queria, e a conversao e
+    reversivel -- cada original vai para `backup_chaves` antes, e cada arquivo
+    so e trocado depois de a volta bater byte a byte.
+    """
+    system = Path(system)
+    trabalho = Path(trabalho)
+
+    def diga(texto):
+        if aolog:
+            aolog(texto)
+
+    try:
+        precisa, vistos, _antigos = conferir(T, system, trabalho)
+    except Exception as erro:                       # noqa: BLE001
+        diga("  não consegui conferir a chave do cliente: %s" % erro)
+        return False, None
+    if not vistos or not precisa:
+        return False, None
+
+    diga("Este cliente é oficial: as tabelas estão nas chaves da NCSoft, e o "
+         "programa grava nas do l2encdec.")
+    diga("Convertendo a pasta system antes de instalar -- os originais vão "
+         "para backup_chaves.")
+    resumo = converter(T, system, trabalho, aolog=diga)
+    diga("Conversão: %d arquivos convertidos, %d já estavam, %d falharam."
+         % (resumo["convertidos"], resumo["ja_estavam"],
+            len(resumo["falhas"])))
+    diga("Falta um passo que não é deste programa: o JOGO ainda não conhece a "
+         "chave nova. Use o patcher ou o loader do l2encdec para iniciar o "
+         "cliente -- sem isso o jogo não lê nem o que já estava lá.")
+    return True, resumo
+
+
+# Qual loader serve a qual geracao. Ate o Interlude um; do Chaotic Throne em
+# diante o outro. Os dois acompanham o l2encdec.
+LOADER_ANTIGO = "loader.exe"
+LOADER_NOVO = "loaderCT1++.exe"
+CRONICAS_ANTIGAS = ("c1", "c2", "c3", "c4", "c5", "interlude")
+
+
+def loader_da_cronica(cronica):
+    """O nome do loader daquela cronica."""
+    return (LOADER_ANTIGO if (cronica or "").lower() in CRONICAS_ANTIGAS
+            else LOADER_NOVO)
+
+
+def onde_esta_o_loader(T, cronica=None):
+    """O caminho do loader na pasta de ferramentas, ou None."""
+    caminho = T.get("l2encdec")
+    if not caminho:
+        return None
+    perto = Path(caminho).parent / loader_da_cronica(cronica)
+    return perto if perto.is_file() and perto.stat().st_size else None
+
+
+def por_o_loader(T, cliente, cronica=None, aolog=None):
+    """
+    Copia o loader para a pasta do cliente. Nao executa nada.
+
+    Devolve o caminho onde ficou, ou levanta ErroDeChave dizendo o que falta.
+    """
+    de = onde_esta_o_loader(T, cronica)
+    if de is None:
+        raise ErroDeChave(
+            "nao achei o %s na pasta de ferramentas. Ele acompanha o "
+            "l2encdec." % loader_da_cronica(cronica))
+
+    destino = Path(cliente) / de.name
+    shutil.copy2(de, destino)
+    if aolog:
+        aolog("Loader em %s" % destino)
+        aolog("Inicie o jogo por ele: e o que faz o cliente entender as "
+              "tabelas convertidas.")
+    return destino

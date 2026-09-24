@@ -133,6 +133,10 @@ class JanelaArquivos:
             linha_prep, text=t("Converter o cliente do projeto…"),
             command=self.converter_chaves)
         self.botao_preparar.pack(side="left")
+        self.botao_loader = ttk.Button(
+            linha_prep, text=t("Pôr o loader no cliente"),
+            command=self.por_o_loader)
+        self.botao_loader.pack(side="left", padx=(6, 0))
         self.recado_prep = ttk.Label(linha_prep, style="Miudo.TLabel")
         self.recado_prep.pack(side="left", padx=(10, 0))
         ajuda.ajuda(linha_prep, lambda: t(
@@ -181,6 +185,39 @@ class JanelaArquivos:
         self.atualizar()
 
     # ---- ajudantes -------------------------------------------------------
+
+
+    def por_o_loader(self):
+        """
+        Copia o loader do l2encdec para a pasta do cliente do projeto.
+
+        É o que faz o jogo entender as tabelas convertidas: a chave que ele
+        usa está dentro do l2.exe, e o loader a substitui ao iniciar, sem
+        alterar o executável.
+        """
+        import l2chaves
+        import l2item
+        import projeto
+        cliente = (projeto.cliente() or "").strip()
+        if not cliente:
+            messagebox.showinfo(t("Sem cliente"),
+                                t("Aponte a pasta do cliente em Projetos."))
+            return
+        raiz = l2conferir.raiz_do_cliente(cliente)
+        cronica = projeto.cronica()
+        try:
+            onde = l2chaves.por_o_loader(self.T, raiz, cronica,
+                                         aolog=self.log)
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não achei o loader"), str(erro))
+            return
+        messagebox.showinfo(
+            t("Loader no lugar"),
+            t("O %s ficou em:\n%s\n\nInicie o jogo por ele, e não pelo "
+              "l2.exe: é ele que ensina ao cliente a chave em que o programa "
+              "grava. O executável do jogo não foi alterado.\n\nCrônica do "
+              "projeto: %s.")
+            % (onde.name, onde, l2item.rotulo_da_cronica(cronica)))
 
     # ---- preparar um cliente oficial -------------------------------------
     def converter_chaves(self):
