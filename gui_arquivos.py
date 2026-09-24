@@ -24,6 +24,8 @@ import tema
 import ajuda
 import idioma
 import l2npc
+import l2chaves
+import l2conferir
 import motor
 from idioma import t, N_
 
@@ -116,6 +118,34 @@ class JanelaArquivos:
         ttk.Button(baixo, text=t("Escolher…"),
                    command=self.escolher_destino).pack(side="left", padx=(6, 0))
 
+        # ---- preparar cliente oficial ----
+        prep = ttk.LabelFrame(quadro, text=t("Cliente oficial"), padding=8)
+        prep.pack(fill="x", pady=(10, 0))
+        ttk.Label(prep, style="Fraco.TLabel", justify="left", wraplength=700,
+                  text=t("Cliente recém-baixado vem fechado com as chaves da "
+                         "NCSoft. O programa lê essas chaves, mas só sabe "
+                         "gravar com as do l2encdec — então dá para ler tudo "
+                         "e não dá para gravar nada. Converter deixa o "
+                         "cliente inteiro numa chave só.")).pack(anchor="w")
+        linha_prep = ttk.Frame(prep)
+        linha_prep.pack(fill="x", pady=(6, 0))
+        self.botao_preparar = ttk.Button(
+            linha_prep, text=t("Converter o cliente do projeto…"),
+            command=self.converter_chaves)
+        self.botao_preparar.pack(side="left")
+        self.recado_prep = ttk.Label(linha_prep, style="Miudo.TLabel")
+        self.recado_prep.pack(side="left", padx=(10, 0))
+        ajuda.ajuda(linha_prep, lambda: t(
+            "Reescreve cada tabela da pasta system do cliente apontado no "
+            "projeto.@@"
+            "O conteúdo não muda: cada arquivo é aberto, fechado com a outra "
+            "chave, aberto de novo e comparado byte a byte. Só depois disso o "
+            "original é trocado — e ele já está guardado em backup_chaves.@@"
+            "O que este programa NÃO faz é mexer no executável do jogo. Para "
+            "o jogo ler os arquivos convertidos, ele precisa conhecer a chave "
+            "nova — é para isso que existem o patcher e os loaders da "
+            "comunidade, que acompanham o l2encdec."))
+
         acao = ttk.Frame(quadro)
         acao.pack(fill="x", pady=(8, 0))
         self.botao = ttk.Button(acao, text=t("Descriptografar"),
@@ -151,6 +181,104 @@ class JanelaArquivos:
         self.atualizar()
 
     # ---- ajudantes -------------------------------------------------------
+
+    # ---- preparar um cliente oficial -------------------------------------
+    def converter_chaves(self):
+        """
+        Deixa o cliente do projeto todo na chave em que o programa grava.
+
+        Roda em linha separada porque sao dezenas de arquivos, cada um com
+        tres passadas do l2encdec -- travar a janela por um minuto seria pior
+        do que a espera.
+        """
+        import projeto
+        cliente = (projeto.cliente() or "").strip()
+        if not cliente:
+            messagebox.showinfo(
+                t("Sem cliente"),
+                t("Aponte a pasta do cliente em Projetos antes."))
+            return
+        system = l2conferir.raiz_do_cliente(cliente) / "system"
+        if not system.is_dir():
+            messagebox.showerror(t("Pasta inválida"),
+                                 t("Não achei a pasta system em %s") % cliente)
+            return
+
+        self.recado_prep.config(text=t("conferindo…"))
+        self.raiz.update_idletasks()
+        try:
+            precisa, vistos, antigos = l2chaves.conferir(
+                self.T, system, motor.BASE / "trabalho" / "chaves")
+        except Exception as erro:                   # noqa: BLE001
+            self.recado_prep.config(text="")
+            messagebox.showerror(t("Não deu para conferir"), str(erro))
+            return
+
+        if not vistos:
+            self.recado_prep.config(text="")
+            messagebox.showinfo(
+                t("Nada a converter"),
+                t("Não achei tabela protegida nessa pasta."))
+            return
+        if not precisa:
+            self.recado_prep.config(text=t("já está na chave certa"))
+            messagebox.showinfo(
+                t("Já está pronto"),
+                t("Este cliente já usa a chave com que o programa grava. Não "
+                  "há nada a converter."))
+            return
+
+        quantos = len(l2chaves.protegidos(system))
+        if not messagebox.askyesno(
+                t("Converter o cliente?"),
+                t("Serão reescritos até %d arquivos da pasta:\n%s\n\n"
+                  "Cada um é aberto, fechado com a outra chave, aberto de "
+                  "novo e comparado byte a byte — o original só é trocado se "
+                  "bater. Antes disso ele vai para a pasta backup_chaves.\n\n"
+                  "Depois da conversão o jogo precisa conhecer a chave nova "
+                  "para ler os próprios arquivos: isso é feito pelo patcher "
+                  "ou pelo loader da comunidade, que este programa não "
+                  "executa.\n\nFeche o jogo antes. Converter agora?")
+                % (quantos, system)):
+            self.recado_prep.config(text="")
+            return
+
+        self.botao_preparar.config(state="disabled")
+        self.recado_prep.config(text=t("convertendo…"))
+        threading.Thread(target=self._converter_thread, args=(system,),
+                         daemon=True).start()
+
+    def _converter_thread(self, system):
+        try:
+            resumo = l2chaves.converter(
+                self.T, system, motor.BASE / "trabalho" / "chaves",
+                aolog=lambda s: self.raiz.after(0, self.log, s),
+                aoprogresso=lambda i, total, nome: self.raiz.after(
+                    0, self.recado_prep.config,
+                    {"text": t("%d de %d  %s") % (i, total, nome)}))
+            erro = None
+        except Exception as e:                      # noqa: BLE001
+            resumo, erro = None, e
+        self.raiz.after(0, self._fim_da_conversao, resumo, erro)
+
+    def _fim_da_conversao(self, resumo, erro):
+        self.botao_preparar.config(state="normal")
+        if erro is not None:
+            self.recado_prep.config(text="")
+            messagebox.showerror(t("A conversão parou"), str(erro))
+            return
+        self.recado_prep.config(
+            text=t("%d convertidos") % resumo["convertidos"])
+        recado = t("%d arquivos convertidos, %d já estavam na chave nova.\n\n"
+                   "Os originais ficaram em:\n%s") % (
+            resumo["convertidos"], resumo["ja_estavam"], resumo["guarda"])
+        if resumo["falhas"]:
+            recado += t("\n\n%d não converteram e ficaram como estavam:\n%s") \
+                % (len(resumo["falhas"]), "\n".join(resumo["falhas"][:5]))
+            messagebox.showwarning(t("Convertido em parte"), recado)
+        else:
+            messagebox.showinfo(t("Cliente convertido"), recado)
+
     def log(self, texto):
         self.texto.insert("end", texto + "\n")
         self.texto.see("end")

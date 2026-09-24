@@ -165,12 +165,10 @@ def completar(T, base, binario, trabalho):
     rascunho = trabalho / (Path(base).stem + "_medida.txt")
     completa.unlink(missing_ok=True)
 
-    codigo, saida = motor.executar(
-        [T["l2disasm"], "-d", base, "-e", completa, binario, rascunho],
-        limite=900)
-    if not completa.exists():
-        raise ErroDeItem("nao consegui medir %s: %s"
-                         % (Path(base).name, saida.strip()[:200]))
+    try:
+        completa = motor.completar_definicao(T, base, binario, trabalho)
+    except OSError as erro:
+        raise ErroDeItem(str(erro))
     return completa.read_text(encoding="latin-1")
 
 

@@ -633,8 +633,11 @@ class Tabela:
         self.trabalho.mkdir(parents=True, exist_ok=True)
         self.metodo = metodo_do_arquivo(self.origem)
 
-        self.ddf = self.trabalho / (self.origem.stem + ".ddf")
-        self.ddf.write_text(ddf, encoding="latin-1", newline="")
+        # `ddf_base` descreve os campos; `ddf` passa a ser a versao medida
+        # neste arquivo, escrita pelo `_ler`.
+        self.ddf_base = self.trabalho / (self.origem.stem + "_base.ddf")
+        self.ddf_base.write_text(ddf, encoding="latin-1", newline="")
+        self.ddf = self.ddf_base
 
         self.cabecalho = []
         self.linhas = []
@@ -650,6 +653,15 @@ class Tabela:
                 raise ErroDat(str(erro))
         else:
             shutil.copy2(self.origem, puro)
+
+        # Mede os limites NESTE arquivo antes de qualquer coisa: sem eles a
+        # leitura ate sai, mas o montador recusa a definicao na hora de
+        # gravar -- tabela que se le e nao se grava.
+        try:
+            self.ddf = motor.completar_definicao(self.T, self.ddf_base, puro,
+                                                 self.trabalho)
+        except OSError as erro:
+            raise ErroDat(str(erro))
 
         texto = self.trabalho / (self.origem.stem + ".txt")
         codigo, saida = motor.executar([self.T["l2disasm"], "-d", self.ddf, puro, texto])

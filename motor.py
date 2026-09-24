@@ -357,6 +357,32 @@ def cronicas_com_definicao():
                   if p.is_dir() and any(p.glob("*.ddf")))
 
 
+def completar_definicao(T, base, binario, trabalho):
+    """
+    A definicao com os limites que o montador exige, medidos NESTE arquivo.
+
+    A .ddf diz quais campos existem; quantas colunas tem cada campo de
+    tamanho variavel depende do arquivo, e varia de cliente para cliente. O
+    l2disasm conta na leitura e devolve a definicao completa com -e.
+
+    Sem isso, ler funciona e gravar nao: o l2asm recusa a definicao. Usar os
+    numeros de outro cliente seria pior -- truncaria coluna em silencio.
+    """
+    trabalho = Path(trabalho)
+    trabalho.mkdir(parents=True, exist_ok=True)
+    completa = trabalho / (Path(base).stem + "_completa.ddf")
+    rascunho = trabalho / (Path(base).stem + "_medida.txt")
+    completa.unlink(missing_ok=True)
+
+    _codigo, saida = executar(
+        [T["l2disasm"], "-d", base, "-e", completa, binario, rascunho],
+        limite=900)
+    if not completa.exists():
+        raise OSError("nao consegui medir %s: %s"
+                      % (Path(base).name, (saida or "").strip()[:200]))
+    return completa
+
+
 def abrir_dat(T, origem, destino, limite=900):
     """
     Decifra um .dat, seja ele de cliente oficial ou de servidor privado.
