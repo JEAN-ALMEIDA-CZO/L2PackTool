@@ -1,0 +1,201 @@
+{
+  "rotulo": "C1 - Harbingers of War",
+  "formato": "texto",
+  "observacao": "as tabelas desta cronica sao texto UTF-16 com os campos escritos por nome, criptografadas em Ver211; nao ha .ddf porque nao ha coluna a definir",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcgrp",
+    "npcname-e"
+  ],
+  "nao_provadas": [],
+  "conferido_em": "2026-09-23",
+  "cliente_usado": "C:\\Lineage Programas\\Clientes\\C1\\C1_Harbingers_of_War_system\\System",
+  "tabelas": {
+    "weapongrp": {
+      "linhas": 550,
+      "campos": [
+        "object_id",
+        "object_name",
+        "body_part",
+        "animation",
+        "drop_type",
+        "drop_anim_type",
+        "drop_radius",
+        "drop_height",
+        "projectile",
+        "curvature",
+        "drop_mesh",
+        "drop_texture",
+        "icon",
+        "mesh",
+        "texture",
+        "crystallizable",
+        "item_sound",
+        "drop_sound",
+        "equip_sound",
+        "weight",
+        "soulshot_count",
+        "spiritshot_count",
+        "material_type",
+        "crystal_type",
+        "physical_damage",
+        "random_damage",
+        "weapon_type",
+        "critical",
+        "hit_modify",
+        "avoid_modify",
+        "shield_defense",
+        "shield_defense_rate",
+        "attack_speed",
+        "mp_consume",
+        "magical_damage",
+        "durability"
+      ]
+    },
+    "armorgrp": {
+      "linhas": 632,
+      "campos": [
+        "object_id",
+        "object_name",
+        "body_part",
+        "drop_type",
+        "drop_anim_type",
+        "drop_radius",
+        "drop_height",
+        "drop_mesh",
+        "drop_texture",
+        "icon",
+        "mfighter_mesh",
+        "mfighter_texture",
+        "ffighter_mesh",
+        "ffighter_texture",
+        "mmagic_mesh",
+        "mmagic_texture",
+        "fmagic_mesh",
+        "fmagic_texture",
+        "melf_mesh",
+        "melf_texture",
+        "felf_mesh",
+        "felf_texture",
+        "mdarkelf_mesh",
+        "mdarkelf_texture",
+        "fdarkelf_mesh",
+        "fdarkelf_texture",
+        "mdwarf_mesh",
+        "mdwarf_texture",
+        "fdwarf_mesh",
+        "fdwarf_texture",
+        "morc_mesh",
+        "morc_texture",
+        "forc_mesh",
+        "forc_texture",
+        "mshaman_mesh",
+        "mshaman_texture",
+        "fshaman_mesh",
+        "fshaman_texture",
+        "npc_mesh",
+        "npc_texture"
+      ]
+    },
+    "etcitemgrp": {
+      "linhas": 3049,
+      "campos": [
+        "object_id",
+        "object_name",
+        "drop_type",
+        "drop_anim_type",
+        "drop_radius",
+        "drop_height",
+        "drop_mesh",
+        "drop_texture",
+        "icon",
+        "mesh",
+        "texture",
+        "crystallizable",
+        "drop_sound",
+        "equip_sound",
+        "etcitem_type",
+        "weight",
+        "consume_type",
+        "material_type",
+        "crystal_type",
+        "durability"
+      ]
+    },
+    "itemname-e": {
+      "linhas": 4231,
+      "campos": [
+        "id",
+        "name",
+        "description"
+      ]
+    },
+    "skillgrp": {
+      "linhas": 3544,
+      "campos": [
+        "skill_id",
+        "skill_level",
+        "icon",
+        "operate_type",
+        "is_magic",
+        "mp_consume",
+        "hp_consume",
+        "consume_item_id",
+        "consume_item_count",
+        "cast_range",
+        "skill_time",
+        "reuse_delay",
+        "abnormal_time",
+        "abnormal_id",
+        "hit_time",
+        "animation",
+        "cast_style",
+        "bar_level_main",
+        "bar_level_sub_max"
+      ]
+    },
+    "skillname-e": {
+      "linhas": 3544,
+      "campos": [
+        "skill_id",
+        "skill_level",
+        "name",
+        "desc"
+      ]
+    },
+    "npcgrp": {
+      "linhas": 2223,
+      "campos": [
+        "npc_id",
+        "npc_name",
+        "npc_speed",
+        "class_name",
+        "mesh_name",
+        "texture_name",
+        "collision_radius",
+        "collision_height",
+        "attack_sound1",
+        "defense_sound1",
+        "damage_sound",
+        "sound_vol",
+        "sound_radius",
+        "sound_random",
+        "attack_effect"
+      ]
+    },
+    "npcname-e": {
+      "linhas": 2223,
+      "campos": [
+        "id",
+        "nickcolor",
+        "nick",
+        "name"
+      ]
+    }
+  }
+}

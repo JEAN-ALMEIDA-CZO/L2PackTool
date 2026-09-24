@@ -372,6 +372,11 @@ def nucleo(cronica=None):
         return {}
 
 
+def formato_da_cronica(cronica=None):
+    """"binario" ou "texto". Ate o C2 as tabelas do cliente sao texto."""
+    return (nucleo(cronica).get("formato") or "binario").lower()
+
+
 def tabela_provada(cronica, tabela):
     """
     Esta tabela foi provada nesta cronica?

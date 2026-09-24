@@ -132,8 +132,11 @@ def cronicas():
     raiz = Path(motor.AQUI) / PASTA_DE_DEFINICOES
     if not raiz.is_dir():
         return []
+    # Pasta com manifesto e sem .ddf tambem vale: as cronicas de tabela em
+    # texto (C1, C2) nao tem definicao porque nao ha coluna a definir.
     return sorted(p.name for p in raiz.iterdir()
-                  if p.is_dir() and any(p.glob("*.ddf")))
+                  if p.is_dir() and (any(p.glob("*.ddf"))
+                                     or (p / NOME_DO_NUCLEO).is_file()))
 
 
 def rotulo_da_cronica(chave):
@@ -192,6 +195,13 @@ def _decifrar(T, origem, trabalho):
 
 def abrir_tabela(T, system, arquivo, trabalho, cronica=None):
     """Uma tabela do cliente, com a definicao ja medida nele."""
+    cronica = cronica or cronica_em_uso()
+    if motor.formato_da_cronica(cronica) == "texto":
+        raise ErroDeItem(
+            "as tabelas de %s são texto, e não .dat: o programa já sabe ler e "
+            "gravar esse formato (l2texto), mas esta tela ainda fala só o "
+            "binário. Escolha um projeto de C3 em diante."
+            % rotulo_da_cronica(cronica))
     origem = Path(system) / arquivo
     if not origem.is_file():
         raise ErroDeItem("nao achei %s em %s" % (arquivo, system))

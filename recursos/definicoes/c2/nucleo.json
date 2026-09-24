@@ -1,0 +1,198 @@
+{
+  "rotulo": "C2 - Age of Splendor",
+  "formato": "texto",
+  "observacao": "as tabelas desta cronica sao texto UTF-16 com os campos escritos por nome, criptografadas em Ver211; nao ha .ddf porque nao ha coluna a definir",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcgrp",
+    "npcname-e"
+  ],
+  "nao_provadas": [],
+  "conferido_em": "2026-09-23",
+  "cliente_usado": "C:\\Lineage Programas\\Clientes\\C2\\C2_Age_of_Splendor_system\\system",
+  "tabelas": {
+    "weapongrp": {
+      "linhas": 799,
+      "campos": [
+        "object_id",
+        "object_name",
+        "body_part",
+        "animation",
+        "drop_type",
+        "drop_anim_type",
+        "drop_radius",
+        "drop_height",
+        "projectile",
+        "curvature",
+        "drop_mesh",
+        "drop_texture",
+        "icon",
+        "mesh",
+        "texture",
+        "crystallizable",
+        "item_sound",
+        "drop_sound",
+        "equip_sound",
+        "weight",
+        "soulshot_count",
+        "spiritshot_count",
+        "material_type",
+        "crystal_type",
+        "physical_damage",
+        "random_damage",
+        "weapon_type",
+        "critical",
+        "hit_modify",
+        "avoid_modify",
+        "shield_defense",
+        "shield_defense_rate",
+        "attack_speed",
+        "mp_consume",
+        "magical_damage",
+        "durability"
+      ]
+    },
+    "armorgrp": {
+      "linhas": 647,
+      "campos": [
+        "object_id",
+        "object_name",
+        "body_part",
+        "drop_type",
+        "drop_anim_type",
+        "drop_radius",
+        "drop_height",
+        "drop_mesh",
+        "drop_texture",
+        "icon",
+        "mfighter_mesh",
+        "mfighter_texture",
+        "ffighter_mesh",
+        "ffighter_texture",
+        "mmagic_mesh",
+        "mmagic_texture",
+        "fmagic_mesh",
+        "fmagic_texture",
+        "melf_mesh",
+        "melf_texture",
+        "felf_mesh",
+        "felf_texture",
+        "mdarkelf_mesh",
+        "mdarkelf_texture",
+        "fdarkelf_mesh",
+        "fdarkelf_texture",
+        "mdwarf_mesh",
+        "mdwarf_texture",
+        "fdwarf_mesh",
+        "fdwarf_texture",
+        "morc_mesh",
+        "morc_texture",
+        "forc_mesh",
+        "forc_texture",
+        "mshaman_mesh",
+        "mshaman_texture",
+        "fshaman_mesh",
+        "fshaman_texture",
+        "npc_mesh",
+        "npc_texture"
+      ]
+    },
+    "etcitemgrp": {
+      "linhas": 3836,
+      "campos": [
+        "object_id",
+        "object_name",
+        "drop_type",
+        "drop_anim_type",
+        "drop_radius",
+        "drop_height",
+        "drop_mesh",
+        "drop_texture",
+        "icon",
+        "mesh",
+        "texture",
+        "crystallizable",
+        "drop_sound",
+        "equip_sound",
+        "etcitem_type",
+        "weight",
+        "consume_type",
+        "material_type",
+        "crystal_type",
+        "durability"
+      ]
+    },
+    "itemname-e": {
+      "linhas": 5282,
+      "campos": [
+        "id",
+        "name",
+        "additionalname",
+        "popup",
+        "description"
+      ]
+    },
+    "skillgrp": {
+      "linhas": 6519,
+      "campos": [
+        "skill_id",
+        "skill_level",
+        "icon",
+        "operate_type",
+        "is_magic",
+        "mp_consume",
+        "cast_range",
+        "hit_time",
+        "animation",
+        "cast_style"
+      ]
+    },
+    "skillname-e": {
+      "linhas": 6576,
+      "campos": [
+        "skill_id",
+        "skill_level",
+        "name",
+        "desc"
+      ]
+    },
+    "npcgrp": {
+      "linhas": 3201,
+      "campos": [
+        "npc_id",
+        "npc_name",
+        "npc_speed",
+        "class_name",
+        "mesh_name",
+        "texture_name",
+        "texture_name_second",
+        "collision_radius",
+        "collision_height",
+        "attack_sound1",
+        "defense_sound1",
+        "damage_sound",
+        "sound_vol",
+        "sound_radius",
+        "sound_random",
+        "attack_effect",
+        "quest_be",
+        "level_limit",
+        "class_limit"
+      ]
+    },
+    "npcname-e": {
+      "linhas": 3201,
+      "campos": [
+        "id",
+        "nickcolor",
+        "nick",
+        "name"
+      ]
+    }
+  }
+}

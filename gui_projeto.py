@@ -220,7 +220,11 @@ class JanelaProjetos:
                                           state="readonly", width=32,
                                           values=self._cronicas_na_tela())
         self.caixa_cronica.grid(row=7, column=0, columnspan=2, sticky="ew")
-        ajuda.ajuda(direita, lambda: t(
+        # `direita` e um formulario em grid: o `?` tem de entrar por grid
+        # tambem. Empacotar por pack aqui derruba a janela inteira -- o Tk
+        # nao deixa os dois gerenciadores no mesmo pai.
+        ajuda.ajuda(direita, grid=True, row=7, column=2, sticky="w",
+                    padx=(6, 0), texto=lambda: t(
             "A crônica do CLIENTE deste projeto.@@"
             "As tabelas .dat têm colunas diferentes em cada crônica. Ler com "
             "a definição errada não dá erro: o programa lê campo deslocado e "

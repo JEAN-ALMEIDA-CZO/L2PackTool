@@ -614,6 +614,66 @@ class ErroDat(Exception):
     pass
 
 
+
+# Ate quanto um float pode mudar na ida e volta e ainda ser o mesmo numero.
+# Uma parte em um milhao: o erro medido e de oito centesimos de milionesimo, e
+# qualquer coisa maior do que isto nao e arredondamento de texto.
+FOLGA_DO_FLOAT = 1e-6
+
+# Quantos valores podem mudar assim antes de a coisa virar suspeita. E um
+# limite de bom senso: no npcgrp de 5,4 MB do C4 mudam 43.
+QUANTOS_FLOATS_CABEM = 500
+
+
+def _e_o_ultimo_bit(antes, depois, posicao):
+    """
+    A diferenca neste byte e o ultimo bit de um float?
+
+    O byte pode ser qualquer um dos quatro de um float, e a tabela nao e
+    alinhada -- entao tenta-se ler o float comecando em cada uma das quatro
+    posicoes possiveis. Basta uma delas dar dois numeros praticamente iguais.
+    """
+    for base in range(max(0, posicao - 3), posicao + 1):
+        if base + 4 > len(antes):
+            continue
+        try:
+            a = struct.unpack_from("<f", antes, base)[0]
+            b = struct.unpack_from("<f", depois, base)[0]
+        except struct.error:
+            continue
+        if a == b or not a:
+            continue
+        if abs(a - b) / abs(a) < FOLGA_DO_FLOAT:
+            return True
+    return False
+
+
+def _comparar(antes, depois):
+    """
+    (passou, motivo) entre o binario original e o remontado.
+
+    Tamanho diferente reprova na hora: ai nao e arredondamento, e estrutura.
+    """
+    if antes == depois:
+        return True, "identico ao original"
+    if len(antes) != len(depois):
+        return False, ("a volta nao reproduz o original (mudou de %d para %d "
+                       "bytes)" % (len(antes), len(depois)))
+
+    diferentes = [i for i in range(len(antes)) if antes[i] != depois[i]]
+    if len(diferentes) > QUANTOS_FLOATS_CABEM:
+        return False, ("a volta nao reproduz o original (%d bytes diferentes)"
+                       % len(diferentes))
+
+    if all(_e_o_ultimo_bit(antes, depois, i) for i in diferentes):
+        return True, ("igual, menos o ultimo bit de %d valores de ponto "
+                      "flutuante -- diferenca na oitava casa decimal, que o "
+                      "jogo nao distingue" % len(diferentes))
+
+    return False, ("a volta nao reproduz o original (%d bytes diferentes, e "
+                   "nem todos sao arredondamento)" % len(diferentes))
+
+
 class Tabela:
     """
     Um .dat do cliente em forma de tabela: cabecalho com os nomes das colunas e
@@ -752,9 +812,7 @@ class Tabela:
                 Tabela._conferidos[marca] = (False, "o montador recusou o arquivo")
             return False, "o montador recusou o arquivo"
 
-        igual = puro.read_bytes() == self._puro.read_bytes()
-        resposta = (igual, "identico ao original" if igual
-                    else "a volta nao reproduz o original")
+        resposta = _comparar(self._puro.read_bytes(), puro.read_bytes())
         if marca:
             Tabela._conferidos[marca] = resposta
         return resposta
@@ -822,6 +880,11 @@ def exigir_provada(tabela, cronica=None):
             cronica = projeto.cronica()
         except Exception:                           # noqa: BLE001
             cronica = None
+    if motor.formato_da_cronica(cronica) == "texto":
+        raise ErroDat(
+            "as tabelas desta cronica sao texto, e nao .dat: ha leitor e "
+            "gravador para elas (l2texto), mas esta tela ainda fala so o "
+            "binario.")
     if motor.tabela_provada(cronica, tabela):
         return
     raise ErroDat(
