@@ -1,0 +1,21 @@
+{
+  "rotulo": "CT2.6 - High Five",
+  "ordem": 140,
+  "formato": "binario",
+  "origem_das_definicoes": "biblioteca do L2FileEdit, pasta ct2_6",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcgrp",
+    "npcname-e",
+    "transformdata"
+  ],
+  "nao_provadas": [],
+  "conferido_em": "2026-09-25",
+  "cliente_usado": "Clientes/High-Five (D:), limpo. Medido: 4.060 armas, 3.650 armaduras, 11.487 etcitem, 19.197 nomes de item, 65.871 skills, 10.461 NPCs, 224 transformacoes.",
+  "observacao": "O npcgrp volta igual menos o ultimo bit de 74 valores de ponto flutuante -- arredondamento na ida e volta do numero, como em C4, C5, Gracia Part 2 e Freya. As outras oito voltam identicas.\nDifere da Freya so em skillgrp e npcgrp; as outras sete definicoes sao as mesmas."
+}

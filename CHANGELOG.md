@@ -9,6 +9,38 @@ continua abrindo.
 
 ---
 
+## 1.9.0 — 25/09/2026
+
+**High Five.** Décimo quarto núcleo — o programa vai de C1 ao High Five. As
+nove tabelas provadas contra o cliente: 4.060 armas, 3.650 armaduras, 11.487
+etcitem, 19.197 nomes de item, 65.871 skills, 10.461 NPCs e 224
+transformações. Nas telas: 19.149 itens com ícone, 8.136 habilidades todas com
+ícone e 10.352 NPCs com malha. A detecção acerta os dez clientes de teste,
+cada um no seu.
+
+**Proteção alcança o cliente inteiro.** Antes a escolha parava na pasta
+`system`. Agora entram textura, animação, mapa, malha, `.ini` e `.xdat` — o
+jogo carrega tudo isso pelo mesmo mecanismo das tabelas. *Todos os pacotes*
+junta as pastas de conteúdo de uma vez, dizendo quantos arquivos e quantos MB
+antes de fazer qualquer coisa.
+
+A cópia de segurança passou a guardar o **caminho**, e não só o nome: dois
+arquivos de mesmo nome em pastas diferentes se sobrescreveriam na volta.
+*Voltar ao original* devolve cada um para a pasta de onde saiu.
+
+**Configuração lida como texto é recusada.** `Lineage2us.ini` e parentes não
+passam pela cifra do jogo: cifrados, deixariam de ser lidos em silêncio — que
+é pior do que um erro. `L2.ini` e `User.ini`, que já vêm cifrados de fábrica,
+continuam entrando normalmente.
+
+**Correção: a reserva recusava tabela boa.** Quando a chave do executável não
+abre as tabelas do cliente, a leitura cai no l2encdec — e essa reserva
+confirmava o resultado procurando assinatura de *pacote*, que tabela não tem.
+O `itemname-e.dat` e o `L2.ini` eram recusados mesmo tendo sido abertos
+corretamente.
+
+---
+
 ## 1.8.0 — 25/09/2026
 
 **Freya.** Décimo terceiro núcleo, com as nove tabelas provadas contra o

@@ -67,6 +67,22 @@ DO_WINDOWS = (".dll", ".exe", ".sys", ".vxd", ".ocx", ".drv", ".des")
 
 NOME_DAS_IMPRESSOES = "impressoes-do-cliente.txt"
 
+# As pastas do cliente que guardam conteudo carregado pelo jogo. Sao estas que
+# o botao "todos os pacotes" varre -- o resto do cliente e executavel,
+# configuracao solta e som.
+PASTAS_DE_CONTEUDO = ("system", "SysTextures", "systextures", "Animations",
+                      "animations", "MAPS", "maps", "StaticMeshes",
+                      "staticmeshes", "Textures", "textures")
+
+# O que esses pacotes sao, por extensao.
+PACOTES = (".utx", ".u", ".ukx", ".usx", ".unr", ".int", ".usk")
+
+# Configuracao lida como TEXTO pelo motor, antes de qualquer decifragem.
+# Cifrar um desses nao da erro: o jogo ignora a configuracao em silencio, que
+# e pior. Medido: L2.ini e User.ini JA vem cifrados de fabrica e nao entram
+# nesta regra -- a regra vale para o que vem cru.
+CONFIGURACAO = (".ini", ".int_", ".cfg")
+
 # Os grupos que a tela oferece. Nome do arquivo em minusculas, porque o disco
 # do Windows nao liga e o do usuario pode ter qualquer caixa.
 GRUPOS = (
@@ -99,6 +115,38 @@ def arquivos_do_grupo(system, chaves):
             achados.append(arquivo)
     return achados
 
+
+
+def _relativo(caminho, system):
+    """
+    O caminho do arquivo dentro do cliente, para a copia de seguranca.
+
+    Guardar so o nome bastava enquanto tudo vinha da `system`. Alcancando o
+    cliente inteiro, dois arquivos de mesmo nome em pastas diferentes --
+    e isso existe -- se sobrescreveriam na volta.
+    """
+    caminho, raiz = Path(caminho), Path(system).parent
+    try:
+        return Path(caminho).resolve().relative_to(raiz.resolve())
+    except (ValueError, OSError):
+        return Path(caminho.name)
+
+
+def pacotes_do_cliente(system):
+    """Todo pacote das pastas de conteudo do cliente, sem repetir."""
+    raiz = Path(system).parent
+    vistos, saida = set(), []
+    for nome in PASTAS_DE_CONTEUDO:
+        pasta = raiz / nome
+        if not pasta.is_dir():
+            continue
+        for arquivo in sorted(pasta.iterdir()):
+            chave = str(arquivo).lower()
+            if (arquivo.is_file() and arquivo.suffix.lower() in PACOTES
+                    and chave not in vistos):
+                vistos.add(chave)
+                saida.append(arquivo)
+    return saida
 
 def estado_do_cliente(system):
     """
@@ -149,9 +197,22 @@ def _abrir_como_der(T, caminho, modulo=None):
             return conteudo, met, rabo, "chave do cliente"
 
     # Sobrou o l2encdec, que tem as chaves originais e a dele.
+    #
+    # Aqui vai `l2item._decifrar`, e nao `motor.descriptografar`: o segundo foi
+    # escrito para PACOTE e confirma o resultado procurando a assinatura
+    # Unreal. Tabela e configuracao nao tem assinatura nenhuma, e por isso ele
+    # recusava arquivo que tinha sido aberto certo -- inclusive o
+    # itemname-e.dat, que e o principal.
+    import l2item
+
     trabalho = Path(motor.BASE) / "trabalho" / "protecao"
     trabalho.mkdir(parents=True, exist_ok=True)
-    aberto, _obs = motor.descriptografar(T, Path(caminho), trabalho)
+    try:
+        aberto = l2item._decifrar(T, Path(caminho), trabalho)
+    except Exception as erro:                       # noqa: BLE001
+        raise ErroDeProtecao(
+            "não consegui abrir %s: nem a chave do cliente nem o l2encdec "
+            "serviram (%s)." % (Path(caminho).name, str(erro)[:70]))
     if aberto is None or not Path(aberto).is_file():
         raise ErroDeProtecao(
             "não consegui abrir %s: nem a chave do cliente nem o l2encdec "
@@ -214,6 +275,16 @@ def proteger(T, system, escolhidos, frase, aolog=None, trocar_exe=True,
         try:
             conteudo, met, rabo, de_onde = _abrir_como_der(T, alvo,
                                                            modulo_atual)
+            if met is None and alvo.suffix.lower() in CONFIGURACAO:
+                # Config que vem crua o motor le como texto, antes de
+                # decifrar. Cifrada, ela nao da erro: passa a ser ignorada em
+                # silencio -- e ninguem liga o problema a isto.
+                recusados.append((alvo.name, "configuração lida como texto"))
+                diga("  %-22s RECUSADO: é configuração que o jogo lê como "
+                     "texto; cifrada, ela passaria a ser ignorada em silêncio."
+                     % alvo.name)
+                continue
+
             if alvo.suffix.lower() in DO_WINDOWS:
                 # Recusado, e nao avisado: quem carrega isto e o Windows, e
                 # cifrado ele nao carrega. Seria entregar um cliente que nao
@@ -250,7 +321,8 @@ def proteger(T, system, escolhidos, frase, aolog=None, trocar_exe=True,
                 diga("  %-22s RECUSADO: a ida e volta não bateu" % alvo.name)
                 continue
 
-            copia = guarda / alvo.name
+            copia = guarda / _relativo(alvo, system)
+            copia.parent.mkdir(parents=True, exist_ok=True)
             if not copia.exists():
                 shutil.copy2(alvo, copia)
             alvo.write_bytes(novo)
@@ -298,17 +370,23 @@ def desfazer(system, aolog=None):
     if not guarda.is_dir():
         raise ErroDeProtecao("não há %s neste cliente: nada foi protegido por "
                              "aqui." % PASTA_GUARDA)
+    raiz = system.parent
     voltaram = []
-    for copia in sorted(guarda.iterdir()):
+    for copia in sorted(guarda.rglob("*")):
         if not copia.is_file():
             continue
-        nome = copia.name
+        dentro = copia.relative_to(guarda)
+        nome = dentro.name
         if nome.endswith(".antes-da-chave"):
-            nome = nome[:-len(".antes-da-chave")]
-        destino = system / nome
+            dentro = dentro.with_name(nome[:-len(".antes-da-chave")])
+        # Copia com caminho relativo volta para o lugar de onde veio; copia
+        # antiga, que so tinha o nome, volta para a `system` -- que era o
+        # unico lugar de onde ela podia ter saido.
+        destino = (raiz / dentro) if len(dentro.parts) > 1 else (system / dentro)
+        destino.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(copia, destino)
-        voltaram.append(nome)
-        diga("  %s voltou" % nome)
+        voltaram.append(str(dentro))
+        diga("  %s voltou" % dentro)
     return voltaram
 
 
@@ -316,7 +394,8 @@ def relatorio(system):
     """O que a tela mostra ao abrir: o que já está protegido, e por qual chave."""
     estado = estado_do_cliente(system)
     guarda = Path(system) / PASTA_GUARDA
-    estado["protegidos"] = sorted(p.name for p in guarda.iterdir()
+    estado["protegidos"] = sorted(str(p.relative_to(guarda))
+                                  for p in guarda.rglob("*")
                                   if p.is_file()) if guarda.is_dir() else []
     estado["marca"] = marca_da_chave(estado["modulo_atual"])
     estado["quando"] = (time.strftime("%d/%m/%Y %H:%M",

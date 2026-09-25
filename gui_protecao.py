@@ -145,6 +145,8 @@ class JanelaProtecao:
                                                         padx=(6, 0))
         ttk.Button(avulsos, text=t("Todos os .dat"),
                    command=self.todos_os_dat).pack(side="left", padx=(6, 0))
+        ttk.Button(avulsos, text=t("Todos os pacotes"),
+                   command=self.todos_os_pacotes).pack(side="left", padx=(6, 0))
         self.botao_tirar = ttk.Button(avulsos, text=t("Tirar"),
                                       command=self.tirar_arquivo,
                                       state="disabled")
@@ -405,14 +407,17 @@ class JanelaProtecao:
             return
         escolhidos = filedialog.askopenfilenames(
             title=t("Arquivos do cliente para proteger"), parent=self.raiz,
-            initialdir=str(sistema),
-            filetypes=[(t("Tabelas e pacotes"), "*.dat *.utx *.u *.unr *.int"),
+            initialdir=str(sistema.parent),
+            filetypes=[(t("Tabelas, pacotes e texturas"),
+                        "*.dat *.utx *.u *.ukx *.usx *.unr *.int *.ini *.xdat"),
                        (t("Todos os arquivos"), "*.*")])
         de_fora, novos = [], 0
         for caminho in escolhidos:
             alvo = Path(caminho)
             try:
-                alvo.resolve().relative_to(sistema.resolve())
+                # O cliente INTEIRO, e nao so a system: textura, animacao,
+                # mapa e malha passam pelo mesmo mecanismo das tabelas.
+                alvo.resolve().relative_to(sistema.parent.resolve())
             except (ValueError, OSError):
                 de_fora.append(alvo.name)
                 continue
@@ -422,10 +427,11 @@ class JanelaProtecao:
         if de_fora:
             messagebox.showwarning(
                 t("Fora do cliente"),
-                t("Estes não estão na pasta %s e foram deixados de fora: "
+                t("Estes não estão dentro de %s e foram deixados de fora: "
                   "%s.\n\nA chave gravada no executável é a daquele cliente; "
                   "um arquivo de fora, fechado com ela, não seria lido por "
-                  "cliente nenhum.") % (sistema, ", ".join(de_fora[:6])))
+                  "cliente nenhum.")
+                % (sistema.parent, ", ".join(de_fora[:6])))
         if novos:
             self.log(t("%d arquivo(s) juntados à lista") % novos)
         self._encher_lista()
@@ -444,6 +450,37 @@ class JanelaProtecao:
         self.log(t("%d arquivo(s) .dat na lista") % len(self.avulsos))
         self._encher_lista()
 
+    def todos_os_pacotes(self):
+        """
+        Põe na lista os pacotes do cliente inteiro — textura, animação, mapa.
+
+        São muitos e são pesados: um cliente tem mais de mil, e por isso a
+        contagem e o tamanho aparecem antes de qualquer coisa acontecer.
+        """
+        sistema = self.system()
+        if sistema is None or not sistema.is_dir():
+            return
+        achados = l2protecao.pacotes_do_cliente(sistema)
+        if not achados:
+            messagebox.showinfo(t("Nada encontrado"),
+                                t("Não achei pacote nas pastas de conteúdo "
+                                  "deste cliente."))
+            return
+        peso = sum(p.stat().st_size for p in achados) / (1024.0 * 1024.0)
+        if not messagebox.askyesno(
+                t("Juntar %d pacotes?") % len(achados),
+                t("São %d arquivos, %.0f MB no total — textura, animação, "
+                  "mapa e malha.\n\nProteger tudo isso leva tempo e ocupa "
+                  "outro tanto em backup.\n\nJuntar à lista?")
+                % (len(achados), peso)):
+            return
+        ja = {str(p).lower() for p in self.avulsos}
+        for p in achados:
+            if str(p).lower() not in ja:
+                self.avulsos.append(p)
+        self.log(t("%d arquivo(s) na lista") % len(self.avulsos))
+        self._encher_lista()
+
     def tirar_arquivo(self):
         for indice in sorted(self.lista.curselection(), reverse=True):
             del self.avulsos[indice]
@@ -456,8 +493,12 @@ class JanelaProtecao:
     def _encher_lista(self):
         try:
             self.lista.delete(0, "end")
+            sistema = self.system()
             for caminho in self.avulsos:
-                self.lista.insert("end", caminho.name)
+                rotulo = caminho.name
+                if sistema is not None and caminho.parent != sistema:
+                    rotulo = "%s / %s" % (caminho.parent.name, caminho.name)
+                self.lista.insert("end", rotulo)
             tem = bool(self.avulsos)
             self.botao_tirar.config(state="normal" if tem else "disabled")
             self.botao_limpar.config(state="normal" if tem else "disabled")
