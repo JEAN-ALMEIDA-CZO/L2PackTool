@@ -1,0 +1,21 @@
+{
+  "rotulo": "CT2.5 - Freya",
+  "ordem": 130,
+  "formato": "binario",
+  "origem_das_definicoes": "biblioteca do L2FileEdit, pasta ct2_5",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcgrp",
+    "npcname-e",
+    "transformdata"
+  ],
+  "nao_provadas": [],
+  "conferido_em": "2026-09-25",
+  "cliente_usado": "Clientes/Freya (D:), limpo. Medido: 3.935 armas, 3.327 armaduras, 10.697 etcitem, 17.959 nomes de item, 64.774 skills, 10.079 NPCs, 210 transformacoes.",
+  "observacao": "O npcgrp volta igual menos o ultimo bit de 52 valores de ponto flutuante -- arredondamento na ida e volta do numero, nao campo deslocado, como ja acontecia em C4, C5 e Gracia Part 2. As outras oito tabelas voltam identicas.\nDifere do Gracia Epilogue so em skillgrp e npcgrp; as outras sete definicoes sao as mesmas."
+}

@@ -9,6 +9,23 @@ continua abrindo.
 
 ---
 
+## 1.8.0 — 25/09/2026
+
+**Freya.** Décimo terceiro núcleo, com as nove tabelas provadas contra o
+cliente: 3.935 armas, 3.327 armaduras, 10.697 etcitem, 17.959 nomes de item,
+64.774 skills, 10.079 NPCs e 210 transformações. Oito voltam idênticas ao
+original; o `npcgrp` volta igual menos o último bit de 52 valores de ponto
+flutuante — arredondamento, o mesmo caso de C4, C5 e Gracia Part 2, e está
+dito no manifesto.
+
+Nas telas: 17.912 itens com ícone, 7.423 habilidades todas com ícone (5.340
+ativas, 2.022 passivas, 61 alternáveis) e 9.970 NPCs com malha. Freya se
+separa do Epilogue por `skillgrp` e `npcgrp`; as outras sete definições são as
+mesmas. A detecção acerta os nove clientes de teste, cada um no seu, e o lobby
+CT2.5 passa a dizer de que crônica é.
+
+---
+
 ## 1.7.1 — 25/09/2026
 
 **Documentação.** A aba Proteção ganhou página no manual embutido, nos três

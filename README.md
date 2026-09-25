@@ -4,7 +4,7 @@
 
 # L2PackTool
 
-**Ferramentas de cliente e servidor para Lineage II — de C1 a Gracia Epilogue.**
+**Ferramentas de cliente e servidor para Lineage II — de C1 a Freya.**
 
 Criar NPC com efeito, item, arma, habilidade e loja; trocar a tela de entrada
 por um vídeo seu; ampliar textura por IA; abrir e fechar os arquivos do
@@ -37,7 +37,7 @@ um script, montar a tela de vídeo num lobby, animar textura em lote
 
 ## As crônicas
 
-O programa abre doze, e cada uma é um **núcleo**: uma pasta com a definição de
+O programa abre treze, e cada uma é um **núcleo**: uma pasta com a definição de
 cada tabela e um manifesto dizendo o que foi provado nela — e provado quer
 dizer medido, num cliente de verdade, pela ida e volta byte a byte. A lista
 sai em ordem de lançamento, e não de alfabeto: a posição vem do manifesto, e
@@ -57,6 +57,7 @@ crônica nova entra no lugar certo só por existir.
 | CT2.2 — Gracia Part 2 | 9 de 9 | binário |
 | CT2.3 — Gracia Final | 9 de 9 | binário |
 | CT2.4 — Gracia Epilogue | 9 de 9 | binário |
+| CT2.5 — Freya | 9 de 9 | binário |
 
 Até o C2 as tabelas do cliente são **texto** (`weapongrp.txt`, com os campos
 escritos por nome); de C3 em diante são binário descrito por `.ddf`. O
@@ -238,7 +239,7 @@ do que já anda, a família. Os dois guardam o original antes de gravar.
 ## Instalar
 
 Baixe o instalador da [**versão mais nova**](../../releases/latest) — hoje a
-**1.7.1**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
+**1.8.0**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
 administrador, e já traz as ferramentas de terceiros dentro. Instalar por cima
 atualiza no lugar; o que mudou em cada versão está no
 [CHANGELOG](CHANGELOG.md).
