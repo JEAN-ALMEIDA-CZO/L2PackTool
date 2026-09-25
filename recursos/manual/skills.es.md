@@ -84,12 +84,32 @@ seccion.
 
 ### copiar hasta el nivel
 
-En blanco, la copia se lleva todos los niveles.
+En blanco, la copia se lleva todos los niveles de verdad.
 
-Rellenalo cuando la base tenga muchos niveles y solo quieras los primeros. Las
-habilidades con miles de niveles son las rutas de encantamiento, y clonar 6.410
-filas por error dobla la tabla sin servir de nada — el programa avisa por encima
-de 100.
+Rellenalo cuando la base tenga muchos niveles y solo quieras los primeros.
+
+
+### las rutas de encantamiento
+
+Una ruta de encantamiento **no es otra habilidad**: son niveles altos de la misma
+— 101, 102, 103 para la primera ruta; 201 para la segunda, y asi. En High Five hay
+ocho rutas, hasta la casa de los 800.
+
+De ahi se siguen dos cosas.
+
+**La cuenta de niveles es solo de los niveles de verdad.** La habilidad 1 tiene 37
+niveles y 247 filas en el cliente: las otras 210 son rutas. Sumar todo escribia
+`levels="247"` en el XML — un servidor prometiendo un nivel que el cliente no
+dibuja. Contra el datapack: 7.576 habilidades correctas antes, **8.102 de 8.136**
+ahora. El rotulo de la habilidad marcada dice las dos cuentas cuando hay rutas.
+
+**La copia deja las rutas afuera, salvo que marques la casilla.** Su
+`ench_skill_id` apunta a la habilidad pareja del **original** — copiadas, el
+cliente empieza a ofrecer un encantamiento que el servidor nuevo no tiene,
+apuntando a otra habilidad. Sin ellas, la marca `is_ench` tambien se pone en cero:
+dejarla sin las rutas abriria la ventana de encantamiento vacia.
+
+La casilla queda apagada cuando la habilidad marcada no tiene ninguna ruta.
 
 
 ## 3. XML del servidor

@@ -82,11 +82,32 @@ section.
 
 ### copy up to level
 
-Blank, the copy takes every level.
+Blank, the copy takes every real level.
 
-Fill it in when the base has many levels and you only want the first few. Skills
-with thousands of levels are the enchant routes, and cloning 6,410 rows by
-accident doubles the table for nothing — the program warns above 100.
+Fill it in when the base has many levels and you only want the first few.
+
+
+### the enchant routes
+
+An enchant route is **not another skill**: they are high levels of the same one —
+101, 102, 103 for the first route; 201 for the second, and so on. High Five has
+eight routes, up into the 800s.
+
+Two things follow from that.
+
+**The level count is of real levels only.** Skill 1 has 37 levels and 247 rows in
+the client: the other 210 are routes. Adding everything up wrote `levels="247"`
+into the XML — a server promising a level the client cannot draw. Checked against
+the datapack: 7,576 skills right before, **8,102 of 8,136** now. The label of the
+selected skill states both counts when there are routes.
+
+**The copy leaves the routes out unless you tick the box.** Their `ench_skill_id`
+points at the **original's** partner skill — copied, the client starts offering an
+enchantment the new server does not have, pointing at another skill. Without
+them, the `is_ench` mark is zeroed too: leaving it without the routes would open
+an empty enchant window.
+
+The box is greyed out when the selected skill has no routes at all.
 
 
 ## 3. Server XML
