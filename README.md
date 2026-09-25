@@ -109,6 +109,9 @@ a partir de uma frase sua. Sem essa frase ninguém produz arquivo que o seu
 cliente aceite — e a frase não é guardada em lugar nenhum: nem no programa,
 nem no arquivo de configuração, nem no cliente.
 
+Dá para marcar grupos (itens, habilidades, NPCs, mundo) ou escolher arquivo a
+arquivo — inclusive tabelas que não estão em grupo nenhum.
+
 O botão *Gerar chave* sorteia uma frase forte, e *Salvar…* a guarda num
 arquivo — fora da pasta do cliente, que o programa recusa por ser o que você
 distribui.
@@ -228,7 +231,7 @@ do que já anda, a família. Os dois guardam o original antes de gravar.
 ## Instalar
 
 Baixe o instalador da [**versão mais nova**](../../releases/latest) — hoje a
-**1.5.1**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
+**1.5.2**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
 administrador, e já traz as ferramentas de terceiros dentro. Instalar por cima
 atualiza no lugar; o que mudou em cada versão está no
 [CHANGELOG](CHANGELOG.md).

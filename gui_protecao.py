@@ -39,6 +39,7 @@ class JanelaProtecao:
         self.rodando = False
         self.T = motor.carregar_config()
         self.escolhas = {}
+        self.avulsos = []               # os escolhidos a mao, alem dos grupos
         self.estado_do_cliente = {}
 
         quadro = ttk.Frame(pai, padding=10)
@@ -135,6 +136,31 @@ class JanelaProtecao:
             ajuda.ajuda(linha, (lambda ns: lambda: t("Nesta escolha: %s")
                                 % ", ".join(ns))(nomes))
 
+        avulsos = ttk.Frame(caixa)
+        avulsos.pack(fill="x", pady=(8, 0))
+        ttk.Label(avulsos, text=t("ou arquivo a arquivo:")).pack(side="left")
+        ttk.Button(avulsos, text=t("Escolher…"),
+                   command=self.escolher_arquivos).pack(side="left",
+                                                        padx=(6, 0))
+        ttk.Button(avulsos, text=t("Todos os .dat"),
+                   command=self.todos_os_dat).pack(side="left", padx=(6, 0))
+        self.botao_tirar = ttk.Button(avulsos, text=t("Tirar"),
+                                      command=self.tirar_arquivo,
+                                      state="disabled")
+        self.botao_tirar.pack(side="left", padx=(6, 0))
+        self.botao_limpar = ttk.Button(avulsos, text=t("Limpar a lista"),
+                                       command=self.limpar_avulsos,
+                                       state="disabled")
+        self.botao_limpar.pack(side="left", padx=(6, 0))
+
+        self.lista = tk.Listbox(caixa, height=5, selectmode="extended",
+                                background=tema.PAINEL, foreground=tema.TEXTO,
+                                selectbackground=tema.OURO_FUNDO,
+                                highlightthickness=1,
+                                highlightbackground=tema.BORDA,
+                                borderwidth=0, font=tema.CORPO)
+        self.lista.pack(fill="x", pady=(6, 0))
+
         self.diz_a_conta = ttk.Label(caixa, foreground=COR_FRACO)
         self.diz_a_conta.pack(anchor="w", pady=(6, 0))
 
@@ -223,13 +249,105 @@ class JanelaProtecao:
             self.diz_a_conta.config(text="")
             self.atualizar_botoes()
             return
-        escolhidos = [c for c, v in self.escolhas.items() if v.get()]
-        arquivos = l2protecao.arquivos_do_grupo(alvo, escolhidos)
+        arquivos = self.alvos()
         self.diz_a_conta.config(
             text=t("%d arquivo(s) neste cliente: %s")
             % (len(arquivos), ", ".join(p.name for p in arquivos[:8])
                + ("…" if len(arquivos) > 8 else "")))
         self.atualizar_botoes()
+
+    # ---- os arquivos avulsos ---------------------------------------------
+    def alvos(self):
+        """A união do que os grupos marcam com o que foi escolhido à mão."""
+        sistema = self.system()
+        if sistema is None or not sistema.is_dir():
+            return []
+        dos_grupos = l2protecao.arquivos_do_grupo(
+            sistema, [c for c, v in self.escolhas.items() if v.get()])
+        juntos, vistos = [], set()
+        for caminho in list(dos_grupos) + list(self.avulsos):
+            chave = str(caminho).lower()
+            if chave not in vistos:
+                vistos.add(chave)
+                juntos.append(Path(caminho))
+        return sorted(juntos, key=lambda p: p.name.lower())
+
+    def escolher_arquivos(self):
+        """
+        Acrescenta arquivos à lista, um a um ou vários de uma vez.
+
+        Só entra o que mora na `system` do cliente aberto: a chave que vai
+        para o executável é a daquele cliente, e fechar com ela um arquivo de
+        fora produziria um arquivo que nenhum cliente lê -- nem o dele.
+        """
+        sistema = self.system()
+        if sistema is None or not sistema.is_dir():
+            messagebox.showinfo(
+                t("Sem cliente"),
+                t("Abra Projetos… no alto da janela e aponte o cliente "
+                  "primeiro."))
+            return
+        escolhidos = filedialog.askopenfilenames(
+            title=t("Arquivos do cliente para proteger"), parent=self.raiz,
+            initialdir=str(sistema),
+            filetypes=[(t("Tabelas e pacotes"), "*.dat *.utx *.u *.unr *.int"),
+                       (t("Todos os arquivos"), "*.*")])
+        de_fora, novos = [], 0
+        for caminho in escolhidos:
+            alvo = Path(caminho)
+            try:
+                alvo.resolve().relative_to(sistema.resolve())
+            except (ValueError, OSError):
+                de_fora.append(alvo.name)
+                continue
+            if str(alvo).lower() not in (str(p).lower() for p in self.avulsos):
+                self.avulsos.append(alvo)
+                novos += 1
+        if de_fora:
+            messagebox.showwarning(
+                t("Fora do cliente"),
+                t("Estes não estão na pasta %s e foram deixados de fora: "
+                  "%s.\n\nA chave gravada no executável é a daquele cliente; "
+                  "um arquivo de fora, fechado com ela, não seria lido por "
+                  "cliente nenhum.") % (sistema, ", ".join(de_fora[:6])))
+        if novos:
+            self.log(t("%d arquivo(s) juntados à lista") % novos)
+        self._encher_lista()
+
+    def todos_os_dat(self):
+        """Põe na lista todo `.dat` do cliente -- inclusive os que não têm grupo."""
+        sistema = self.system()
+        if sistema is None or not sistema.is_dir():
+            return
+        achados = [p for p in sorted(sistema.iterdir())
+                   if p.is_file() and p.suffix.lower() == ".dat"]
+        ja = {str(p).lower() for p in self.avulsos}
+        for p in achados:
+            if str(p).lower() not in ja:
+                self.avulsos.append(p)
+        self.log(t("%d arquivo(s) .dat na lista") % len(self.avulsos))
+        self._encher_lista()
+
+    def tirar_arquivo(self):
+        for indice in sorted(self.lista.curselection(), reverse=True):
+            del self.avulsos[indice]
+        self._encher_lista()
+
+    def limpar_avulsos(self):
+        self.avulsos = []
+        self._encher_lista()
+
+    def _encher_lista(self):
+        try:
+            self.lista.delete(0, "end")
+            for caminho in self.avulsos:
+                self.lista.insert("end", caminho.name)
+            tem = bool(self.avulsos)
+            self.botao_tirar.config(state="normal" if tem else "disabled")
+            self.botao_limpar.config(state="normal" if tem else "disabled")
+        except tk.TclError:
+            pass
+        self.contar()
 
     def atualizar_botoes(self):
         """Ligado só quando há cliente, frase e arquivo — e nada rodando."""
@@ -238,10 +356,7 @@ class JanelaProtecao:
             alvo = self.system()
             tem_cliente = bool(info.get("trocavel"))
             tem_frase = len((self.frase.get() or "").strip()) >= 8
-            tem_arquivo = bool(alvo and alvo.is_dir() and
-                               l2protecao.arquivos_do_grupo(
-                                   alvo, [c for c, v in self.escolhas.items()
-                                          if v.get()]))
+            tem_arquivo = bool(self.alvos())
             pronto = (tem_cliente and tem_frase and tem_arquivo
                       and not self.rodando)
             self.botao_proteger.config(state="normal" if pronto
@@ -260,7 +375,7 @@ class JanelaProtecao:
             elif not tem_frase:
                 falta = t("escreva a frase (oito caracteres ou mais)")
             elif not tem_arquivo:
-                falta = t("marque pelo menos um grupo que exista no cliente")
+                falta = t("marque um grupo, ou escolha arquivos à mão")
             else:
                 falta = ""
             self.estado.config(text=falta)
@@ -361,8 +476,7 @@ class JanelaProtecao:
 
     def proteger(self):
         alvo = self.system()
-        escolhidos = l2protecao.arquivos_do_grupo(
-            alvo, [c for c, v in self.escolhas.items() if v.get()])
+        escolhidos = self.alvos()
         if not messagebox.askyesno(
                 t("Proteger %d arquivo(s)?") % len(escolhidos),
                 t("Cada arquivo é copiado para %s antes, refeito com a sua "

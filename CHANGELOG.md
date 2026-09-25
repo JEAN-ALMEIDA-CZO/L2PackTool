@@ -9,6 +9,19 @@ continua abrindo.
 
 ---
 
+## 1.5.2 — 24/09/2026
+
+**Escolher arquivo a arquivo.** Além dos grupos, a aba Proteção agora aceita
+uma lista própria: *Escolher…* junta arquivos do cliente um a um, *Todos os
+.dat* põe todas as tabelas de uma vez, e dá para tirar da lista o que não for
+ficar. O que vai para o botão é a união dos grupos com a lista.
+
+Arquivo de fora da pasta do cliente é deixado de fora, com o motivo: a chave
+gravada no executável é a daquele cliente, e um arquivo de fora fechado com
+ela não seria lido por cliente nenhum.
+
+---
+
 ## 1.5.1 — 24/09/2026
 
 **Gerar a chave pelo programa.** Botão *Gerar chave* na aba Proteção: sorteia
