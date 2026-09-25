@@ -9,6 +9,20 @@ continua abrindo.
 
 ---
 
+## 1.5.1 — 24/09/2026
+
+**Gerar a chave pelo programa.** Botão *Gerar chave* na aba Proteção: sorteia
+uma frase forte em grupos de cinco, sem caracteres que se confundam ao ler, e
+deixa-a à vista. Frase inventada na hora costuma ser o nome do servidor mais o
+ano — e essa qualquer um adivinha.
+
+**Guardar a chave.** *Salvar…* escreve a frase num arquivo de texto com a
+marca da chave e a data. Salvar **dentro da pasta do cliente é recusado**: dali
+o arquivo iria junto com o cliente para os jogadores, e a proteção junto com
+ele.
+
+---
+
 ## 1.5.0 — 24/09/2026
 
 **Proteção (anticheat).** Aba nova: fecha as tabelas escolhidas do cliente com

@@ -288,3 +288,84 @@ def relatorio(system):
                                       time.localtime(guarda.stat().st_mtime))
                         if guarda.is_dir() else "")
     return estado
+
+
+# ---------------------------------------------------------------------------
+# A frase
+# ---------------------------------------------------------------------------
+# Sem hifen nem caractere que se confunda ao ler: nada de O e 0, I e l, 1.
+# Quem for ditar a frase por telefone -- e alguem vai -- agradece.
+ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+GRUPOS_DA_FRASE = 6
+LETRAS_POR_GRUPO = 5
+
+
+def frase_nova(grupos=GRUPOS_DA_FRASE):
+    """
+    Uma frase sorteada, em grupos de cinco. Trinta caracteres, 150 bits.
+
+    O sorteio e do `secrets`, que existe para isto -- `random` serve para
+    embaralhar carta, nao para escolher chave. Frase inventada na hora costuma
+    ser o nome do servidor mais o ano, e essa qualquer um adivinha.
+    """
+    import secrets
+
+    partes = []
+    for _ in range(grupos):
+        partes.append("".join(secrets.choice(ALFABETO)
+                              for _ in range(LETRAS_POR_GRUPO)))
+    return "-".join(partes)
+
+
+def dentro_do_cliente(caminho, system):
+    """
+    O arquivo cairia dentro da pasta do cliente?
+
+    Importa porque o arquivo da frase E a chave: guardado ali, ele vai junto
+    com o cliente quando o cliente for distribuido -- e a protecao inteira vai
+    junto com ele.
+    """
+    try:
+        raiz = Path(system).resolve().parent
+        Path(caminho).resolve().relative_to(raiz)
+        return True
+    except (ValueError, OSError):
+        return False
+
+
+def guardar_frase(caminho, frase, marca, cliente=""):
+    """
+    Escreve a frase num arquivo de texto, com o aviso do que ele é.
+
+    Devolve o caminho. Não sobrescreve em silêncio: arquivo que já existe é
+    renomeado com a data antes, porque duas chaves diferentes com o mesmo nome
+    é o tipo de coisa que só se descobre quando já não dá para voltar.
+    """
+    import time
+
+    caminho = Path(caminho)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    if caminho.exists():
+        velho = caminho.with_name("%s_%s%s"
+                                  % (caminho.stem,
+                                     time.strftime("%Y%m%d_%H%M%S"),
+                                     caminho.suffix))
+        caminho.replace(velho)
+
+    caminho.write_text(
+        "L2PackTool -- a chave do seu cliente\n"
+        "=====================================\n\n"
+        "ESTE ARQUIVO E A CHAVE. Quem o tiver pode gerar arquivos que o seu\n"
+        "cliente aceita. Guarde fora da pasta do cliente e fora do que voce\n"
+        "distribui.\n\n"
+        "frase:  %s\n"
+        "marca:  %s\n"
+        "cliente: %s\n"
+        "quando: %s\n\n"
+        "A frase e o que importa: com ela, o programa refaz a mesma chave em\n"
+        "qualquer maquina. A marca serve so para conferir que e a chave certa,\n"
+        "sem precisar mostrar a frase.\n"
+        % (frase, marca, cliente or "-",
+           time.strftime("%d/%m/%Y %H:%M")),
+        encoding="utf-8")
+    return caminho

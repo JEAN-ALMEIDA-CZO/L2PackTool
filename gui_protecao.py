@@ -18,7 +18,7 @@ sabendo que isto tranca a ESCRITA, e não a leitura -- ver o l2protecao.
 import threading
 import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 import ajuda
 import l2conferir
@@ -108,7 +108,13 @@ class JanelaProtecao:
         ttk.Checkbutton(linha, text=t("ver"), variable=self.mostrar,
                         command=self._mostrar_frase).pack(side="left",
                                                           padx=(6, 0))
-        ttk.Button(linha, text=t("Ver a marca da chave"),
+        ttk.Button(linha, text=t("Gerar chave"),
+                   command=self.gerar_chave).pack(side="left", padx=(6, 0))
+        self.botao_guardar = ttk.Button(linha, text=t("Salvar…"),
+                                        command=self.salvar_frase,
+                                        state="disabled")
+        self.botao_guardar.pack(side="left", padx=(6, 0))
+        ttk.Button(linha, text=t("Ver a marca"),
                    command=self.ver_a_marca).pack(side="left", padx=(6, 0))
         self.frase.trace_add("write", lambda *_a: self.atualizar_botoes())
 
@@ -243,6 +249,8 @@ class JanelaProtecao:
             self.botao_desfazer.config(
                 state="normal" if info.get("protegidos") and not self.rodando
                 else "disabled")
+            self.botao_guardar.config(state="normal" if tem_frase
+                                      else "disabled")
             if self.rodando:
                 falta = ""
             elif not info:
@@ -260,6 +268,78 @@ class JanelaProtecao:
             pass
 
     # ---- ações -----------------------------------------------------------
+    def gerar_chave(self):
+        """
+        Sorteia uma frase forte e a põe no campo.
+
+        Frase inventada na hora é quase sempre o nome do servidor mais o ano,
+        e essa qualquer um adivinha -- o que aqui significa gerar arquivos que
+        o seu cliente aceita.
+        """
+        if (self.frase.get() or "").strip() and not messagebox.askyesno(
+                t("Trocar a frase?"),
+                t("Já há uma frase escrita. Gerar outra descarta essa.\n\n"
+                  "Se o cliente já foi protegido com ela, guarde-a antes: sem "
+                  "ela não dá para gerar mais nada para esse cliente.\n\n"
+                  "Gerar mesmo assim?"), parent=self.raiz):
+            return
+        self.frase.set(l2protecao.frase_nova())
+        self.mostrar.set(True)
+        self._mostrar_frase()
+        self.ver_a_marca()
+        self.log(t("frase nova gerada — salve antes de fechar o programa."))
+        messagebox.showinfo(
+            t("Chave gerada"),
+            t("A frase está no campo, à vista.\n\nGuarde-a agora, em «Salvar…» "
+              "ou onde você guarda senha: ela não fica gravada no programa, e "
+              "sem ela não há como gerar arquivos novos para o cliente que for "
+              "protegido com ela."))
+        self.atualizar_botoes()
+
+    def salvar_frase(self):
+        """
+        Grava a frase num arquivo, fora do cliente.
+
+        Dentro do cliente é recusado, e não apenas avisado: dali o arquivo iria
+        junto com o cliente para os jogadores, e a proteção inteira iria com
+        ele.
+        """
+        frase = (self.frase.get() or "").strip()
+        if len(frase) < 8:
+            messagebox.showinfo(t("Falta a frase"),
+                                t("Escreva ou gere a frase primeiro."))
+            return
+        alvo = filedialog.asksaveasfilename(
+            title=t("Onde guardar a chave"), parent=self.raiz,
+            defaultextension=".txt", initialfile="chave-do-cliente.txt",
+            filetypes=[(t("Texto"), "*.txt")])
+        if not alvo:
+            return
+
+        sistema = self.system()
+        if sistema and l2protecao.dentro_do_cliente(alvo, sistema):
+            messagebox.showerror(
+                t("Aí não"),
+                t("Esse lugar fica dentro da pasta do cliente — e o cliente é "
+                  "o que você distribui. O arquivo da chave iria junto, e a "
+                  "proteção junto com ele.\n\nEscolha uma pasta fora do "
+                  "cliente."))
+            return
+
+        try:
+            par = l2cripto.par_da_frase(frase)
+            escrito = l2protecao.guardar_frase(
+                alvo, frase, l2protecao.marca_da_chave(par["modulo"]),
+                str(sistema or ""))
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu para salvar"), str(erro))
+            return
+        self.log(t("chave guardada em %s") % escrito)
+        messagebox.showinfo(
+            t("Chave guardada"),
+            t("Em %s.\n\nEsse arquivo é a chave: quem o tiver gera arquivos "
+              "que o seu cliente aceita. Trate-o como senha.") % escrito)
+
     def ver_a_marca(self):
         """A marca da chave da frase, para conferir sem mostrar a chave."""
         frase = (self.frase.get() or "").strip()
