@@ -56,6 +56,17 @@ import motor
 
 PASTA_GUARDA = "backup_protecao"
 
+# O formato em que tudo sai. E o unico que tem chave -- os outros usam senha
+# fixa ou derivada do nome, e ali nao ha o que trocar.
+METODO_DE_CHAVE = "413"
+
+# O que o WINDOWS carrega, e nao o cliente. Cifrado, nao carrega -- e o jogo
+# nem abre. Nao entra na protecao por cifra de jeito nenhum; para esses ha a
+# lista de impressoes digitais, em `assinar` e `conferir_assinaturas`.
+DO_WINDOWS = (".dll", ".exe", ".sys", ".vxd", ".ocx", ".drv", ".des")
+
+NOME_DAS_IMPRESSOES = "impressoes-do-cliente.txt"
+
 # Os grupos que a tela oferece. Nome do arquivo em minusculas, porque o disco
 # do Windows nao liga e o do usuario pode ter qualquer caixa.
 GRUPOS = (
@@ -148,13 +159,20 @@ def _abrir_como_der(T, caminho, modulo=None):
     return Path(aberto).read_bytes(), met, dados[-l2cripto.RABO:], "l2encdec"
 
 
-def proteger(T, system, escolhidos, frase, aolog=None, trocar_exe=True):
+def proteger(T, system, escolhidos, frase, aolog=None, trocar_exe=True,
+             converter=False):
     """
     Fecha os arquivos escolhidos com a chave da frase. Devolve o relatório.
 
     Nada é instalado sem passar pela conferência: cada arquivo é reaberto com
     a chave nova e comparado com o que saiu da leitura. O executável só muda
     depois de todos os arquivos, e só se todos passarem.
+
+    `converter` estende a proteção aos arquivos que não usam formato de chave
+    -- os pacotes e os que vêm sem cifra nenhuma. Eles são fechados no formato
+    de chave, que o cliente escolhe pelo cabeçalho. Vem desligado porque essa
+    conversão não tem amostra em cliente original: ver o cabeçalho deste
+    módulo.
     """
     def diga(texto):
         if aolog:
@@ -196,18 +214,33 @@ def proteger(T, system, escolhidos, frase, aolog=None, trocar_exe=True):
         try:
             conteudo, met, rabo, de_onde = _abrir_como_der(T, alvo,
                                                            modulo_atual)
-            if met is None:
-                recusados.append((alvo.name, "não está cifrado"))
-                diga("  %-22s pulado: não está cifrado" % alvo.name)
-                continue
-            if met in l2cripto.SO_XOR:
-                recusados.append((alvo.name, "formato %s não usa chave" % met))
-                diga("  %-22s pulado: %s é XOR, não tem chave a trocar"
-                     % (alvo.name, met))
+            if alvo.suffix.lower() in DO_WINDOWS:
+                # Recusado, e nao avisado: quem carrega isto e o Windows, e
+                # cifrado ele nao carrega. Seria entregar um cliente que nao
+                # abre.
+                recusados.append((alvo.name, "o Windows é quem carrega"))
+                diga("  %-22s RECUSADO: quem carrega este arquivo é o "
+                     "Windows, não o cliente -- cifrado, ele não carrega e o "
+                     "jogo não abre. Use «impressões digitais» para ele."
+                     % alvo.name)
                 continue
 
+            precisa_converter = met is None or met in l2cripto.SO_XOR
+            if precisa_converter and not converter:
+                porque = ("não está cifrado" if met is None
+                          else "formato %s não usa chave" % met)
+                recusados.append((alvo.name, porque))
+                diga("  %-22s pulado: %s -- marque «converter» para fechá-lo "
+                     "com a sua chave" % (alvo.name, porque))
+                continue
+
+            # Convertido ou não, o que sai é sempre formato de chave: é o
+            # único em que a chave do dono existe. O cliente escolhe o
+            # decifrador pelo cabeçalho, e é o cabeçalho que muda aqui.
+            met_saida = METODO_DE_CHAVE if precisa_converter else met
             novo = l2cripto.fechar_41x(conteudo, par["modulo"],
-                                       par["privado"], met, rabo_modelo=rabo)
+                                       par["privado"], met_saida,
+                                       rabo_modelo=rabo or None)
             # A conferencia: reabrir com a chave nova e comparar com o que
             # saiu da leitura. Sem isto, um erro so apareceria no jogo.
             volta, _rabo = l2cripto.abrir_41x(novo, par["modulo"],
@@ -222,8 +255,10 @@ def proteger(T, system, escolhidos, frase, aolog=None, trocar_exe=True):
                 shutil.copy2(alvo, copia)
             alvo.write_bytes(novo)
             prontos.append(alvo.name)
-            diga("  %-22s %s, lido pela %s, %d bytes -> %d"
-                 % (alvo.name, met, de_onde, copia.stat().st_size, len(novo)))
+            diga("  %-22s %s%s, lido pela %s, %d bytes -> %d"
+                 % (alvo.name, met or "sem cifra",
+                    (" -> %s" % met_saida) if precisa_converter else "",
+                    de_onde, copia.stat().st_size, len(novo)))
         except Exception as erro:                   # noqa: BLE001
             recusados.append((alvo.name, str(erro)[:80]))
             diga("  %-22s RECUSADO: %s" % (alvo.name, str(erro)[:60]))
@@ -369,3 +404,99 @@ def guardar_frase(caminho, frase, marca, cliente=""):
            time.strftime("%d/%m/%Y %H:%M")),
         encoding="utf-8")
     return caminho
+
+
+# ---------------------------------------------------------------------------
+# Impressoes digitais: o que dá para fazer por quem não se cifra
+# ---------------------------------------------------------------------------
+def impressao(caminho, pedaco=1 << 20):
+    """O SHA-256 do arquivo, lido aos pedaços para caber em memória."""
+    import hashlib
+
+    resumo = hashlib.sha256()
+    with open(caminho, "rb") as arquivo:
+        while True:
+            dados = arquivo.read(pedaco)
+            if not dados:
+                break
+            resumo.update(dados)
+    return resumo.hexdigest()
+
+
+def arquivos_do_windows(system):
+    """Os arquivos que o Windows carrega -- os que não se cifram."""
+    system = Path(system)
+    if not system.is_dir():
+        return []
+    return sorted(p for p in system.iterdir()
+                  if p.is_file() and p.suffix.lower() in DO_WINDOWS)
+
+
+def assinar(system, destino, aolog=None):
+    """
+    Guarda a impressão digital de cada arquivo que o Windows carrega.
+
+    O arquivo de impressões vai para FORA do cliente, e isso não é detalhe:
+    guardado dentro, ele seria distribuído junto, e quem trocasse um `.dll`
+    trocaria a lista no mesmo movimento.
+    """
+    import time
+
+    system = Path(system)
+    destino = Path(destino)
+    alvos = arquivos_do_windows(system)
+    if not alvos:
+        raise ErroDeProtecao("não achei arquivo do Windows em %s." % system)
+    if dentro_do_cliente(destino, system):
+        raise ErroDeProtecao(
+            "guardar a lista dentro do cliente não serve: ela iria junto com "
+            "o cliente, e quem trocasse um arquivo trocaria a lista também.")
+
+    linhas = ["# L2PackTool -- impressões digitais do cliente",
+              "# %s" % system,
+              "# %s" % time.strftime("%d/%m/%Y %H:%M"), ""]
+    for alvo in alvos:
+        digital = impressao(alvo)
+        linhas.append("%s  %d  %s" % (digital, alvo.stat().st_size, alvo.name))
+        if aolog:
+            aolog("  %-24s %s…" % (alvo.name, digital[:16]))
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    return destino, len(alvos)
+
+
+def conferir_assinaturas(system, lista, aolog=None):
+    """
+    Compara o cliente de hoje com a lista guardada.
+
+    Devolve {"iguais", "mudaram", "sumiram", "novos"}. Nomes, e não caminhos:
+    é o que se lê de relance quando a pergunta é "trocaram alguma coisa?".
+    """
+    system = Path(system)
+    guardadas = {}
+    for linha in Path(lista).read_text(encoding="utf-8").splitlines():
+        linha = linha.strip()
+        if not linha or linha.startswith("#"):
+            continue
+        partes = linha.split(None, 2)
+        if len(partes) == 3:
+            guardadas[partes[2]] = (partes[0], int(partes[1]))
+
+    iguais, mudaram, sumiram = [], [], []
+    for nome, (digital, tamanho) in sorted(guardadas.items()):
+        alvo = system / nome
+        if not alvo.is_file():
+            sumiram.append(nome)
+            continue
+        agora = impressao(alvo)
+        if agora == digital:
+            iguais.append(nome)
+        else:
+            mudaram.append(nome)
+            if aolog:
+                aolog("  %-24s MUDOU (%d -> %d bytes)"
+                      % (nome, tamanho, alvo.stat().st_size))
+    novos = [p.name for p in arquivos_do_windows(system)
+             if p.name not in guardadas]
+    return {"iguais": iguais, "mudaram": mudaram, "sumiram": sumiram,
+            "novos": novos}

@@ -65,6 +65,7 @@ class JanelaProtecao:
         self._montar_cliente(quadro)
         self._montar_chave(quadro)
         self._montar_escolha(quadro)
+        self._montar_integridade(quadro)
         self._montar_registro(quadro)
         self.atualizar_botoes()
         self.raiz.after(200, self.reler_cliente)
@@ -161,6 +162,24 @@ class JanelaProtecao:
                                 borderwidth=0, font=tema.CORPO)
         self.lista.pack(fill="x", pady=(6, 0))
 
+        linha_conv = ttk.Frame(caixa)
+        linha_conv.pack(fill="x", pady=(8, 0))
+        self.converter = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            linha_conv, variable=self.converter, command=self.contar,
+            text=t("converter também os pacotes (.utx, .u, .int) e o que não "
+                   "está cifrado")).pack(side="left")
+        ajuda.ajuda(linha_conv, lambda: t(
+            "Esses formatos não têm chave: a senha deles é fixa ou sai do "
+            "próprio nome do arquivo. Para fechá-los com a SUA chave é preciso "
+            "convertê-los para o formato que tem chave.@@"
+            "O cliente escolhe o decifrador pelo cabeçalho do arquivo, e não "
+            "pela extensão — no seu próprio cliente o mesmo .ini aparece em "
+            "dois formatos lado a lado.@@"
+            "Mas nenhum cliente original traz .utx nesse formato, então essa "
+            "parte não tem como ser provada aqui: converta UM arquivo, abra o "
+            "jogo, e só então converta o resto. Voltar ao original desfaz."))
+
         self.diz_a_conta = ttk.Label(caixa, foreground=COR_FRACO)
         self.diz_a_conta.pack(anchor="w", pady=(6, 0))
 
@@ -175,6 +194,88 @@ class JanelaProtecao:
         self.botao_desfazer.pack(side="left", padx=(6, 0))
         self.estado = ttk.Label(acao, foreground=COR_FRACO)
         self.estado.pack(side="left", padx=(12, 0))
+
+    def _montar_integridade(self, pai):
+        caixa = ttk.LabelFrame(pai, text=t("Arquivos que o Windows carrega"),
+                               padding=8)
+        caixa.pack(fill="x", pady=(10, 0))
+        ttk.Label(caixa, justify="left", wraplength=940, foreground=COR_FRACO,
+                  text=t("`.dll` e `.exe` não entram na cifra: quem os carrega "
+                         "é o Windows, e cifrados eles não carregam — o jogo "
+                         "nem abre. O que dá para fazer por eles é guardar a "
+                         "impressão digital de cada um e conferir depois: não "
+                         "impede a troca, mas responde em segundos se "
+                         "trocaram.")).pack(anchor="w")
+
+        linha = ttk.Frame(caixa)
+        linha.pack(fill="x", pady=(6, 0))
+        ttk.Button(linha, text=t("Guardar impressões…"),
+                   command=self.guardar_impressoes).pack(side="left")
+        ttk.Button(linha, text=t("Conferir…"),
+                   command=self.conferir_impressoes).pack(side="left",
+                                                          padx=(6, 0))
+        self.diz_a_integridade = ttk.Label(linha, foreground=COR_FRACO)
+        self.diz_a_integridade.pack(side="left", padx=(12, 0))
+
+    def guardar_impressoes(self):
+        """A lista vai para fora do cliente, e o programa não abre exceção."""
+        sistema = self.system()
+        if sistema is None or not sistema.is_dir():
+            messagebox.showinfo(t("Sem cliente"),
+                                t("Aponte o cliente em Projetos… primeiro."))
+            return
+        alvo = filedialog.asksaveasfilename(
+            title=t("Onde guardar as impressões"), parent=self.raiz,
+            defaultextension=".txt",
+            initialfile=l2protecao.NOME_DAS_IMPRESSOES,
+            filetypes=[(t("Texto"), "*.txt")])
+        if not alvo:
+            return
+        try:
+            onde, quantos = l2protecao.assinar(sistema, alvo, aolog=self.log)
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu para guardar"), str(erro))
+            return
+        self.diz_a_integridade.config(
+            text=t("%d arquivo(s) anotados") % quantos)
+        self.log(t("impressões de %d arquivo(s) em %s") % (quantos, onde))
+
+    def conferir_impressoes(self):
+        """Compara o cliente de hoje com a lista guardada."""
+        sistema = self.system()
+        if sistema is None or not sistema.is_dir():
+            return
+        lista = filedialog.askopenfilename(
+            title=t("A lista de impressões"), parent=self.raiz,
+            filetypes=[(t("Texto"), "*.txt"), (t("Todos"), "*.*")])
+        if not lista:
+            return
+        try:
+            r = l2protecao.conferir_assinaturas(sistema, lista,
+                                                aolog=self.log)
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu para conferir"), str(erro))
+            return
+        resumo = t("%d igual(is), %d mudou(aram), %d sumiu(ram), %d novo(s)") \
+            % (len(r["iguais"]), len(r["mudaram"]), len(r["sumiram"]),
+               len(r["novos"]))
+        self.diz_a_integridade.config(
+            text=resumo,
+            foreground=tema.ATENCAO if (r["mudaram"] or r["sumiram"]
+                                        or r["novos"]) else COR_FRACO)
+        self.log(t("conferência: %s") % resumo)
+        detalhe = []
+        for rotulo, nomes in ((t("mudaram"), r["mudaram"]),
+                              (t("sumiram"), r["sumiram"]),
+                              (t("apareceram"), r["novos"])):
+            if nomes:
+                detalhe.append("%s: %s" % (rotulo, ", ".join(nomes[:8])))
+        if detalhe:
+            messagebox.showwarning(t("O cliente mudou"), "\n".join(detalhe))
+        else:
+            messagebox.showinfo(t("Nada mudou"),
+                                t("Os %d arquivos conferem com a lista.")
+                                % len(r["iguais"]))
 
     def _montar_registro(self, pai):
         caixa = ttk.LabelFrame(pai, text=t("Andamento"), padding=6)
@@ -250,10 +351,16 @@ class JanelaProtecao:
             self.atualizar_botoes()
             return
         arquivos = self.alvos()
-        self.diz_a_conta.config(
-            text=t("%d arquivo(s) neste cliente: %s")
-            % (len(arquivos), ", ".join(p.name for p in arquivos[:8])
-               + ("…" if len(arquivos) > 8 else "")))
+        recado = t("%d arquivo(s) neste cliente: %s") % (
+            len(arquivos), ", ".join(p.name for p in arquivos[:8])
+            + ("…" if len(arquivos) > 8 else ""))
+        if not self.converter.get():
+            fora = [p for p in arquivos if not self._tem_chave(p)]
+            if fora:
+                recado += t("\n%d deles não usa formato de chave e será "
+                            "pulado — marque «converter» para incluí-los.") \
+                    % len(fora)
+        self.diz_a_conta.config(text=recado)
         self.atualizar_botoes()
 
     # ---- os arquivos avulsos ---------------------------------------------
@@ -271,6 +378,15 @@ class JanelaProtecao:
                 vistos.add(chave)
                 juntos.append(Path(caminho))
         return sorted(juntos, key=lambda p: p.name.lower())
+
+    @staticmethod
+    def _tem_chave(caminho):
+        """Este arquivo já vem no formato que tem chave?"""
+        try:
+            metodo = l2cripto.metodo(Path(caminho).read_bytes()[:28])
+        except OSError:
+            return False
+        return metodo is not None and metodo not in l2cripto.SO_XOR
 
     def escolher_arquivos(self):
         """
@@ -477,6 +593,17 @@ class JanelaProtecao:
     def proteger(self):
         alvo = self.system()
         escolhidos = self.alvos()
+        if self.converter.get() and not messagebox.askyesno(
+                t("Converter formato?"),
+                t("Os pacotes e os arquivos sem cifra vão ser convertidos para "
+                  "o formato que aceita chave.\n\nO cliente escolhe o "
+                  "decifrador pelo cabeçalho, e no seu próprio cliente há "
+                  "arquivos do mesmo tipo em formatos diferentes — mas nenhum "
+                  "cliente original traz .utx assim, e isso eu não tenho como "
+                  "provar daqui.\n\nConverta um arquivo, abra o jogo e "
+                  "confira antes de converter o resto. Voltar ao original "
+                  "desfaz.\n\nSeguir?")):
+            return
         if not messagebox.askyesno(
                 t("Proteger %d arquivo(s)?") % len(escolhidos),
                 t("Cada arquivo é copiado para %s antes, refeito com a sua "
@@ -489,14 +616,16 @@ class JanelaProtecao:
         self.atualizar_botoes()
         self.log(t("\n=== protegendo %d arquivo(s) ===") % len(escolhidos))
         threading.Thread(target=self._proteger_thread,
-                         args=(alvo, escolhidos, self.frase.get()),
+                         args=(alvo, escolhidos, self.frase.get(),
+                               self.converter.get()),
                          daemon=True).start()
 
-    def _proteger_thread(self, alvo, escolhidos, frase):
+    def _proteger_thread(self, alvo, escolhidos, frase, converter=False):
         linhas = []
         try:
             feito = l2protecao.proteger(self.T, alvo, escolhidos, frase,
-                                        aolog=linhas.append)
+                                        aolog=linhas.append,
+                                        converter=converter)
             erro = None
         except Exception as e:                      # noqa: BLE001
             feito, erro = None, e

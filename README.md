@@ -110,7 +110,13 @@ cliente aceite — e a frase não é guardada em lugar nenhum: nem no programa,
 nem no arquivo de configuração, nem no cliente.
 
 Dá para marcar grupos (itens, habilidades, NPCs, mundo) ou escolher arquivo a
-arquivo — inclusive tabelas que não estão em grupo nenhum.
+arquivo — inclusive tabelas que não estão em grupo nenhum. Com *converter*
+marcado, entram também os pacotes (`.utx`, `.u`, `.int`) e o que não está
+cifrado.
+
+`.dll` e `.exe` não entram: quem os carrega é o Windows, e cifrados eles não
+carregam. Para esses a aba guarda a **impressão digital** de cada um e confere
+depois — dizendo o que mudou, o que sumiu e o que apareceu.
 
 O botão *Gerar chave* sorteia uma frase forte, e *Salvar…* a guarda num
 arquivo — fora da pasta do cliente, que o programa recusa por ser o que você
@@ -231,7 +237,7 @@ do que já anda, a família. Os dois guardam o original antes de gravar.
 ## Instalar
 
 Baixe o instalador da [**versão mais nova**](../../releases/latest) — hoje a
-**1.5.2**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
+**1.6.0**. Ele instala em `%LocalAppData%\Programs\L2PackTool`, sem pedir
 administrador, e já traz as ferramentas de terceiros dentro. Instalar por cima
 atualiza no lugar; o que mudou em cada versão está no
 [CHANGELOG](CHANGELOG.md).

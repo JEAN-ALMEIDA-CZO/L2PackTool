@@ -9,6 +9,27 @@ continua abrindo.
 
 ---
 
+## 1.6.0 — 24/09/2026
+
+**Proteger qualquer arquivo que o cliente carrega.** Antes só entravam as
+tabelas que já vinham em formato de chave. Agora os pacotes (`.utx`, `.u`,
+`.int`) e os arquivos sem cifra também podem ser fechados com a sua chave —
+eles são convertidos para o formato que aceita chave, que o cliente escolhe
+pelo cabeçalho do arquivo. Conferido nos cinco tipos: o conteúdo volta
+idêntico.
+
+A conversão vem **desligada**, com o motivo na tela: nenhum cliente original
+traz `.utx` nesse formato, então essa parte precisa do seu teste. Converta um
+arquivo, abra o jogo, e só então converta o resto.
+
+**`.dll` e `.exe` são recusados, e não avisados.** Quem os carrega é o
+Windows, não o cliente: cifrados, não carregam e o jogo nem abre. Em vez
+disso, a aba passa a guardar a **impressão digital** de cada um e a conferir
+depois — não impede a troca, mas responde em segundos se trocaram. A lista é
+gravada fora do cliente, e gravar dentro é recusado.
+
+---
+
 ## 1.5.2 — 24/09/2026
 
 **Escolher arquivo a arquivo.** Além dos grupos, a aba Proteção agora aceita
