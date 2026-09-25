@@ -96,7 +96,13 @@ CAMPOS_FINAIS = (
     ("is_destroyable", N_("destruível"), ("", "true", "false")),
     ("is_depositable", N_("guardável"), ("", "true", "false")),
     ("is_oly_restricted", N_("proibido na Olimpíada"), ("", "true", "false")),
+    ("element_enabled", N_("aceita atributo"), ("", "true", "false")),
 )
+
+# Campo que so existe de uma cronica em diante. No C5 para tras nao ha atributo
+# -- o cliente nem tem mensagem de sistema que fale dele -- e um campo que nao
+# faz nada na tela e pior do que campo nenhum: parece que faz.
+CAMPOS_DE_ATRIBUTO = ("element_enabled",)
 
 
 class JanelaItem:
@@ -120,6 +126,16 @@ class JanelaItem:
         self.campos = {}            # chave do XML -> StringVar
         self.linhas_de_campo = {}   # chave -> (rotulo, widget)
         self.estados = []           # [{operacao, ordem, estado, valor}]
+        # O que o item tem no servidor e esta tela nao edita: condicao de uso,
+        # bonus de conjunto, o que o core daquele pack inventou. Fica como texto
+        # para voltar igual na geracao, em vez de ser apagado na regravacao.
+        self.extras = ""
+        # E os `<set>` que esta tela nao mostra: campo de cronica nova, campo
+        # que aquele core inventou. Tambem voltam como estao.
+        self.sets_de_fora = {}
+        # Os nomes que vieram do servidor. O gerador usa isto para nao aplicar a
+        # item que ja existe o filtro que protege o item novo.
+        self.campos_do_servidor = set()
         self.numeros_do_cliente = {}    # colunas do weapongrp, vindas da modal
         self.estados_aceitos = None     # os status deste servidor, se sabidos
         self.estados_de_onde = ""       # "core" ou "datapack"
@@ -522,6 +538,9 @@ class JanelaItem:
         self.botao_aparencia = ttk.Button(linha, text=t("Trocar apar\u00eancia\u2026"),
                                           command=self.trocar_aparencia)
         self.botao_aparencia.pack(side="left", padx=(6, 0))
+        self.botao_conjunto = ttk.Button(linha, text=t("Conjunto\u2026"),
+                                         command=self.editar_conjunto)
+        self.botao_conjunto.pack(side="left", padx=(6, 0))
         self.botao_xml = ttk.Button(linha, text=t("Salvar XML do servidor…"),
                                     command=self.salvar_xml)
         self.botao_xml.pack(side="left", padx=(6, 0))
@@ -553,6 +572,8 @@ class JanelaItem:
 
         lista = (CAMPOS_COMUNS + CAMPOS_POR_GRUPO.get(grupo, ())
                  + CAMPOS_FINAIS)
+        if not l2item.tem_atributo(self.cronica_escolhida()):
+            lista = tuple(c for c in lista if c[0] not in CAMPOS_DE_ATRIBUTO)
         for i, (chave, rotulo, opcoes) in enumerate(lista):
             coluna = (i % 2) * 2
             fila = i // 2
@@ -712,6 +733,12 @@ class JanelaItem:
             state="normal" if parado and self.gravados else "disabled")
         self.botao_xml.config(state="normal" if pronto else "disabled")
         self.botao_aparencia.config(state="normal" if pronto else "disabled")
+        # Conjunto so faz sentido onde a cronica o guarda. No C3 e no C4 a
+        # coluna nao existe, e o botao diz isso ao ser clicado em vez de abrir
+        # uma janela que nao teria o que gravar.
+        self.botao_conjunto.config(
+            state="normal" if parado and self.itens is not None
+            else "disabled")
         self.botao_restaurar.config(
             state="normal" if parado and (self.system() /
                                           l2item.PASTA_GUARDA).is_dir()
@@ -905,6 +932,11 @@ class JanelaItem:
         # na outra sem avisar.
         if self.base is not item:
             self.numeros_do_cliente = {}
+            # O mesmo vale para o que veio do servidor: a condicao de uso de uma
+            # arma nao e a da outra.
+            self.extras = ""
+            self.sets_de_fora = {}
+            self.campos_do_servidor = set()
         self.base = item
         self.rotulo_base.config(
             text=t("Da lista: %s (%s), id %s")
@@ -1180,23 +1212,43 @@ class JanelaItem:
 
         self.aplicar_do_servidor(achado)
         aviso = achado.get("aviso") or ""
+        # Dizer quantos blocos foram guardados importa: sao eles que voltam na
+        # regravacao, e quem le a tela precisa saber que nao se perderam.
+        guardados = (l2servidor.quantos_extras(self.extras)
+                     + len(self.sets_de_fora))
         self.situacao_servidor.config(
-            text=t("Trazido o %s, de %s. %d campos, %d status.%s")
+            text=t("Trazido o %s, de %s. %d campos, %d status.%s%s")
             % (alvo, achado["arquivo"].name, len(achado["campos"]),
                len(achado["estados"]),
+               (" " + t("%d bloco(s) que a tela não edita ficam guardados "
+                        "e voltam na regravação.") % guardados)
+               if guardados else "",
                (" " + t("Atenção: %s.") % aviso) if aviso else ""))
         self.log(t("  lido %s de %s") % (alvo, achado["arquivo"].name))
 
     def aplicar_do_servidor(self, achado):
         """Poe no formulario o que veio do servidor."""
+        self.sets_de_fora = {}
+        self.campos_do_servidor = set(achado.get("campos") or {})
         for chave, valor in (achado.get("campos") or {}).items():
             if chave in self.campos:
                 self.campos[chave].set(valor)
+            else:
+                # Campo que esta tela nao tem: o `icon`, o `attack_range`, o
+                # `element_enabled` do atributo. Guardado para voltar igual --
+                # regravar sem ele deixava o item sem icone no servidor.
+                self.sets_de_fora[chave] = valor
         if achado.get("tipo") and "tipo" in self.campos:
             self.campos["tipo"].set(achado["tipo"])
 
         self.estados = [dict(e) for e in (achado.get("estados") or [])]
         self._refazer_estados()
+
+        # O resto do item volta como esta. Sem isto, trazer o item do servidor
+        # para mexer num numero e regravar apagava a condicao de uso e o bonus
+        # de conjunto: o arquivo saia com os campos certos e sem o que fazia o
+        # item ser daquela classe.
+        self.extras = achado.get("extras") or ""
 
         # A pasta ja esta apontada e a espera ja foi aceita: aproveita para
         # saber quais status este servidor conhece, calado.
@@ -1345,7 +1397,10 @@ class JanelaItem:
         campos = dict((chave, var.get()) for chave, var in self.campos.items())
         return l2item.xml_servidor(ident, self.novo_nome.get().strip(),
                                    self.base["grupo"], self.base["id"],
-                                   campos=campos, estados=self.estados)
+                                   campos=campos, estados=self.estados,
+                                   extras=self.extras,
+                                   sets_de_fora=self.sets_de_fora,
+                                   do_servidor=self.campos_do_servidor)
 
     def ver_xml(self):
         if self.base is None:
@@ -1550,6 +1605,35 @@ class JanelaItem:
                 t("A troca est\u00e1 na mem\u00f3ria. Use Gerar para escrever "
                   "as tabelas, e depois Instalar no cliente."))
 
+    # ---- conjunto de armadura --------------------------------------------
+    def editar_conjunto(self):
+        """O conjunto de armadura: a lista de pecas e o bonus dela."""
+        import l2conjunto
+
+        if self.itens is None:
+            messagebox.showinfo(t("Abra o cliente primeiro"),
+                                t("Abra as tabelas do cliente antes."))
+            return
+        if not l2conjunto.tem_conjunto(self.itens):
+            messagebox.showinfo(
+                t("Esta crônica não tem conjunto"),
+                t("O itemname-e desta crônica não guarda conjunto: a coluna "
+                  "`set_ids` não existe nele. Isso vale para o C3 e o C4 -- o "
+                  "conjunto passou a ser escrito no cliente a partir do C5.\n\n"
+                  "No servidor ele continua funcionando; só não há o que "
+                  "gravar no cliente."))
+            return
+        if self.base is None:
+            messagebox.showinfo(t("Escolha a peça principal"),
+                                t("Escolha na lista a peça que vai carregar o "
+                                  "conjunto -- costuma ser o peitoral."))
+            return
+        janela = Conjunto(self.raiz, self, self.base)
+        if janela.mudou:
+            self.lista = self.itens.listar()
+            self.preencher()
+            self.atualizar_botoes()
+
     # ---- o manual --------------------------------------------------------
     def abrir_manual(self):
         import manual
@@ -1725,6 +1809,346 @@ class TrocarAparencia:
     def trocar_bloco(self):
         self._aplicar(l2item.trocar_pacote(self.referencias, self.de.get(),
                                            self.para.get()))
+
+
+class Conjunto:
+    """
+    O conjunto de armadura: a lista de pecas, o texto do bonus e o XML.
+
+    Sao duas metades, e a janela mostra as duas porque escrever so numa e o erro
+    classico -- o texto aparece no inventario e o bonus nao vem, ou o bonus vem
+    e nada explica por que. A metade do cliente vai para o itemname-e; a do
+    servidor sai em XML, na forma que a pasta do servidor mostrar.
+
+    A lista fica numa peca so, que costuma ser o peitoral: e assim que o jogo
+    escreve, e foi contado antes de escrever igual.
+    """
+
+    def __init__(self, raiz, dono, item):
+        import l2conjunto
+
+        self.l2conjunto = l2conjunto
+        self.dono = dono
+        self.item = item
+        self.mudou = False
+        self.pecas = []
+        self.nomes = dict((i["id"], i["nome"]) for i in (dono.lista or []))
+
+        self.janela = tk.Toplevel(raiz)
+        self.janela.title(t("Conjunto de armadura"))
+        self.janela.transient(raiz)
+        ajuda.centralizar(self.janela)
+        self.janela.grab_set()
+        ajuda.por_icone(self.janela)
+
+        quadro = ttk.Frame(self.janela, padding=10)
+        quadro.pack(fill="both", expand=True)
+
+        cabem = l2conjunto.cabem(dono.itens)
+        ttk.Label(quadro, justify="left", wraplength=620,
+                  foreground=COR_TEXTO_FRACO,
+                  text=t("A lista do conjunto fica numa peça só -- %s (id %s). "
+                         "É nela que o jogo desenha o texto do bônus.%s")
+                  % (item["nome"] or t("sem nome"), item["id"],
+                     (" " + t("Este cliente guarda até %d peças por conjunto.")
+                      % cabem) if cabem else "")).pack(anchor="w")
+
+        # ---- as pecas ----------------------------------------------------
+        caixa = ttk.LabelFrame(quadro, text=t("As peças"), padding=6)
+        caixa.pack(fill="both", expand=True, pady=(8, 0))
+        colunas = (N_("id"), N_("nome"), N_("parte do corpo"))
+        self.tabela = ttk.Treeview(caixa, columns=colunas, show="headings",
+                                   height=7, selectmode="browse")
+        for nome, largura in zip(colunas, (70, 330, 150)):
+            self.tabela.heading(nome, text=t(nome))
+            self.tabela.column(nome, width=largura, anchor="w")
+        self.tabela.pack(fill="both", expand=True)
+
+        linha = ttk.Frame(caixa)
+        linha.pack(fill="x", pady=(6, 0))
+        ttk.Label(linha, text=t("id da peça") + ":").pack(side="left")
+        self.id_da_peca = tk.StringVar()
+        entrada = ttk.Entry(linha, textvariable=self.id_da_peca, width=10)
+        entrada.pack(side="left", padx=(6, 0))
+        entrada.bind("<Return>", lambda _e: self.acrescentar())
+        ttk.Button(linha, text=t("Acrescentar"),
+                   command=self.acrescentar).pack(side="left", padx=(6, 0))
+        ttk.Button(linha, text=t("Usar a peça da lista"),
+                   command=self.usar_a_marcada).pack(side="left", padx=(6, 0))
+        ttk.Button(linha, text=t("Tirar"),
+                   command=self.tirar).pack(side="left", padx=(6, 0))
+
+        # ---- o texto do bonus --------------------------------------------
+        texto = ttk.LabelFrame(quadro, text=t("O que o jogador lê"), padding=6)
+        texto.pack(fill="x", pady=(8, 0))
+        ttk.Label(texto, text=t("bônus do conjunto") + ":").grid(
+            row=0, column=0, sticky="w")
+        self.descricao = tk.StringVar()
+        ttk.Entry(texto, textvariable=self.descricao, width=64).grid(
+            row=0, column=1, sticky="ew", padx=(6, 0))
+        ttk.Label(texto, text=t("peça extra (escudo)") + ":").grid(
+            row=1, column=0, sticky="w", pady=(4, 0))
+        self.extra = tk.StringVar()
+        ttk.Entry(texto, textvariable=self.extra, width=12).grid(
+            row=1, column=1, sticky="w", padx=(6, 0), pady=(4, 0))
+        ttk.Label(texto, text=t("bônus da peça extra") + ":").grid(
+            row=2, column=0, sticky="w", pady=(4, 0))
+        self.descricao_extra = tk.StringVar()
+        ttk.Entry(texto, textvariable=self.descricao_extra, width=64).grid(
+            row=2, column=1, sticky="ew", padx=(6, 0), pady=(4, 0))
+        texto.columnconfigure(1, weight=1)
+        ajuda.ajuda(texto, lambda: t(
+            "O cliente só desenha este texto -- ele não aplica nada. Quem dá o "
+            "bônus é o servidor, pelo XML ao lado.\n\n"
+            "Escreva como o jogo escreve: \"P. Def. +2% e Max HP +41.\""),
+            grid=True, row=0, column=2, padx=(8, 0))
+
+        # ---- o lado do servidor ------------------------------------------
+        srv = ttk.LabelFrame(quadro, text=t("O que o servidor aplica"),
+                             padding=6)
+        srv.pack(fill="x", pady=(8, 0))
+        self.nome_do_conjunto = tk.StringVar(
+            value=(item["nome"] or t("Conjunto")))
+        self.skill = tk.StringVar()
+        self.nivel = tk.StringVar(value="1")
+        self.skill_do_escudo = tk.StringVar()
+        self.encantado = tk.StringVar()
+        self.id_do_conjunto = tk.StringVar()
+        campos = (
+            (N_("nome do conjunto"), self.nome_do_conjunto, 26),
+            (N_("skill do conjunto"), self.skill, 10),
+            (N_("nível"), self.nivel, 5),
+            (N_("skill do escudo"), self.skill_do_escudo, 10),
+            (N_("skill do +6"), self.encantado, 10),
+            (N_("id do conjunto"), self.id_do_conjunto, 8),
+        )
+        for i, (rotulo, variavel, largura) in enumerate(campos):
+            ttk.Label(srv, text=t(rotulo) + ":").grid(
+                row=i // 2, column=(i % 2) * 2, sticky="w",
+                padx=(0 if i % 2 == 0 else 12, 0), pady=2)
+            ttk.Entry(srv, textvariable=variavel, width=largura).grid(
+                row=i // 2, column=(i % 2) * 2 + 1, sticky="w",
+                padx=(6, 0), pady=2)
+        self.forma = ttk.Label(srv, text="", foreground=COR_TEXTO_FRACO)
+        self.forma.grid(row=3, column=0, columnspan=4, sticky="w", pady=(6, 0))
+
+        # ---- os botoes ---------------------------------------------------
+        acao = ttk.Frame(quadro)
+        acao.pack(fill="x", pady=(10, 0))
+        ttk.Button(acao, text=t("Ler do cliente"),
+                   command=self.ler).pack(side="left")
+        ttk.Button(acao, text=t("Gravar no cliente"),
+                   command=self.gravar).pack(side="left", padx=(6, 0))
+        ttk.Button(acao, text=t("Ver o XML do servidor"),
+                   command=self.ver_xml).pack(side="left", padx=(6, 0))
+        ttk.Button(acao, text=t("Salvar o XML…"),
+                   command=self.salvar_xml).pack(side="left", padx=(6, 0))
+        ttk.Button(acao, text=t("Tirar o conjunto"),
+                   command=self.apagar).pack(side="left", padx=(6, 0))
+        ttk.Button(acao, text=t("Fechar"),
+                   command=self.janela.destroy).pack(side="right")
+        self.aviso = ttk.Label(quadro, text="", foreground=COR_TEXTO_FRACO,
+                               wraplength=620, justify="left")
+        self.aviso.pack(anchor="w", pady=(6, 0))
+
+        self.ler(calado=True)
+        self.dizer_a_forma()
+        self.janela.bind("<Escape>", lambda _e: self.janela.destroy())
+        raiz.wait_window(self.janela)
+
+    # -- leitura -----------------------------------------------------------
+    def preencher(self):
+        self.tabela.delete(*self.tabela.get_children())
+        for i, ident in enumerate(self.pecas):
+            parte = self.l2conjunto.parte_de(self.dono.itens, ident)
+            self.tabela.insert("", "end", iid=str(i),
+                               values=(ident,
+                                       self.nomes.get(ident, t("sem nome")),
+                                       parte or t("não sei dizer")))
+
+    def ler(self, calado=False):
+        """Traz o que esta escrito no cliente para a janela."""
+        achado = self.l2conjunto.do_item(self.dono.itens, self.item["id"])
+        if achado is None:
+            self.pecas = [self.item["id"]]
+            self.preencher()
+            if not calado:
+                self.aviso.config(
+                    text=t("%s ainda não carrega conjunto nenhum. "
+                           "Acrescente as peças.") % self.item["id"])
+            return
+        self.pecas = list(achado["pecas"])
+        self.descricao.set(achado["descricao"])
+        self.extra.set(", ".join(achado["extras"]))
+        self.descricao_extra.set(achado["descricao_extra"])
+        self.preencher()
+        if not calado:
+            self.aviso.config(text=t("lidas %d peças do cliente")
+                              % len(self.pecas))
+
+    def dizer_a_forma(self):
+        """Diz qual forma de conjunto o servidor deste projeto usa."""
+        pasta = self.dono.pasta_do_servidor.get().strip()
+        forma, onde = self.l2conjunto.forma_do_servidor(pasta)
+        if forma == "l2j":
+            self.forma.config(text=t("O servidor deste projeto guarda conjunto "
+                                     "em %s (um <set id=…> por conjunto).")
+                              % Path(onde).name)
+            if not self.id_do_conjunto.get().strip():
+                self.id_do_conjunto.set(str(self.l2conjunto.maior_id(onde) + 1))
+        elif forma == "acis":
+            self.forma.config(text=t("O servidor deste projeto guarda conjunto "
+                                     "em %s (uma linha <armorset …/>).")
+                              % Path(onde).name)
+        else:
+            self.forma.config(
+                text=t("Não achei conjunto na pasta do servidor -- o XML sai na "
+                       "forma do L2J. Aponte a pasta em Projetos… para eu "
+                       "seguir a forma do seu servidor."))
+
+    # -- a lista -----------------------------------------------------------
+    def acrescentar(self):
+        ident = self.id_da_peca.get().strip()
+        if not ident.isdigit():
+            messagebox.showerror(t("id inválido"),
+                                 t("O id da peça tem de ser um número."),
+                                 parent=self.janela)
+            return
+        if ident in self.pecas:
+            self.aviso.config(text=t("%s já está na lista") % ident)
+            return
+        if self.dono.itens.onde_esta(ident) is None:
+            if not messagebox.askyesno(
+                    t("Esse id não está no cliente"),
+                    t("O item %s não existe nas tabelas deste cliente.\n\n"
+                      "Pôr na lista uma peça que o cliente não tem faz o "
+                      "conjunto nunca se completar. Acrescentar mesmo assim?")
+                    % ident, parent=self.janela):
+                return
+        cabem = self.l2conjunto.cabem(self.dono.itens)
+        if cabem and len(self.pecas) >= cabem:
+            messagebox.showerror(
+                t("Não cabe mais"),
+                t("Este cliente guarda até %d peças por conjunto.") % cabem,
+                parent=self.janela)
+            return
+        self.pecas.append(ident)
+        self.id_da_peca.set("")
+        self.preencher()
+        self.aviso.config(text=t("%d peças na lista") % len(self.pecas))
+
+    def usar_a_marcada(self):
+        """A peca marcada na lista da tela de itens, atras desta janela."""
+        if self.dono.base is None:
+            return
+        self.id_da_peca.set(self.dono.base["id"])
+        self.acrescentar()
+
+    def tirar(self):
+        escolhido = self.tabela.selection()
+        if not escolhido:
+            messagebox.showinfo(t("Escolha uma peça"),
+                                t("Marque na lista a peça a tirar."),
+                                parent=self.janela)
+            return
+        del self.pecas[int(escolhido[0])]
+        self.preencher()
+        self.aviso.config(text=t("%d peças na lista") % len(self.pecas))
+
+    # -- gravar ------------------------------------------------------------
+    def gravar(self):
+        extras = [p.strip() for p in self.extra.get().replace(";", ",").split(",")
+                  if p.strip()]
+        try:
+            quantas = self.l2conjunto.escrever(
+                self.dono.itens, self.item["id"], self.pecas,
+                self.descricao.get().strip(), extras,
+                self.descricao_extra.get().strip())
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu"), str(erro), parent=self.janela)
+            return
+        self._gravar_tabelas(t("conjunto de %d peças escrito em %s")
+                             % (quantas, self.item["id"]))
+
+    def apagar(self):
+        if not messagebox.askyesno(
+                t("Tirar o conjunto"),
+                t("O conjunto sai da peça %s -- a lista e o texto do bônus.\n\n"
+                  "Tirar?") % self.item["id"], parent=self.janela):
+            return
+        if not self.l2conjunto.limpar(self.dono.itens, self.item["id"]):
+            self.aviso.config(text=t("não havia conjunto nessa peça"))
+            return
+        self.pecas = []
+        self.descricao.set("")
+        self.extra.set("")
+        self.descricao_extra.set("")
+        self.preencher()
+        self._gravar_tabelas(t("conjunto tirado de %s") % self.item["id"])
+
+    def _gravar_tabelas(self, recado):
+        """Escreve o itemname-e na pasta de saida, como o resto do programa."""
+        try:
+            gravados = self.dono.itens.gravar(
+                self.dono.saida(), aolog=lambda s: self.dono.log("  " + s))
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("A gravação parou"), str(erro),
+                                 parent=self.janela)
+            return
+        self.mudou = True
+        self.dono.gravados = gravados
+        self.dono.log(recado)
+        self.aviso.config(text=recado)
+        messagebox.showinfo(
+            t("Gravado"),
+            t("%s.\n\nAs tabelas saíram em:\n\n%s\n\nO cliente só muda em "
+              "Instalar no cliente, na tela de itens.")
+            % (recado[:1].upper() + recado[1:], self.dono.saida()),
+            parent=self.janela)
+
+    # -- o XML -------------------------------------------------------------
+    def _xml(self):
+        extras = [p.strip() for p in self.extra.get().replace(";", ",").split(",")
+                  if p.strip()]
+        partes = self.l2conjunto.por_parte(self.dono.itens, self.pecas, extras)
+        forma, _onde = self.l2conjunto.forma_do_servidor(
+            self.dono.pasta_do_servidor.get().strip())
+        ident = self.id_do_conjunto.get().strip()
+        return self.l2conjunto.xml_servidor(
+            forma or "l2j", self.nome_do_conjunto.get().strip(), partes,
+            skill=self.skill.get().strip(), nivel=self.nivel.get().strip(),
+            skill_do_escudo=self.skill_do_escudo.get().strip(),
+            encantado=self.encantado.get().strip(),
+            ident=ident or None)
+
+    def ver_xml(self):
+        janela = tk.Toplevel(self.janela)
+        janela.title(t("XML do conjunto"))
+        janela.transient(self.janela)
+        ajuda.por_icone(janela)
+        caixa = tk.Text(janela, width=76, height=22, wrap="none")
+        caixa.pack(fill="both", expand=True, padx=8, pady=8)
+        caixa.insert("1.0", self._xml())
+        caixa.config(state="disabled")
+        ttk.Button(janela, text=t("Fechar"),
+                   command=janela.destroy).pack(pady=(0, 8))
+
+    def salvar_xml(self):
+        destino = filedialog.asksaveasfilename(
+            title=t("Salvar o XML do conjunto"), defaultextension=".xml",
+            initialfile="%s-armorset.xml" % self.item["id"],
+            filetypes=[("XML", "*.xml"), (t("Todos"), "*.*")],
+            parent=self.janela)
+        if not destino:
+            return
+        try:
+            Path(destino).write_text(self._xml(), encoding="utf-8", newline="")
+        except OSError as erro:
+            messagebox.showerror(t("Não deu para salvar"), str(erro),
+                                 parent=self.janela)
+            return
+        self.dono.log(t("XML do conjunto salvo em %s") % destino)
+        self.aviso.config(text=t("XML salvo em %s") % destino)
 
 
 class NovoItem(tk.Toplevel):

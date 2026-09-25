@@ -973,6 +973,129 @@ def _corpo_do_elemento(texto, tag, ident):
     return None
 
 
+_TAG_SOLTA = re.compile(r"<(/?)([A-Za-z_][\w\-]*)([^>]*?)(/?)>", re.S)
+
+
+def _blocos_do_topo(corpo):
+    """
+    Os filhos de primeiro nivel, cada um com o recorte inteiro dele.
+
+    Devolve [(nome, texto cru)] -- do `<` que abre ao `>` que fecha, com os
+    filhos dentro.
+
+    Tem de ser assim, e nao por regex solta: o `<set>` aparece em dois papeis
+    diferentes dentro do mesmo item. No corpo ele e um campo do item; dentro de
+    um `<enchant>` ele e o bonus do encantamento. Sao 16 mil desses no datapack
+    do High Five, e ler os dois como se fossem a mesma coisa faz o bonus do +4
+    chegar a tela no lugar do dano da arma.
+    """
+    saida = []
+    nivel = 0
+    comeco = None
+    aberto = None
+    for achado in _TAG_SOLTA.finditer(corpo):
+        fecha, nome, _atributos, sozinho = achado.groups()
+        if fecha:
+            if nivel > 0:
+                nivel -= 1
+                if nivel == 0 and comeco is not None:
+                    saida.append((aberto, corpo[comeco:achado.end()]))
+                    comeco = aberto = None
+            continue
+        if sozinho:
+            if nivel == 0:
+                saida.append((nome.lower(), achado.group(0)))
+            continue
+        if nivel == 0:
+            comeco = achado.start()
+            aberto = nome.lower()
+        nivel += 1
+    return saida
+
+
+def _sets_do_topo(corpo):
+    """{nome: valor} dos <set> que pertencem ao proprio elemento."""
+    pares = []
+    for nome, bruto in _blocos_do_topo(corpo):
+        if nome == "set":
+            pares.extend(_SET_XML.findall(bruto))
+    return dict(pares)
+
+
+def _sem_recuo(bruto):
+    """
+    O bloco com o recuo do arquivo de origem tirado, para poder ser recuado de
+    novo na geracao.
+
+    O recuo comum sai das linhas de dentro: a de fechamento fica na mesma
+    altura da de abertura, entao o menor recuo delas e justamente o do bloco.
+    """
+    linhas = bruto.replace("\r\n", "\n").split("\n")
+    if len(linhas) == 1:
+        return linhas[0].strip()
+    de_dentro = [l for l in linhas[1:] if l.strip()]
+    comum = min((len(l) - len(l.lstrip()) for l in de_dentro), default=0)
+    saida = [linhas[0].strip()]
+    for linha in linhas[1:]:
+        saida.append(linha[comum:].rstrip() if linha.strip() else "")
+    return "\n".join(saida)
+
+
+def extras_do_corpo(corpo, tirar=("set", "for")):
+    """
+    O que o elemento tem e o programa nao edita, como esta escrito.
+
+    Regravar um item lendo so os `<set>` apagava condicao de uso, bonus de
+    encantamento e o que mais estivesse ali: 41% dos itens, 77% das
+    habilidades e todos os NPCs do datapack do High Five tem filho que nao e
+    `<set>`. O que o programa nao edita, ele nao joga fora -- guarda como esta
+    e devolve na geracao.
+    """
+    fora = set(t.lower() for t in tirar)
+    pedacos = [_sem_recuo(bruto) for nome, bruto in _blocos_do_topo(corpo)
+               if nome not in fora]
+    return "\n".join(p for p in pedacos if p)
+
+
+def quantos_extras(extras):
+    """Quantos blocos preservados ha ali -- para a tela poder dizer."""
+    return sum(1 for linha in (extras or "").split("\n")
+               if linha[:1] == "<" and linha[:2] != "</")
+
+
+def recuar(extras, recuo):
+    """Os extras prontos para entrar num XML, na altura pedida."""
+    if not extras:
+        return ""
+    return "\n".join((recuo + linha) if linha.strip() else ""
+                     for linha in extras.split("\n"))
+
+
+_APELIDO_NO_TEXTO = re.compile(r"#[A-Za-z_][\w\-]*")
+
+
+def _tabelas_que_os_extras_usam(corpo, extras):
+    """
+    As `<table>` que os extras ainda apontam, no texto original delas.
+
+    O gerador refaz as tabelas dos campos que ele edita, mas um `<effect>`
+    preservado pode apontar para uma tabela que nao e de campo nenhum. Sem
+    ela, o apelido sobra sozinho no arquivo e o servidor para de carregar a
+    habilidade.
+    """
+    usados = set(_APELIDO_NO_TEXTO.findall(extras or ""))
+    if not usados:
+        return []
+    guardadas = []
+    for nome, bruto in _blocos_do_topo(corpo):
+        if nome != "table":
+            continue
+        apelidos = _APELIDO_NO_TEXTO.findall(bruto.split(">", 1)[0])
+        if apelidos and apelidos[0] in usados:
+            guardadas.append(_sem_recuo(bruto))
+    return guardadas
+
+
 def _inverter(mapa):
     return dict((v, k) for k, v in (mapa or {}).items())
 
@@ -1126,7 +1249,8 @@ def _npc_do_xml(texto, ident, arquivo, drops, perfil_do_servidor=None):
                                                       escala),
                               "categoria": categoria.upper()})
         return {"campos": _desconverter(perfil_do_servidor or {},
-                                        dict(_SET_XML.findall(corpo))),
+                                        _sets_do_topo(corpo)),
+                "extras": extras_do_corpo(corpo, ("set", "for")),
                 "nome": cabeca.get("name", ""),
                 "titulo": cabeca.get("title", ""),
                 "arquivo": arquivo, "formato": "xml", "aviso": ""}
@@ -1425,8 +1549,9 @@ def _item_do_xml(texto, ident, arquivo, perfil_do_servidor=None):
         return None
     cabeca, corpo = lido
     return {"campos": _desconverter(perfil_do_servidor or {},
-                                    dict(_SET_XML.findall(corpo))),
+                                    _sets_do_topo(corpo)),
             "estados": _estados_do_xml(corpo),
+            "extras": extras_do_corpo(corpo, ("set", "for")),
             "tipo": cabeca.get("type", ""),
             "nome": cabeca.get("name", ""),
             "arquivo": arquivo, "formato": "xml", "aviso": ""}
@@ -1459,15 +1584,23 @@ def _skill_do_xml(texto, ident, arquivo, perfil_do_servidor=None):
         campos = _desconverter(
             perfil_do_servidor or {},
             dict((chave, _abrir_tabelas(valor, tabelas))
-                 for chave, valor in _SET_XML.findall(corpo)))
+                 for chave, valor in _sets_do_topo(corpo).items()))
         estados = _estados_do_xml(corpo)
         for entrada in estados:
             entrada["valor"] = _abrir_tabelas(entrada["valor"], tabelas)
 
+        # O `<effects>` e os `<enchantN>` sao a maior parte de uma habilidade do
+        # L2J, e o programa nao os edita. Voltam como estao, com as tabelas que
+        # eles apontarem.
+        extras = extras_do_corpo(corpo, ("set", "for", "table"))
+        guardadas = _tabelas_que_os_extras_usam(corpo, extras)
+        if guardadas:
+            extras = "\n".join(guardadas + [extras]).strip("\n")
+
         soltos = [v for v in list(campos.values())
                   + [e["valor"] for e in estados]
                   if str(v).startswith("#")]
-        return {"campos": campos, "estados": estados,
+        return {"campos": campos, "estados": estados, "extras": extras,
                 "niveis": cabeca.get("levels", "1"),
                 "nome": cabeca.get("name", ""),
                 "arquivo": arquivo, "formato": "xml",

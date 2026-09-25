@@ -206,6 +206,54 @@ It works on both formats. On database cores the combat columns (`p_dam`,
 `p_def`, `critical`) come back into the stats block, which is where the XML puts
 them.
 
+**What the screen does not show comes back as it was.** A server item usually
+holds more than fields: a use condition (`<cond>`), an enchant bonus
+(`<enchant>`), whatever that pack's core invented — 41% of the items in the High
+Five datapack have something like that. It is read and written back unchanged,
+together with the `<set>` entries this screen does not offer (`icon`,
+`attack_range`). The status line says how many blocks were kept.
+
+Before this, rewriting an item brought from the server **erased** those parts:
+the file came out with the right fields and without whatever made the item
+belong to that class.
+
+
+## Armour set
+
+The **Set…** button at the bottom opens both halves of the set — because
+touching only one is the classic mistake: the text shows in the inventory and the
+bonus never comes, or the bonus comes and nothing explains why.
+
+| Side | What it holds | Where |
+| --- | --- | --- |
+| client | the list of pieces and the bonus **text** | `itemname-e.dat` |
+| server | the **skill** the set grants | `armorsets/` or `armorSets.xml` |
+
+The list lives on **one piece only**, usually the chest — that is how the game
+writes it, and it was counted before writing the same way: of the 207 rows with a
+set in High Five, 195 have their own id first in the list, and only 8 of the 691
+pieces pointed at by some list carry a list of their own.
+
+Pick the main piece in the item list, open the window and add the others by id
+(**Use the piece from the list** takes the one selected behind). Each piece's body
+part shows beside it, read from the client; a piece the client does not have is
+accepted after a warning, because a set with a missing piece never completes.
+
+The bonus text is what the player reads: write it the way the game writes it —
+`P. Def. +2% and Max HP +41.`
+
+On the server side, give the **set skill** (create it on the Skills tab) and, if
+there is one, the shield skill and the +6 skill. The XML shape is not a menu
+choice: the program reads the project's server folder and sees which one is there
+— L2J's `<set id=…>` or aCis's `<armorset …/>` line.
+
+**Write into the client** writes `itemname-e` into the output folder; the client
+only changes on **Install into the client**, on the items screen, as always.
+
+On C3 and C4 the button says there is nothing to write: the `set_ids` column does
+not exist in their `itemname`. The server-side set still works; there is just no
+text in the client.
+
 ## 4. Stats the item gives the player
 
 This is the part that makes the item **worth something**. Without it the new

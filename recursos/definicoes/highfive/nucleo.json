@@ -12,7 +12,10 @@
     "skillname-e",
     "npcgrp",
     "npcname-e",
-    "transformdata"
+    "transformdata",
+    "systemmsg-e",
+    "sysstring-e",
+    "npcstring-e"
   ],
   "nao_provadas": [],
   "conferido_em": "2026-09-25",

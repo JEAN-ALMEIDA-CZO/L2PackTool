@@ -205,6 +205,56 @@ Funciona en los dos formatos. En los cores de banco las columnas de combate
 (`p_dam`, `p_def`, `critical`) vuelven al bloque de estados, que es donde el XML
 las pone.
 
+**Lo que la pantalla no muestra vuelve como estaba.** Un item del servidor suele
+tener mas que campos: condicion de uso (`<cond>`), bonus de encantamiento
+(`<enchant>`), lo que el core de ese pack invento — el 41% de los items del
+datapack de High Five tiene algo asi. Eso se lee y se devuelve igual al regrabar,
+junto con los `<set>` que esta pantalla no ofrece (`icon`, `attack_range`). La
+linea de situacion dice cuantos bloques quedaron guardados.
+
+Antes de esto, regrabar un item traido del servidor **borraba** esas partes: el
+archivo salia con los campos correctos y sin lo que hacia que el item fuera de
+esa clase.
+
+
+## Conjunto de armadura
+
+El boton **Conjunto…**, al pie, abre las dos mitades del conjunto — porque tocar
+una sola es el error clasico: el texto aparece en el inventario y el bonus no
+llega, o el bonus llega y nada explica por que.
+
+| Lado | Que guarda | Donde |
+| --- | --- | --- |
+| cliente | la lista de piezas y el **texto** del bonus | `itemname-e.dat` |
+| servidor | la **habilidad** que el conjunto concede | `armorsets/` o `armorSets.xml` |
+
+La lista queda en **una sola pieza**, que suele ser el peto — asi lo escribe el
+juego, y se conto antes de escribir igual: de las 207 filas con conjunto de High
+Five, 195 tienen su propio id primero en la lista, y solo 8 de las 691 piezas
+apuntadas por alguna lista llevan lista propia.
+
+Marca la pieza principal en la lista de items, abri la ventana y agrega las otras
+por id (**Usar la pieza de la lista** toma la que quedo marcada atras). La parte
+del cuerpo de cada una aparece al lado, leida del cliente; una pieza que el
+cliente no tiene se acepta despues de un aviso, porque un conjunto con pieza
+inexistente nunca se completa.
+
+El texto del bonus es lo que lee el jugador: escribilo como lo escribe el juego —
+`P. Def. +2% y Max HP +41.`
+
+Del lado del servidor, indica la **skill del conjunto** (creala en la pestana de
+Habilidades) y, si la hay, la del escudo y la del +6. La forma del XML no se
+elige en un menu: el programa lee la carpeta del servidor del proyecto y ve cual
+esta ahi — el `<set id=…>` de L2J o la linea `<armorset …/>` de aCis.
+
+**Grabar en el cliente** escribe el `itemname-e` en la carpeta de salida; el
+cliente solo cambia en **Instalar en el cliente**, en la pantalla de items, como
+siempre.
+
+En C3 y C4 el boton avisa que no hay nada que grabar: la columna `set_ids` no
+existe en su `itemname`. El conjunto del servidor sigue funcionando; solo no hay
+texto en el cliente.
+
 ## 4. Estados que el item da al jugador
 
 Es esta parte la que hace que el item **valga algo**. Sin ella, la espada nueva

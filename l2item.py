@@ -127,6 +127,22 @@ def provadas(cronica):
     return list(nucleo(cronica).get("provadas") or [])
 
 
+# O atributo -- a pedra de elemento que se poe na arma ou na armadura -- chegou
+# no Kamael. Medido no proprio cliente: o `systemmsg-e` do C3, do C4 e do C5 nao
+# tem uma unica mensagem que fale de atributo; o do Kamael tem onze, o do High
+# Five, vinte e seis. Oferecer o campo antes disso seria oferecer nada.
+ORDEM_DO_ATRIBUTO = 70
+
+
+def tem_atributo(cronica=None):
+    """Esta cronica tem o sistema de atributo (elemento)?"""
+    dados = nucleo(cronica or cronica_em_uso())
+    try:
+        return int(dados.get("ordem") or 0) >= ORDEM_DO_ATRIBUTO
+    except (TypeError, ValueError):
+        return False
+
+
 def cronicas():
     """As cronicas que tem definicao embutida, em ordem de lançamento."""
     raiz = Path(motor.AQUI) / PASTA_DE_DEFINICOES
@@ -974,7 +990,12 @@ MATERIAL_DO_CLIENTE = {
     52: "HORN", 53: "LIQUID",
 }
 
-GRAU_DO_CLIENTE = {0: "", 1: "D", 2: "C", 3: "B", 4: "A", 5: "S"}
+# Os dois graus de cima chegaram depois: o S80 no Kamael e o S84 no Gracia
+# Final. Sao chave nova, e nao significado novo -- de 1 a 5 nada mudou, o que se
+# conferiu cruzando os itens do High Five com o datapack dele (289 D, 242 C,
+# 455 B, 521 A, 411 S, 116 S80, 224 S84, todos sem uma unica discordancia).
+GRAU_DO_CLIENTE = {0: "", 1: "D", 2: "C", 3: "B", 4: "A", 5: "S",
+                   6: "S80", 7: "S84"}
 
 PARTE_DA_ARMA = {0: "none", 7: "rhand", 8: "lhand", 14: "lrhand"}
 
@@ -985,16 +1006,113 @@ PARTE_DA_ARMADURA = {
     18: "hair", 19: "hairall",
 }
 
+# A partir do Gracia Final os numeros MUDARAM de significado. Nao e um campo
+# novo: e o mesmo campo com outra tabela por tras, e a mudanca e silenciosa --
+# o 10, que era peitoral, passou a ser o cabelo inteiro. Gerar o XML com o mapa
+# antigo num cliente novo poe a peca no lugar errado, e o item simplesmente nao
+# equipa.
+#
+# Medido cruzando o cliente do High Five com o datapack dele, item por item:
+# para cada id presente nos dois, anotou-se (numero do cliente, nome do
+# servidor). Entre parenteses, quantos itens sustentam cada linha.
+#
+#   1 rear;lear (143)   3 neck (141)    4 rfinger;lfinger (155)  6 head (254)
+#   8 onepiece (172)    9 alldress (4)  10 hairall (563 de 567)  19 waist (86)
+#   20 gloves (362)     21 chest (419 de 463)   22 legs (246)    23 feet (384)
+#   24 back (41)        25 hair (88 de 97)      26 hair2 (43)    28 lhand (24)
+#
+# O 0 ficou de fora de proposito: os 463 itens que o tem se espalham por
+# lbracelet (308), deco1 (100), underwear (38) e rbracelet (12). Numero que nao
+# responde nada nao entra no mapa -- a tela mostra vazio e quem sabe escolhe.
+PARTE_DA_ARMADURA_NOVA = {
+    1: "rear;lear", 3: "neck", 4: "rfinger;lfinger", 6: "head",
+    8: "onepiece", 9: "alldress", 10: "hairall", 19: "waist",
+    20: "gloves", 21: "chest", 22: "legs", 23: "feet", 24: "back",
+    25: "hair", 26: "hair2", 28: "lhand",
+}
+
+# A arma mudou junto, e de um jeito traicoeiro: o 7, que era a mao direita,
+# passou a ser as duas maos. Medido no mesmo cruzamento:
+#   0 rhand (38)   7 lrhand (2087 de 2186)   27 rhand (1590 de 1663)
+#   28 lhand (171 de 172)
+PARTE_DA_ARMA_NOVA = {0: "rhand", 7: "lrhand", 27: "rhand", 28: "lhand"}
+
+# Onde a escala nova comeca. E este numero que separa as duas, porque na antiga
+# ele nunca aparece: contados os onze clientes daqui, de C3 a Gracia Part 2
+# nenhuma linha tem body_part entre 20 e 40, e de Gracia Final em diante sao
+# mais de mil por cliente.
+PRIMEIRO_CODIGO_NOVO = 20
+_ULTIMO_CODIGO_NOVO = 40
+
+
+def escala_da_parte(tabela):
+    """
+    Qual mapa de `body_part` esta tabela usa -- decidido OLHANDO a tabela.
+
+    Nao se pergunta a cronica. Amarrar no nome dela obrigaria a lembrar deste
+    arquivo a cada nucleo novo, e o esquecimento nao daria erro: daria parte do
+    corpo errada, que passa despercebida ate alguem tentar equipar.
+
+    A conta e feita uma vez por tabela e fica guardada nela.
+    """
+    guardado = getattr(tabela, "_escala_da_parte", None)
+    if guardado is not None:
+        return guardado
+
+    nova = False
+    try:
+        for linha in tabela.linhas:
+            numero = _inteiro(tabela.campo(linha, "body_part"), 0)
+            if PRIMEIRO_CODIGO_NOVO <= numero <= _ULTIMO_CODIGO_NOVO:
+                nova = True
+                break
+    except Exception:                               # noqa: BLE001
+        nova = False
+    try:
+        tabela._escala_da_parte = nova
+    except Exception:                               # noqa: BLE001
+        pass
+    return nova
+
+
+def parte_do_corpo(tabela, linha, grupo):
+    """
+    A parte do corpo daquela linha, na lingua do servidor.
+
+    Devolve "" quando o numero nao esta no mapa -- e melhor do que chutar, que
+    foi o que poe peitoral em pulseira.
+    """
+    try:
+        numero = _inteiro(tabela.campo(linha, "body_part"), -1)
+    except Exception:                               # noqa: BLE001
+        return ""
+    nova = escala_da_parte(tabela)
+    if grupo == "weapon":
+        mapa = PARTE_DA_ARMA_NOVA if nova else PARTE_DA_ARMA
+    else:
+        mapa = PARTE_DA_ARMADURA_NOVA if nova else PARTE_DA_ARMADURA
+    parte = mapa.get(numero, "")
+    return "" if parte == "none" else parte
+
 # A coluna weapon_type do cliente nao separa espada de espadao: as duas valem
 # 1. Quem separa e o campo `handness` -- uma mao ou duas. O mesmo vale para
 # maca e marreta.
+#
+# De 0 a 10 nada mudou de cronica para cronica. O que houve foi arma nova
+# ganhando numero novo: rapieira, besta e espada ancestral no Kamael (11, 12,
+# 13) e adaga dupla no Gracia Final (15). Conferido no cruzamento com o datapack
+# do High Five: 239 rapieiras, 204 bestas, 192 espadas ancestrais e 22 adagas
+# duplas, todas de acordo.
 ARMA_DO_CLIENTE = {
     0: "NONE", 1: "SWORD", 2: "BLUNT", 3: "DAGGER", 4: "POLE", 5: "DUALFIST",
-    6: "BOW", 7: "ETC", 8: "DUAL", 10: "FISHINGROD",
+    6: "BOW", 7: "ETC", 8: "DUAL", 10: "FISHINGROD", 11: "RAPIER",
+    12: "CROSSBOW", 13: "ANCIENTSWORD", 15: "DUALDAGGER",
 }
 ARMA_DE_DUAS_MAOS = {"SWORD": "BIGSWORD", "BLUNT": "BIGBLUNT"}
 
-ARMADURA_DO_CLIENTE = {0: "NONE", 1: "LIGHT", 2: "HEAVY", 3: "MAGIC"}
+# O `SIGIL` -- o "escudo" do mago -- chegou no Gracia Final, como numero novo.
+ARMADURA_DO_CLIENTE = {0: "NONE", 1: "LIGHT", 2: "HEAVY", 3: "MAGIC",
+                       4: "SIGIL"}
 
 
 def _inteiro(texto, padrao=0):
@@ -1040,7 +1158,9 @@ def campos_do_servidor(itens, grupo, linha):
     }
 
     if grupo == "weapon":
-        parte = PARTE_DA_ARMA.get(_inteiro(campo("body_part"), -1), "rhand")
+        # A escala do `body_part` mudou no Gracia Final, e quem decide qual
+        # vale e a propria tabela. Ver `escala_da_parte`.
+        parte = parte_do_corpo(tabela, linha, grupo) or "rhand"
         dados["bodypart"] = "" if parte == "none" else parte
         # O escudo mora no weapongrp do cliente, mas para o servidor ele e
         # Armor -- sem excecao: os 95 escudos deste cliente sao todos Armor no
@@ -1050,7 +1170,13 @@ def campos_do_servidor(itens, grupo, linha):
             dados["tipo"] = "Armor"
             dados["armor_type"] = ""
         tipo = ARMA_DO_CLIENTE.get(_inteiro(campo("weapon_type"), -1), "NONE")
-        if _inteiro(campo("handness"), 1) >= 2:
+        # O BIGSWORD/BIGBLUNT so existe na geracao antiga. Do Gracia Final em
+        # diante quem diz que a arma e de duas maos e a parte do corpo
+        # (`lrhand`), e o tipo continua SWORD: cruzando o High Five com o
+        # datapack dele, as 857 armas de weapon_type 1 sao SWORD sem excecao, e
+        # subir 401 macas para BIGBLUNT era inventar um tipo que aquele servidor
+        # nao conhece.
+        if not escala_da_parte(tabela) and _inteiro(campo("handness"), 1) >= 2:
             tipo = ARMA_DE_DUAS_MAOS.get(tipo, tipo)
         dados["weapon_type"] = "" if tipo == "NONE" else tipo
         for chave, coluna in (("random_damage", "random_damage"),
@@ -1060,8 +1186,7 @@ def campos_do_servidor(itens, grupo, linha):
             valor = campo(coluna, "") or ""
             dados[chave] = "" if _inteiro(valor, 0) == 0 else valor
     elif grupo == "armor":
-        dados["bodypart"] = PARTE_DA_ARMADURA.get(
-            _inteiro(campo("body_part"), -1), "chest")
+        dados["bodypart"] = parte_do_corpo(tabela, linha, grupo)
         tipo = ARMADURA_DO_CLIENTE.get(_inteiro(campo("armor_type"), -1), "NONE")
         dados["armor_type"] = "" if tipo == "NONE" else tipo
     else:
@@ -1085,7 +1210,10 @@ ORDEM_DOS_CAMPOS = ("default_action", "weapon_type", "armor_type",
                     "oncast_skill", "oncast_chance",
                     "is_stackable", "is_tradable", "is_dropable",
                     "is_sellable", "is_destroyable", "is_depositable",
-                    "is_oly_restricted", "handler", "duration")
+                    "is_oly_restricted", "handler", "duration",
+                    # Do Kamael em diante: diz que o item aceita pedra de
+                    # atributo. Sao 1.110 itens no datapack do High Five.
+                    "element_enabled")
 
 # As skills que um item carrega. Nao ha `<skill>` dentro de `<item>` neste
 # core -- sao `<set>`, com o valor escrito "id-nivel".
@@ -1116,7 +1244,7 @@ _EXCLUSIVOS = set(c for campos in CAMPOS_DO_TIPO.values() for c in campos)
 
 
 def xml_servidor(ident, nome, grupo, id_base, campos=None, estados=(),
-                 tipo=None):
+                 tipo=None, extras="", sets_de_fora=None, do_servidor=()):
     """
     O item em XML, no formato do aCis.
 
@@ -1128,6 +1256,24 @@ def xml_servidor(ident, nome, grupo, id_base, campos=None, estados=(),
     {operacao, estado, valor}, que vira o bloco <for>. Campo vazio nao e
     escrito: o servidor tem padrao para todos, e escrever "" onde ele espera um
     numero derruba o carregamento.
+
+    `extras` e o que o item tinha no servidor e esta tela nao edita -- a
+    condicao de uso, o bonus de conjunto, o que o core daquele pack inventou.
+    Vem de `l2servidor.extras_do_corpo` e sai aqui igual ao que entrou: um item
+    regravado sem isso perde a condicao de raca ou de classe e passa a servir a
+    qualquer um, sem nada avisando.
+
+    `sets_de_fora` sao os `<set>` do servidor que esta tela nao mostra. Cada
+    cronica trouxe campo novo -- o `element_enabled` do atributo, o
+    `is_premium`, o `attack_range` -- e a tela conhece os de sempre. Escrever so
+    os conhecidos fazia o item voltar ao servidor sem icone e sem alcance.
+
+    `do_servidor` sao os nomes que vieram lidos de la. O filtro de
+    `CAMPOS_DO_TIPO` existe para o item NOVO, que herda colunas do grupo do
+    cliente e nao deveria sair com tiro dentro de uma armadura; para o item que
+    ja estava no servidor ele estava atrapalhando -- no High Five ha armadura
+    com `enchant4_skill` e ha EtcItem com `weapon_type`, e regravar apagava
+    justamente isso.
     """
     linhas = ['<?xml version="1.0" encoding="UTF-8"?>', '<list>']
     linhas.append('\t<!-- Gerado pelo L2PackTool. Item base copiado no '
@@ -1140,11 +1286,20 @@ def xml_servidor(ident, nome, grupo, id_base, campos=None, estados=(),
                   % (ident, tipo, _escapar(nome or ("Item %s" % ident))))
 
     do_tipo = CAMPOS_DO_TIPO.get(tipo, ())
+    escritos = set()
     for chave in ORDEM_DOS_CAMPOS:
-        if chave in _EXCLUSIVOS and chave not in do_tipo:
+        if (chave in _EXCLUSIVOS and chave not in do_tipo
+                and chave not in do_servidor):
             continue
         valor = str(campos.get(chave, "")).strip()
         if valor:
+            escritos.add(chave)
+            linhas.append('\t\t<set name="%s" val="%s" />'
+                          % (chave, _escapar(valor)))
+
+    for chave, valor in (sets_de_fora or {}).items():
+        valor = str(valor).strip()
+        if valor and chave not in escritos and chave != "tipo":
             linhas.append('\t\t<set name="%s" val="%s" />'
                           % (chave, _escapar(valor)))
 
@@ -1162,6 +1317,11 @@ def xml_servidor(ident, nome, grupo, id_base, campos=None, estados=(),
                           % (operacao, ordem, entrada.get("estado", ""),
                              str(entrada.get("valor", "")).strip()))
         linhas.append('\t\t</for>')
+
+    if extras:
+        import l2servidor
+
+        linhas.append(l2servidor.recuar(extras, "\t\t"))
 
     linhas.append('\t</item>')
     linhas.append('</list>')

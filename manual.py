@@ -58,6 +58,7 @@ PAGINAS = (
     ("video", N_("Lobby Vídeo")),
     ("itens", N_("Itens")),
     ("skills", N_("Habilidades")),
+    ("textos", N_("Textos")),
     ("glow", N_("Glow")),
     ("multisell", N_("Multisell")),
     ("mob", N_("Mob")),

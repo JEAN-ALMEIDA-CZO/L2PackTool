@@ -1548,6 +1548,75 @@ banco, volta da tabela `weapon`/`armor`/`etcitem`, com as colunas de combate
 (`p_dam`, `p_def`, `critical`) convertidas de volta para o bloco de status — que
 é onde o XML as põe.
 
+### O que a tela não mostra volta como estava
+
+Um item do servidor costuma ter mais do que campos: condição de uso (`<cond>`),
+bônus de encantamento (`<enchant>`), o que o core daquele pack inventou. Medido
+no datapack do High Five: **41% dos 19.202 itens**, **77% das 8.139
+habilidades** e **todos os 10.469 NPCs** têm filho que não é `<set>`.
+
+Antes, regravar um item trazido do servidor apagava essas partes — o arquivo saía
+com os campos certos e sem o que fazia o item ser daquela classe. Agora eles são
+lidos e devolvidos iguais, junto com os `<set>` que a tela não oferece (`icon`,
+`attack_range`, `element_enabled`). A linha de situação diz quantos blocos ficaram
+guardados.
+
+A prova é a ida e volta, no datapack de verdade: os 19.202 itens e as 8.139
+habilidades do High Five voltam inteiros, e os 9.461 itens e 2.702 habilidades do
+Interlude também.
+
+Um detalhe que apareceu no caminho: o `<set>` aparece em **dois papéis** dentro
+do mesmo item — campo do item, no corpo, e bônus do encantamento, dentro do
+`<enchant>`. São 16 mil desses no High Five, e lê-los como se fossem a mesma
+coisa punha o bônus do +4 na tela no lugar do dano da arma.
+
+### Conjunto de armadura
+
+O botão **Conjunto…**, no rodapé, faz as duas metades — porque mexer numa só é o
+erro clássico: o texto aparece no inventário e o bônus não vem, ou o bônus vem e
+nada explica por quê.
+
+| Lado | O que guarda | Onde |
+| --- | --- | --- |
+| cliente | a lista de peças e o **texto** do bônus | `itemname-e.dat` |
+| servidor | a **habilidade** que o conjunto concede | `armorsets/` ou `armorSets.xml` |
+
+A lista fica **numa peça só**, que costuma ser o peitoral. Isso foi contado antes
+de escrever igual: das 207 linhas com conjunto do High Five, 195 têm o próprio id
+como primeiro da lista, e só 8 das 691 peças apontadas por alguma lista levam
+lista própria. Escrever em todas seria inventar um dado que o jogo não tem.
+
+O cliente guarda isso de duas formas, e a tela lida com as duas: do C5 ao Gracia
+Part 2 é uma coluna de texto (`a,23,2386,43\0`); do Gracia Final em diante é uma
+coluna por peça, com um contador ao lado. No C3 e no C4 a coluna não existe — a
+janela diz isso em vez de abrir sem ter o que gravar.
+
+Do lado do servidor, a forma do XML não se escolhe em menu: o programa lê a pasta
+do servidor do projeto e vê qual está lá — o `<set id=…>` do L2J, com um filho por
+parte do corpo, ou a linha `<armorset …/>` do aCis.
+
+### A parte do corpo, que mudou de significado no Gracia Final
+
+O `body_part` do cliente é um número, e do **Gracia Final** em diante os números
+passaram a querer dizer outra coisa: o 10, que era peitoral, virou o cabelo
+inteiro; o 21 passou a ser o peitoral. O tipo de arma mudou junto — o 7, que era
+a mão direita, virou as duas mãos — e apareceram rapieira, besta, espada
+ancestral, adaga dupla, sigil, S80 e S84.
+
+O mapa que o programa tinha era o do Interlude. Medido cruzando o cliente do High
+Five com o datapack dele, item por item:
+
+| campo | antes | agora |
+| --- | ---: | ---: |
+| parte do corpo (armadura) | 20% | **86%** |
+| parte do corpo (arma) | 2% | **96%** |
+| tipo de arma | 66% | **99,2%** |
+
+Qual dos dois mapas vale se decide **olhando a tabela** — valor de 20 para cima só
+existe na escala nova — e não pelo nome da crônica. Amarrar no nome obrigaria a
+lembrar deste detalhe a cada núcleo novo, e o esquecimento não daria erro: daria
+parte do corpo errada, que passa despercebida até alguém tentar equipar.
+
 ### O ícone na tela
 
 Procurar "Long Sword" numa lista de 9.534 linhas é uma coisa; ver a espada é
@@ -1989,6 +2058,68 @@ a base correta; isso se acrescenta por cima.
 
 O botão **Manual** abre o texto que acompanha o preenchimento campo a campo,
 com a tabela dos tipos de efeito e o que cada um significa.
+
+---
+
+## A aba "Textos"
+
+Tudo o que o jogo escreve na tela e nao e nome de item nem de habilidade mora em
+tres tabelas do `system`:
+
+| Arquivo | O que guarda | Exemplo |
+| --- | --- | --- |
+| `systemmsg-e.dat` | mensagem do sistema | `You have been disconnected from the server.` |
+| `sysstring-e.dat` | texto da interface | `Equipment`, `Quest Item` |
+| `npcstring-e.dat` | fala de NPC com variavel dentro | `Hello! I am $s1.` |
+
+Sao **11.499 textos** num cliente do High Five e **3.764** num do C5. O
+`npcstring-e` so existe da Freya em diante; onde ele nao existe, a tela diz isso
+e trabalha com os outros dois.
+
+Quem monta servidor mexe nisso por dois motivos: **traduzir** e **trocar o que o
+jogo diz pelo que o servidor dele diz** -- o nome do servidor na mensagem de
+entrada, a explicacao de um sistema proprio, o aviso de um evento.
+
+### A busca e o centro da tela
+
+Onze mil linhas nao se percorrem rolando. Escreva na busca o texto **como ele
+aparece no jogo** -- "disconnected", "Equipment" -- e a lista se fecha em torno
+dele. O campo tambem aceita o id. Ao lado: **tabela**, que limita a uma das tres,
+e **so as que tem $s1**, que mostra apenas as frases com marca.
+
+### A marca vale mais que o texto
+
+`$s1`, `$s2`, `$c1` sao os **buracos onde o servidor encaixa** numero, nome de
+jogador ou item:
+
+```
+The server will be coming down in $s1 second(s).
+```
+
+O servidor manda o `60`; o cliente escreve `60` no lugar do `$s1`. Sao 1.135
+frases com marca no High Five.
+
+Reescrever a frase **sem a marca** nao da erro em lugar nenhum: ela continua
+aparecendo, so chega sem o dado que anunciava. Por isso a tela conta as marcas
+antes e depois, e pergunta quando alguma se perde.
+
+### O resto da linha nao e mexido
+
+Cor, som e grupo ficam como estao. So a mensagem de sistema tem **segunda
+linha** (o que o jogo escreve embaixo da principal); nas outras duas o campo
+fica apagado, em vez de aceitar texto que nao iria a lugar nenhum.
+
+### Aplicar, gerar, instalar
+
+Tres passos, separados de proposito: **Aplicar** guarda na memoria; **Gerar as
+tabelas** escreve os `.dat` em `textos_gerados`; **Instalar no cliente** copia
+para o `system`, guardando os originais em `system/backup_textos` na primeira
+vez. **Restaurar originais** os traz de volta.
+
+Ao carregar, cada tabela e aberta, remontada e comparada byte a byte com o
+binario original -- as tres voltam identicas em onze clientes daqui, de C3 a High
+Five. O Interlude entrou sem essa prova, porque nao ha cliente dele extraido
+aqui, e o programa nao diz o contrario.
 
 ---
 

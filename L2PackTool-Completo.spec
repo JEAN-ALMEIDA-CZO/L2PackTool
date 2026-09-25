@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = ['motor', 'l2npc', 'gui_npc', 'idioma', 'ajuda', 'gui_arquivos', 'l2anim', 'l2mapa', 'l2seq', 'l2criar', 'gui_video', 'l2conferir', 'gui_conferir', 'l2item', 'gui_item', 'rolagem', 'manual', 'l2skill', 'gui_skill', 'l2icone', 'gui_icone', 'l2servidor', 'l2mundo', 'gui_mundo', 'gui_arma', 'l2glow', 'gui_glow', 'l2env', 'l2multisell', 'gui_multisell', 'l2mob', 'gui_mob', 'tema', 'projeto', 'gui_projeto', 'versao']
+hiddenimports = ['motor', 'l2npc', 'gui_npc', 'idioma', 'ajuda', 'gui_arquivos', 'l2anim', 'l2mapa', 'l2seq', 'l2criar', 'gui_video', 'l2conferir', 'gui_conferir', 'l2item', 'gui_item', 'rolagem', 'manual', 'l2skill', 'gui_skill', 'l2icone', 'gui_icone', 'l2servidor', 'l2mundo', 'gui_mundo', 'gui_arma', 'l2glow', 'gui_glow', 'l2env', 'l2multisell', 'gui_multisell', 'l2mob', 'gui_mob', 'tema', 'projeto', 'gui_projeto', 'versao', 'l2conjunto', 'l2mensagem', 'gui_texto']
 hiddenimports += collect_submodules('PIL')
 
 
@@ -9,7 +9,7 @@ a = Analysis(
     ['gui.py'],
     pathex=[],
     binaries=[],
-    datas=[('motor.py', '.'), ('l2npc.py', '.'), ('l2chaves.py', '.'), ('l2texto.py', '.'), ('l2cronica.py', '.'), ('l2compat.py', '.'), ('l2ia.py', '.'), ('l2anima.py', '.'), ('l2cripto.py', '.'), ('l2protecao.py', '.'), ('gui_protecao.py', '.'), ('gui_ia.py', '.'), ('gui_npc.py', '.'), ('gui_arquivos.py', '.'), ('gui_video.py', '.'), ('l2anim.py', '.'), ('l2mapa.py', '.'), ('l2seq.py', '.'), ('l2criar.py', '.'), ('l2conferir.py', '.'), ('gui_conferir.py', '.'), ('l2item.py', '.'), ('gui_item.py', '.'), ('rolagem.py', '.'), ('manual.py', '.'), ('l2skill.py', '.'), ('gui_skill.py', '.'), ('l2icone.py', '.'), ('gui_icone.py', '.'), ('l2servidor.py', '.'), ('l2mundo.py', '.'), ('gui_mundo.py', '.'), ('gui_arma.py', '.'), ('l2glow.py', '.'), ('gui_glow.py', '.'), ('l2env.py', '.'), ('l2multisell.py', '.'), ('gui_multisell.py', '.'), ('l2mob.py', '.'), ('gui_mob.py', '.'), ('tema.py', '.'), ('projeto.py', '.'), ('gui_projeto.py', '.'), ('versao.py', '.'), ('idioma.py', '.'), ('ajuda.py', '.'), ('recursos', 'recursos'), ('idiomas', 'idiomas'), ('ferramentas', 'ferramentas')],
+    datas=[('motor.py', '.'), ('l2npc.py', '.'), ('l2chaves.py', '.'), ('l2texto.py', '.'), ('l2cronica.py', '.'), ('l2compat.py', '.'), ('l2ia.py', '.'), ('l2anima.py', '.'), ('l2cripto.py', '.'), ('l2protecao.py', '.'), ('gui_protecao.py', '.'), ('gui_ia.py', '.'), ('gui_npc.py', '.'), ('gui_arquivos.py', '.'), ('gui_video.py', '.'), ('l2anim.py', '.'), ('l2mapa.py', '.'), ('l2seq.py', '.'), ('l2criar.py', '.'), ('l2conferir.py', '.'), ('gui_conferir.py', '.'), ('l2item.py', '.'), ('gui_item.py', '.'), ('rolagem.py', '.'), ('manual.py', '.'), ('l2skill.py', '.'), ('gui_skill.py', '.'), ('l2icone.py', '.'), ('gui_icone.py', '.'), ('l2servidor.py', '.'), ('l2mundo.py', '.'), ('gui_mundo.py', '.'), ('gui_arma.py', '.'), ('l2glow.py', '.'), ('gui_glow.py', '.'), ('l2env.py', '.'), ('l2multisell.py', '.'), ('gui_multisell.py', '.'), ('l2mob.py', '.'), ('gui_mob.py', '.'), ('tema.py', '.'), ('projeto.py', '.'), ('gui_projeto.py', '.'), ('versao.py', '.'), ('idioma.py', '.'), ('ajuda.py', '.'), ('l2conjunto.py', '.'), ('l2mensagem.py', '.'), ('gui_texto.py', '.'), ('recursos', 'recursos'), ('idiomas', 'idiomas'), ('ferramentas', 'ferramentas')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

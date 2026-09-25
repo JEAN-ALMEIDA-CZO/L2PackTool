@@ -12,7 +12,10 @@
     "npcgrp",
     "npcname-e"
   ],
-  "nao_provadas": [],
+  "nao_provadas": [
+    "systemmsg-e",
+    "sysstring-e"
+  ],
   "conferido_em": "2026-09-16",
   "cliente_usado": "Lineage II - Chronicle Interlude - NOVA"
 }

@@ -21,6 +21,7 @@ cliente. Tudo numa janela só, em português, inglês e espanhol.
 | **NPC com efeito** | põe um efeito visual num NPC, ajusta altura e osso, e escreve a XML do servidor |
 | **Itens** | cria arma, armadura ou consumível copiando um do cliente — nome, destaque, ícone, status e skills |
 | **Habilidades** | o mesmo do lado das skills, com a tabela do cliente e a XML do servidor |
+| **Textos** | as frases do cliente: mensagem de sistema, texto de interface e fala de NPC |
 | **Glow** | o brilho das armas, e cópia de arma com o glow escolhido |
 | **Multisell** | as lojas, lendo os itens do cliente |
 | **Mob** | os monstros: status, drop e spawn |

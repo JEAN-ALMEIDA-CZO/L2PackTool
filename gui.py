@@ -2032,6 +2032,20 @@ def montar(raiz):
             ttk.Label(aviso, padding=20, justify="left", foreground=tema.ATENCAO,
                       text=t("A aba de habilidades não carregou:\n\n%s") % e).pack()
 
+        # Textos anda junto: e a mesma familia de tabela e o mesmo caminho --
+        # abrir, mexer, gerar, instalar. Quem traduz um item costuma querer
+        # traduzir a mensagem que fala dele.
+        try:
+            import gui_texto
+            aba_texto = rolagem.Area(abas)
+            abas.add(aba_texto, text=t("  Textos  "))
+            abertas.append(gui_texto.JanelaTexto(raiz, aba_texto.dentro))
+        except Exception as e:
+            aviso = ttk.Frame(abas)
+            abas.add(aviso, text=t("  Textos  "))
+            ttk.Label(aviso, padding=20, justify="left", foreground=tema.ATENCAO,
+                      text=t("A aba de textos não carregou:\n\n%s") % e).pack()
+
         # O glow vem depois das habilidades porque le as mesmas tabelas de
         # item: quem chega ate aqui ja tem o cliente aberto e as armas listadas.
         try:

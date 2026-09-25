@@ -11,7 +11,9 @@
     "skillgrp",
     "skillname-e",
     "weapongrp",
-    "transformdata"
+    "transformdata",
+    "systemmsg-e",
+    "sysstring-e"
   ],
   "nao_provadas": [],
   "conferido_em": "2026-09-23",

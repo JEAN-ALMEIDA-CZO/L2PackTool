@@ -88,6 +88,13 @@ class JanelaSkill:
         self.base = None
         self.campos = {}
         self.estados = []
+        # O `<effects>` e os `<enchantN>` do servidor, que esta tela nao edita.
+        # Ficam guardados como texto e voltam iguais na geracao: sem isso,
+        # regravar uma habilidade a deixaria sem efeito nenhum.
+        self.extras = ""
+        # E os `<set>` que esta tela nao mostra -- `targetType`, `abnormalType`,
+        # o que cada cronica trouxe. Tambem voltam como estao.
+        self.sets_de_fora = {}
         # "editar" ou "nova". A tela inteira depende disto, e o usuario le o
         # modo no alto do painel em vez de deduzi-lo dos campos.
         self.modo = "editar"
@@ -315,18 +322,32 @@ class JanelaSkill:
         ttk.Entry(aba, textvariable=self.ate_o_nivel, width=12).grid(
             row=4, column=1, sticky="w", padx=(6, 0), pady=(6, 0))
 
+        # As rotas de encantamento ficam de fora por padrao. Elas apontam para a
+        # habilidade parceira do original, e copiadas fazem o cliente oferecer
+        # um encantamento que o servidor novo nao tem.
+        self.com_rotas = tk.BooleanVar(value=False)
+        self.caixa_de_rotas = ttk.Checkbutton(
+            aba, variable=self.com_rotas,
+            text=t("copiar também as rotas de encantamento"))
+        self.caixa_de_rotas.grid(row=5, column=0, columnspan=3, sticky="w",
+                                 pady=(6, 0))
+
         self.substituir = tk.BooleanVar(value=False)
         ttk.Checkbutton(aba, variable=self.substituir,
                         text=t("substituir se o id já existir")).grid(
-            row=5, column=0, columnspan=3, sticky="w", pady=(10, 0))
+            row=6, column=0, columnspan=3, sticky="w", pady=(10, 0))
 
         canto = ttk.Frame(aba)
-        canto.grid(row=6, column=0, columnspan=3, sticky="w", pady=(10, 0))
+        canto.grid(row=7, column=0, columnspan=3, sticky="w", pady=(10, 0))
         ajuda.ajuda(canto, lambda: t(
             "O id acima de 90000 fica longe da faixa do jogo e das rotas de "
             "encantamento, que ocupam os 50000.\n\n"
             "Copiar até o nível corta a cópia: em branco, leva todos os "
-            "níveis da habilidade base."))
+            "níveis da habilidade base.\n\n"
+            "As rotas de encantamento são níveis a partir do 101 da mesma "
+            "habilidade, e apontam para a habilidade parceira do original. "
+            "Copiá-las faz o cliente oferecer um encantamento que o servidor "
+            "novo não tem -- por isso ficam de fora, a menos que você marque."))
         return aba
 
     def _montar_xml(self, pai):
@@ -677,10 +698,25 @@ class JanelaSkill:
         if not escolhido:
             return
         h = self.mostrados[int(escolhido[0])]
+        # Trocar de habilidade apaga o que veio do servidor da anterior: o
+        # efeito de uma nao e o da outra.
+        if self.base is not h:
+            self.extras = ""
+            self.sets_de_fora = {}
         self.base = h
+        # As rotas entram no rotulo quando existem: e a diferenca entre "37
+        # niveis" e "37 niveis e 210 linhas de rota", e quem copia precisa saber
+        # o que esta deixando de fora.
         self.rotulo_base.config(
-            text=t("Da lista: %s, id %s, %d níveis")
-            % (h["nome"] or t("sem nome"), h["id"], h["niveis"]))
+            text=t("Da lista: %s, id %s, %d níveis%s")
+            % (h["nome"] or t("sem nome"), h["id"], h["niveis"],
+               (t(", e %d níveis de rota de encantamento") % h["rotas"])
+               if h.get("rotas") else ""))
+        caixa = getattr(self, "caixa_de_rotas", None)
+        if caixa is not None:
+            caixa.config(state="normal" if h.get("rotas") else "disabled")
+            if not h.get("rotas"):
+                self.com_rotas.set(False)
         if self.modo == "editar":
             self.novo_id.set(h["id"])
             self.novo_nome.set(h["nome"])
@@ -921,20 +957,29 @@ class JanelaSkill:
 
         self.aplicar_do_servidor(achado)
         aviso = achado.get("aviso") or ""
+        guardados = (l2servidor.quantos_extras(self.extras)
+                     + len(self.sets_de_fora))
         self.situacao_servidor.config(
-            text=t("Trazido o %s, de %s. %d campos, %d status.%s")
+            text=t("Trazido o %s, de %s. %d campos, %d status.%s%s")
             % (alvo, achado["arquivo"].name, len(achado["campos"]),
                len(achado["estados"]),
+               (" " + t("%d bloco(s) que a tela não edita ficam guardados "
+                        "e voltam na regravação.") % guardados)
+               if guardados else "",
                (" " + t("Atenção: %s.") % aviso) if aviso else ""))
         self.log(t("  lido %s de %s") % (alvo, achado["arquivo"].name))
 
     def aplicar_do_servidor(self, achado):
         """Poe no formulario o que veio do servidor."""
+        self.sets_de_fora = {}
         for chave, valor in (achado.get("campos") or {}).items():
             if chave in self.campos:
                 self.campos[chave].set(valor)
+            else:
+                self.sets_de_fora[chave] = valor
         self.estados = [dict(e) for e in (achado.get("estados") or [])]
         self._refazer_estados()
+        self.extras = achado.get("extras") or ""
 
     # ---- os status -------------------------------------------------------
     def acrescentar_estado(self):
@@ -1041,7 +1086,8 @@ class JanelaSkill:
         return l2skill.xml_servidor(ident, self.novo_nome.get().strip(),
                                     self.base["id"], self._quantos_niveis(),
                                     campos=campos, estados=self.estados,
-                                    avisos=avisos)
+                                    avisos=avisos, extras=self.extras,
+                                    sets_de_fora=self.sets_de_fora)
 
     def conferir_os_niveis(self):
         """
@@ -1157,7 +1203,8 @@ class JanelaSkill:
                                descricao=self.nova_descricao.get().strip(),
                                icone=self.novo_icone.get().strip(),
                                ate_o_nivel=int(corte) if corte.isdigit() else None,
-                               substituir=self.substituir.get())
+                               substituir=self.substituir.get(),
+                               com_rotas=self.com_rotas.get())
             try:
                 gravados = self.skills.gravar(self.saida(), aolog=anotar)
             except Exception:

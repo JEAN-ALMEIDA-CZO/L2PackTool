@@ -9,6 +9,84 @@ continua abrindo.
 
 ---
 
+## 1.10.0 — 25/09/2026
+
+**Aba "Textos".** As frases que o jogo escreve na tela passaram a ser editáveis
+no programa: `systemmsg-e` (mensagem de sistema), `sysstring-e` (texto de
+interface) e `npcstring-e` (fala de NPC, da Freya em diante). São 11.499 textos
+num cliente do High Five e 3.764 num do C5.
+
+A busca é o centro da tela — onze mil linhas não se percorrem rolando — e
+procura pelo texto como ele aparece no jogo. As três tabelas voltam **idênticas
+ao original** em onze clientes daqui, de C3 a High Five; o Interlude entrou sem
+essa prova, porque não há cliente dele extraído aqui, e o núcleo dele diz isso.
+
+A marca (`$s1`, `$c1`) é o buraco onde o servidor encaixa número, nome ou item.
+Tirar uma não dá erro em lugar nenhum: a frase aparece sem o dado que
+anunciava. Por isso a tela conta as marcas antes e depois, e pergunta quando
+alguma se perde.
+
+**Conjunto de armadura.** Botão novo na aba de Itens, com as duas metades do
+assunto: a lista de peças e o texto do bônus vão para o `itemname-e`; a
+habilidade que o conjunto concede sai em XML, na forma que a pasta do servidor
+mostrar (`<set id=…>` do L2J ou `<armorset …/>` do aCis).
+
+A lista fica numa peça só, que costuma ser o peitoral — contado antes de
+escrever igual: das 207 linhas com conjunto do High Five, 195 têm o próprio id
+como primeiro da lista. O cliente guarda isso de duas formas (coluna de texto
+até o Gracia Part 2, coluna por peça do Gracia Final em diante) e a tela lida
+com as duas; no C3 e no C4 a coluna não existe, e a janela diz isso.
+
+**Correção: regravar um item do servidor apagava parte dele.** A leitura só
+enxergava os `<set>`, então condição de uso, bônus de encantamento e o que o
+core do pack inventou se perdiam na volta. Medido no datapack do High Five: 41%
+dos 19.202 itens, 77% das 8.139 habilidades e todos os 10.469 NPCs têm filho
+que não é `<set>`.
+
+Agora tudo isso volta igual, com os `<set>` que a tela não oferece. A prova é a
+ida e volta no datapack de verdade — os 19.202 itens e as 8.139 habilidades do
+High Five voltam inteiros, e os 9.461 itens e 2.702 habilidades de um Interlude
+também.
+
+No caminho apareceu outro defeito: o `<set>` tem **dois papéis** dentro do mesmo
+item — campo do item, no corpo, e bônus do encantamento, dentro do `<enchant>`.
+São 16 mil desses no High Five, e lê-los como a mesma coisa punha o bônus do +4
+no lugar do dano da arma.
+
+**Correção: a parte do corpo estava errada do Gracia Final em diante.** O
+`body_part` é um número, e os números mudaram de significado: o 10, que era
+peitoral, virou o cabelo inteiro. O tipo de arma mudou junto — o 7, que era a
+mão direita, virou as duas mãos — e apareceram rapieira, besta, espada
+ancestral, adaga dupla, sigil, S80 e S84.
+
+Medido cruzando o cliente do High Five com o datapack dele, item por item:
+
+| campo | antes | agora |
+| --- | ---: | ---: |
+| parte do corpo (armadura) | 20% | **86%** |
+| parte do corpo (arma) | 2% | **96%** |
+| tipo de arma | 66% | **99,2%** |
+
+Qual mapa vale se decide olhando a tabela — valor de 20 para cima só existe na
+escala nova — e não pelo nome da crônica.
+
+**Correção: a contagem de níveis somava as rotas de encantamento.** A rota é
+nível 101, 201, 301 da mesma habilidade; somando tudo, a habilidade 1 aparecia
+com 247 níveis em vez de 37, e esse número ia direto para o `levels` do XML —
+servidor prometendo nível que o cliente não desenha. Contra o datapack: 7.576
+habilidades certas antes, **8.102 de 8.136** agora.
+
+As rotas também deixaram de ser copiadas por padrão. Elas apontam para a
+habilidade parceira do original, e copiadas fazem o cliente oferecer um
+encantamento que o servidor novo não tem. Quem quiser levá-las marca a caixa.
+
+**O campo de atributo, onde ele existe.** `element_enabled` entrou na aba de
+Itens a partir do Kamael — medido no próprio cliente: o `systemmsg-e` do C3, do
+C4 e do C5 não tem uma única mensagem que fale de atributo; o do Kamael tem
+onze, o do High Five, vinte e seis.
+
+---
+
 ## 1.9.0 — 25/09/2026
 
 **High Five.** Décimo quarto núcleo — o programa vai de C1 ao High Five. As

@@ -23,7 +23,7 @@ from pathlib import Path
 # nome, em vez do nome de quem fez o lobby.
 NOME = "L2PackTool"
 
-VERSAO = (1, 9, 0, 0)
+VERSAO = (1, 10, 0, 0)
 TEXTO = ".".join(str(n) for n in VERSAO)
 
 BASE = Path(__file__).parent

@@ -20,6 +20,7 @@ de bater com quantos niveis o cliente tem, ou o jogador ganha um nivel que o
 cliente nao sabe desenhar.
 """
 
+import re
 import shutil
 from pathlib import Path
 
@@ -43,6 +44,17 @@ NIVEIS_DE_AVISO = 100
 # rotas de encantamento ocupam os 50.000 -- 90.000 fica livre nos clientes que
 # vi, e e o que a comunidade costuma usar para habilidade propria.
 PRIMEIRO_ID_LIVRE = 90000
+
+# A rota de encantamento nao e uma habilidade a parte: sao NIVEIS altos da mesma
+# habilidade. A primeira rota ocupa 101, 102, 103...; a segunda, 201; e assim por
+# diante -- no High Five ha oito rotas, ate a casa dos 800.
+#
+# Isso importa porque o `levels` do XML tem de ser o numero de niveis DE VERDADE.
+# Conferido contra os datapacks: contando todas as linhas, a contagem bate em
+# 93% das 8.136 habilidades do High Five; contando so os niveis abaixo de 100,
+# bate em 99,6%. A habilidade 1, que o servidor declara com 37 niveis, tem 247
+# linhas no cliente -- as outras 210 sao rotas.
+PRIMEIRO_NIVEL_DE_ROTA = 101
 
 
 class ErroDeSkill(Exception):
@@ -103,26 +115,51 @@ class Skills:
 
         A lista por nivel teria 42.019 linhas e a mesma habilidade repetida
         quarenta vezes; ninguem procura assim.
+
+        `niveis` conta so os niveis de verdade. As rotas de encantamento moram
+        na mesma habilidade, em niveis a partir de 101, e somar tudo dava uma
+        habilidade de 37 niveis com "247" escrito ao lado -- numero que ia
+        direto para o `levels` do XML e fazia o servidor prometer nivel que o
+        cliente nao desenha. Elas vao em `rotas`, contadas a parte.
         """
         nomes = self.nomes()
         tabela = self.tabelas["skill"]
         por_id = {}
         for linha in tabela.linhas:
             ident = linha[0]
+            nivel = _inteiro(linha[COLUNA_NIVEL["skill"]], 0)
+            e_rota = nivel >= PRIMEIRO_NIVEL_DE_ROTA
             entrada = por_id.get(ident)
             if entrada is None:
                 nome, descricao = nomes.get(ident, ("", ""))
-                por_id[ident] = {
+                entrada = por_id[ident] = {
                     "id": ident,
                     "nome": nome,
                     "descricao": descricao,
                     "icone": tabela.campo(linha, "icon_name"),
-                    "niveis": 1,
+                    "niveis": 0,
+                    "rotas": 0,
                     "linha": linha,
                     "tipo": _tipo_legivel(tabela, linha),
+                    "_linha_de_rota": e_rota,
                 }
+            if e_rota:
+                entrada["rotas"] += 1
             else:
                 entrada["niveis"] += 1
+                # A linha de referencia tem de ser de um nivel de verdade: e
+                # dela que saem o icone e o modo. Se a primeira linha vista foi
+                # de rota, esta a substitui.
+                if entrada["_linha_de_rota"]:
+                    entrada["linha"] = linha
+                    entrada["_linha_de_rota"] = False
+                    entrada["icone"] = tabela.campo(linha, "icon_name")
+                    entrada["tipo"] = _tipo_legivel(tabela, linha)
+        for entrada in por_id.values():
+            # Habilidade que so tem rota -- existe, nas faixas de 50.000 -- nao
+            # pode aparecer com zero nivel: o XML sairia com `levels="0"`.
+            entrada["niveis"] = max(1, entrada["niveis"])
+            entrada.pop("_linha_de_rota", None)
         return sorted(por_id.values(), key=lambda s: _inteiro(s["id"]))
 
     def por_id(self, ident):
@@ -147,13 +184,19 @@ class Skills:
 
     # -- escrita -----------------------------------------------------------
     def clonar(self, id_base, id_novo, nome="", descricao="", icone="",
-               ate_o_nivel=None, substituir=False):
+               ate_o_nivel=None, substituir=False, com_rotas=False):
         """
         Copia a habilidade inteira -- todos os niveis, nas duas tabelas.
 
         `ate_o_nivel` corta a copia: uma habilidade de quarenta niveis clonada
-        so ate o quinto fica com cinco. Serve para nao arrastar as rotas de
-        encantamento, que tem milhares.
+        so ate o quinto fica com cinco.
+
+        `com_rotas` decide as rotas de encantamento, e o padrao e NAO leva-las.
+        Elas sao niveis a partir de 101 da mesma habilidade e apontam, no
+        `ench_skill_id`, para a habilidade parceira do ORIGINAL -- copiadas, o
+        cliente passa a oferecer encantamento de uma habilidade que o servidor
+        nao tem, apontando para outra. Sem elas, o `is_ench` tambem e zerado:
+        deixar a marca sem as rotas abriria a janela de encantamento vazia.
         """
         base = self.linhas_de("skill", id_base)
         if not base:
@@ -165,6 +208,16 @@ class Skills:
                 raise ErroDeSkill("o id %s ja existe. Escolha outro, ou mande "
                                   "substituir." % id_novo)
             self.remover(id_novo)
+
+        if not com_rotas:
+            base = [l for l in base
+                    if _inteiro(l[COLUNA_NIVEL["skill"]], 0)
+                    < PRIMEIRO_NIVEL_DE_ROTA]
+            if not base:
+                raise ErroDeSkill(
+                    "a habilidade %s so tem rotas de encantamento (nivel %d "
+                    "para cima). Marque copiar as rotas para leva-las."
+                    % (id_base, PRIMEIRO_NIVEL_DE_ROTA))
 
         if ate_o_nivel:
             base = [l for l in base
@@ -179,6 +232,12 @@ class Skills:
             novo[0] = str(id_novo)
             if icone:
                 tabela.definir(novo, "icon_name", icone)
+            if not com_rotas:
+                for coluna in ("is_ench", "ench_skill_id"):
+                    try:
+                        tabela.definir(novo, coluna, "0")
+                    except Exception:               # noqa: BLE001
+                        pass        # C3 nao tem encantamento de habilidade
             tabela.linhas.append(novo)
             novos.append(novo)
         self.alteradas.add("skill")
@@ -573,7 +632,7 @@ def _apelido(base, usados):
 
 
 def xml_servidor(ident, nome, id_base, niveis=1, campos=None, estados=(),
-                 avisos=None):
+                 avisos=None, extras="", sets_de_fora=None):
     """
     A habilidade em XML, no formato do aCis/L2J.
 
@@ -595,18 +654,52 @@ def xml_servidor(ident, nome, id_base, niveis=1, campos=None, estados=(),
     habilidade ou entrega o nivel errado, e nada avisa. O que nao bater e
     contado em `avisos`, se quem chamou passar uma lista; o XML sai assim
     mesmo, para a previa mostrar o que esta sendo montado.
+
+    **O que esta tela nao edita.** Numa habilidade do L2J, o `<effects>` e os
+    `<enchantN>` sao a maior parte do arquivo -- 77% das habilidades do datapack
+    do High Five tem algo assim. Isso chega em `extras`, vindo do servidor pelo
+    `l2servidor.extras_do_corpo`, e sai igual ao que entrou: regravar sem isso
+    deixaria a habilidade com nome e custo de mana, e sem efeito nenhum.
     """
     quantos = max(1, int(niveis))
     campos = campos or {}
     avisos = avisos if avisos is not None else []
 
     # Primeiro as tabelas: e preciso saber os apelidos antes de escrever os
-    # <set> que apontam para eles.
-    usados = set()
+    # <set> que apontam para eles. Os apelidos que vem nos extras entram como
+    # usados: dar o mesmo nome a duas tabelas faria uma calar a outra, e a
+    # habilidade passaria a usar numeros de outro campo.
+    usados = set(re.findall(r'<table\s+name\s*=\s*"([^"]+)"', extras or "",
+                            re.I))
     tabelas = []
     refs_de_campo = {}
     for chave in ORDEM_DOS_CAMPOS:
         serie = por_nivel(campos.get(chave, ""))
+        if serie is None:
+            continue
+        apelido = _apelido(chave, usados)
+        refs_de_campo[chave] = apelido
+        tabelas.append((apelido, serie))
+        if len(serie) != quantos:
+            avisos.append("%s tem %d valores, e a habilidade tem %d niveis "
+                          "no cliente" % (chave, len(serie), quantos))
+
+    # Os campos que esta tela nao mostra passam pelo mesmo moinho: um
+    # `mpConsume2` lido do servidor vem com um numero por nivel, e escreve-lo
+    # como valor unico poria 37 numeros dentro de um `val=` -- a habilidade
+    # deixaria de carregar.
+    de_fora = dict((chave, str(valor).strip())
+                   for chave, valor in (sets_de_fora or {}).items()
+                   if str(valor).strip() and chave not in ORDEM_DOS_CAMPOS)
+    for chave in sorted(de_fora):
+        # So o espaco vale como progressao aqui. Quem digita quarenta numeros a
+        # mao usa virgula, e por isso `por_nivel` a aceita -- mas um valor que
+        # voltou do servidor com virgula e uma tupla, nao uma progressao: o
+        # `fanRange="0,0,200,180"` de um leque sao quatro medidas, e virar uma
+        # tabela de quatro numeros numa habilidade de 34 niveis a quebraria.
+        if any(s in de_fora[chave] for s in SEPARADORES):
+            continue
+        serie = por_nivel(de_fora[chave])
         if serie is None:
             continue
         apelido = _apelido(chave, usados)
@@ -649,6 +742,11 @@ def xml_servidor(ident, nome, id_base, niveis=1, campos=None, estados=(),
                       % (chave, refs_de_campo.get(chave)
                          or l2item._escapar(valor)))
 
+    for chave in sorted(de_fora):
+        linhas.append('\t\t<set name="%s" val="%s" />'
+                      % (chave, refs_de_campo.get(chave)
+                         or l2item._escapar(de_fora[chave])))
+
     if validos:
         linhas.append('\t\t<for>')
         for i, entrada in enumerate(validos):
@@ -658,6 +756,11 @@ def xml_servidor(ident, nome, id_base, niveis=1, campos=None, estados=(),
                              refs_de_estado.get(i)
                              or str(entrada.get("valor", "")).strip()))
         linhas.append('\t\t</for>')
+
+    if extras:
+        import l2servidor
+
+        linhas.append(l2servidor.recuar(extras, "\t\t"))
 
     linhas.append('\t</skill>')
     linhas.append('</list>')
