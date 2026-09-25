@@ -73,7 +73,7 @@
       <span class="text-5xl font-black tracking-tight ouro" style="font-family:Consolas,monospace">L2</span>
       <div class="text-left">
         <h1 class="text-4xl font-bold leading-none">PackTool</h1>
-        <p class="text-sm" style="color:var(--apagado)">versão 1.7.0</p>
+        <p class="text-sm" style="color:var(--apagado)">versão 1.7.1</p>
       </div>
     </div>
     <p class="text-lg max-w-2xl mx-auto" style="color:var(--fraco)">
@@ -137,11 +137,13 @@
       </div>
       <div class="vidro p-5">
         <h3 class="font-semibold mb-1">Proteção</h3>
-        <p class="text-sm" style="color:var(--fraco)">Fecha as tabelas
-          escolhidas do cliente com uma chave gerada a partir de uma frase
-          sua. Sem ela, ninguém gera arquivo que o seu cliente aceite — e a
-          frase não é guardada em lugar nenhum. Cada arquivo é conferido antes
-          de entrar, e <em>Voltar ao original</em> desfaz tudo.</p>
+        <p class="text-sm" style="color:var(--fraco)">Fecha os arquivos
+          escolhidos do cliente com uma chave gerada a partir de uma frase
+          sua — tabelas, pacotes, e até o que não está cifrado. Sem a frase,
+          ninguém gera arquivo que o seu cliente aceite, e ela não é guardada
+          em lugar nenhum. Cada arquivo é conferido antes de entrar, os
+          <code>.dll</code> ganham impressão digital em vez de cadeado, e
+          <em>Voltar ao original</em> desfaz tudo.</p>
       </div>
       <div class="vidro p-5">
         <h3 class="font-semibold mb-1">Cliente oficial</h3>
@@ -237,7 +239,7 @@ L2PackTool-cli conferir "C:\Lineage II" -o relatorio.txt</code></pre>
   <!-- ---------------------------------------------------- o que mudou -->
   <section class="py-12">
     <h2 class="text-2xl font-bold mb-2">O que mudou desde a 1.0</h2>
-    <p class="mb-7" style="color:var(--fraco)">Quatro rodadas, todas
+    <p class="mb-7" style="color:var(--fraco)">Seis rodadas, todas
       acrescentando: projeto gravado na 1.0 continua abrindo.</p>
 
     <div class="grid sm:grid-cols-2 gap-4">
@@ -279,6 +281,22 @@ L2PackTool-cli conferir "C:\Lineage II" -o relatorio.txt</code></pre>
           Final. E a coluna <code>oper_type</code>, que tem duas escalas e era
           lida com uma terceira: no Gracia mais da metade das habilidades
           aparecia sem tipo, e no C3 as ativas apareciam como passivas.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">1.5 a 1.6 — proteção</h3>
+        <p class="text-sm" style="color:var(--fraco)">A aba nova: fechar o
+          cliente com a sua chave, gerada de uma frase que só você sabe.
+          Escolha por grupos ou arquivo a arquivo; os pacotes podem ser
+          convertidos para o formato que aceita chave; <code>.dll</code> e
+          <code>.exe</code> ficam de fora, com impressão digital no lugar.
+          Nada entra sem ser reaberto e conferido.</p>
+      </div>
+      <div class="vidro p-5">
+        <h3 class="font-semibold mb-1">1.7 — doze crônicas</h3>
+        <p class="text-sm" style="color:var(--fraco)">Gracia Part 1, Part 2,
+          Final e Epilogue entraram, cada uma provada num cliente de verdade.
+          A detecção separa as quatro, inclusive as duas que têm as tabelas
+          de item idênticas.</p>
       </div>
       <div class="vidro p-5">
         <h3 class="font-semibold mb-1">1.1 a 1.4 — a tela</h3>

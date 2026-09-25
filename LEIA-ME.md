@@ -2542,6 +2542,109 @@ para aí. Corrigir a tabela é decisão de quem a editou.
 
 ---
 
+## A aba "Proteção"
+
+Todo cliente de Lineage II guarda as suas tabelas fechadas, e a chave que as
+abre é a mesma em todos eles — está nas ferramentas públicas há vinte anos.
+É por isso que qualquer pessoa abre o `itemname` de qualquer servidor em dois
+cliques, e é isso que esta aba muda.
+
+Ela fecha os arquivos escolhidos com uma chave derivada de **uma frase que só
+o dono sabe**, e escreve essa chave dentro do próprio cliente. Depois disso,
+ninguém produz um arquivo que aquele cliente aceite sem ter a frase.
+
+### O que ela protege, e o que não protege
+
+Isto precisa ficar claro antes de qualquer outra coisa, e está escrito também
+na própria tela:
+
+**Protege a escrita.** Sem a frase, ninguém gera um `itemname-e.dat` que o seu
+cliente vá carregar. Quem quiser trocar uma tabela do seu servidor precisa da
+frase — ou de refazer o cliente inteiro.
+
+**Não protege a leitura**, e nenhum esquema do lado do cliente protegeria.
+Para jogar, o cliente precisa abrir os arquivos, e por isso carrega dentro de
+si o que é necessário para abri-los. Quem tem o seu cliente pode chegar lá —
+este mesmo programa chega em milissegundos.
+
+O que muda é o custo: o servidor sai do *"qualquer um abre com um clique em
+ferramenta pública"* e passa para o *"quem souber procurar"*. É um degrau
+real, e é o único que existe deste lado. Prometer mais seria vender fumaça.
+
+### A frase é a chave
+
+*Gerar chave* sorteia trinta caracteres em grupos de cinco, sem os que se
+confundem ao ler. A mesma frase dá sempre a mesma chave, em qualquer máquina —
+e **a frase não é guardada em lugar nenhum**: nem no programa, nem na
+configuração, nem no cliente.
+
+Isso é escolha, e tem preço: perdida a frase, perde-se a capacidade de gerar
+arquivos novos para aquele cliente. O que já está instalado continua
+funcionando, e o `backup_protecao` também. Guardar num arquivo é oferecido em
+*Salvar…*, e guardar **dentro da pasta do cliente é recusado** — dali o
+arquivo iria junto com o cliente para os jogadores, e a proteção junto com
+ele.
+
+A *marca* mostrada na tela são oito dígitos de cada ponta da chave. Serve para
+conferir que se está usando a chave certa sem precisar mostrar a frase.
+
+### O que dá para proteger
+
+Por grupos — itens, habilidades, NPCs, mundo —, arquivo a arquivo, ou tudo de
+uma vez. O que o botão protege é a união das duas escolhas.
+
+As tabelas (`.dat`) já vêm num formato que aceita chave. Os pacotes (`.utx`,
+`.u`, `.int`) usam um formato **sem chave**: a senha deles é fixa ou sai do
+próprio nome do arquivo, e ali não há chave a trocar. Marcando *converter*,
+eles passam para o formato que aceita chave.
+
+Essa opção vem desligada, e o motivo está na tela: o cliente escolhe o
+decifrador pelo cabeçalho do arquivo e não pela extensão — o que se vê no
+próprio cliente, onde o mesmo `.ini` aparece em dois formatos lado a lado —,
+mas **nenhum cliente original traz `.utx` em formato de chave**. Essa parte
+não tem como ser provada aqui dentro. Converta um arquivo, abra o jogo,
+confira, e só então converta o resto.
+
+### `.dll` e `.exe` são recusados
+
+Quem carrega um `.dll` é o Windows, e não o cliente. O cadeado é lido pelo
+cliente, que decifra antes de usar; o Windows não sabe nada disso. `Engine.dll`
+cifrado não carrega, e o jogo nem abre.
+
+Por isso esses arquivos são recusados **com o motivo**, e não aceitos com um
+aviso: aviso que quebra o cliente de quem o ignorou não serve para nada.
+
+No lugar, a aba guarda a **impressão digital** de cada `.dll` e `.exe` num
+arquivo — fora do cliente, e gravar dentro é recusado pela mesma razão de
+antes. Depois, *Conferir…* compara e diz o que mudou, o que sumiu e o que
+apareceu. Não impede a troca; responde em segundos à pergunta que importa
+quando algo estranho acontece no servidor.
+
+### A ordem do trabalho
+
+1. o original é copiado para `backup_protecao`;
+2. o arquivo é aberto com a chave atual;
+3. é fechado com a chave nova;
+4. é **aberto de novo e comparado** com o passo 2;
+5. só então substitui o original.
+
+A chave do executável é trocada **por último**, e só se todos os arquivos
+passarem. A ordem não é gosto: enquanto o executável tem a chave velha, um
+arquivo novo já gravado deixa o jogo sem abrir *aquele arquivo*; na ordem
+contrária, um erro no meio deixaria o cliente sem abrir *nada*.
+
+Arquivo que não volta idêntico não é instalado, e o motivo aparece no
+andamento. *Voltar ao original* desfaz tudo, inclusive a chave do executável.
+
+### Onde funciona
+
+Parte dos clientes guarda a chave dentro do executável, e ali ela é trocável.
+Nos mais novos ela chega por *loader*, em memória, e trocá-la exigiria um
+loader próprio — que este programa não escreve. A tela diz em qual caso o
+cliente está **antes** de a pessoa escolher arquivos, e não depois.
+
+---
+
 ## A aba "L2Crypt"
 
 Abrir e fechar os arquivos do cliente. É a aba mais simples do programa e a
@@ -2551,7 +2654,7 @@ Quase tudo no cliente é criptografado, e não é sempre do mesmo jeito:
 
 | Método | Onde aparece | Como é |
 | --- | --- | --- |
-| `Lineage2Ver111` | `.u`, `.unr`, `.usx`, `.uax` | Blowfish |
+| `Lineage2Ver111` | `.u`, `.unr`, `.usx`, `.uax` | cifra simples, chave fixa |
 | `Lineage2Ver121` | `.utx` | XOR com chave tirada do nome do arquivo |
 | `Lineage2Ver413` | `.dat`, `.ini` | RSA |
 

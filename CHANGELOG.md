@@ -9,6 +9,21 @@ continua abrindo.
 
 ---
 
+## 1.7.1 — 25/09/2026
+
+**Documentação.** A aba Proteção ganhou página no manual embutido, nos três
+idiomas, e seção na documentação longa. O LEIA-ME do instalador passou a
+contar o que mudou até aqui, e não só até a 1.4.
+
+**Proteção de servidor reconhecida.** Alguns servidores põem uma camada
+própria por cima dos arquivos do cliente. O programa não abre essa camada — a
+chave dela fica na memória do cliente enquanto ele roda, e não dentro do
+arquivo —, mas agora reconhece e diz isso, em vez de responder "não é um
+pacote". Conferido em três pastas de cliente de verdade: nenhum falso
+positivo.
+
+---
+
 ## 1.7.0 — 24/09/2026
 
 **Gracia Epilogue.** Décimo segundo núcleo, com as nove tabelas provadas

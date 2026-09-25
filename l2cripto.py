@@ -437,3 +437,44 @@ def fechar(conteudo, destino, met, modulo=None, privado=None, rabo_modelo=None):
     destino.parent.mkdir(parents=True, exist_ok=True)
     destino.write_bytes(bruto)
     return destino
+
+
+# ---------------------------------------------------------------------------
+# Camadas de terceiros
+# ---------------------------------------------------------------------------
+# Ha servidor que poe uma protecao propria por cima dos arquivos do cliente. O
+# programa nao abre nenhuma delas, e nao ha o que tentar: a chave dessas
+# camadas nao esta no arquivo nem no executavel -- fica na memoria do cliente
+# enquanto ele roda, e e de la que os decoders proprios a tiram.
+#
+# Reconhecer serve para o recado: sem isso, o arquivo apenas "nao abre", e
+# quem le isso procura defeito no lugar errado.
+#
+# A marca e procurada como texto no comeco do arquivo. Nao ha amostra aqui
+# para conferir byte a byte, entao quem usa esta funcao diz "parece", e nao
+# "e".
+MARCAS_DE_TERCEIROS = (
+    (b"ActiveAnticheat", "ActiveAnticheat"),
+    (b"GamekitData", "GamekitData"),
+)
+
+
+def protecao_de_terceiro(dados_ou_caminho, olhar=512):
+    """
+    O nome da camada de terceiro que parece embrulhar este arquivo, ou None.
+
+    Olha só o começo: essas marcas ficam no cabeçalho, e ler o arquivo inteiro
+    para procurar texto seria caro à toa num pacote de cem megabytes.
+    """
+    if isinstance(dados_ou_caminho, (bytes, bytearray)):
+        comeco = bytes(dados_ou_caminho[:olhar])
+    else:
+        try:
+            with open(dados_ou_caminho, "rb") as arquivo:
+                comeco = arquivo.read(olhar)
+        except OSError:
+            return None
+    for marca, nome in MARCAS_DE_TERCEIROS:
+        if marca in comeco or marca.decode("ascii").encode("utf-16-le") in comeco:
+            return nome
+    return None

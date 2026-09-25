@@ -346,6 +346,39 @@ def _abrir_sem_l2encdec(origem, destino):
         return False
 
 
+
+
+def _camada_de_terceiro(caminho):
+    """O recado quando o arquivo parece embrulhado por protecao de servidor."""
+    try:
+        import l2cripto
+
+        nome = l2cripto.protecao_de_terceiro(caminho)
+    except Exception:                               # noqa: BLE001
+        return ""
+    if not nome:
+        return ""
+    return ("%s parece estar embrulhado pela proteção %s do servidor. Essa "
+            "camada não é do jogo e este programa não a abre: a chave dela "
+            "fica na memória do cliente enquanto ele roda, e não dentro do "
+            "arquivo. Desembrulhe antes -- há ferramenta própria para isso -- "
+            "e depois abra aqui." % (Path(caminho).name, nome))
+
+
+def _porque_nao_abriu(caminho, saida):
+    """
+    O recado de quando nada abriu o arquivo -- dizendo o que ele parece ser.
+
+    Camada de terceiro nao e defeito do programa nem do arquivo, e dizer so
+    "nao consegui descriptografar" manda procurar no lugar errado.
+    """
+    camada = _camada_de_terceiro(caminho)
+    if camada:
+        return camada
+    return ("nao consegui descriptografar %s: %s"
+            % (Path(caminho).name, (saida or "").strip()[:160]))
+
+
 class Pacote:
     """
     Um pacote Unreal lido o suficiente para tres perguntas: que classes existem,
@@ -380,6 +413,12 @@ class Pacote:
             dados = self.dados
             assinatura, self.versao, self.licenca = struct.unpack_from("<IHH", dados, 0)
             if assinatura != self.ASSINATURA:
+                # Antes de culpar o arquivo, ver se ele nao esta embrulhado
+                # por uma protecao de servidor: essa camada nao e do jogo, e o
+                # recado tem de mandar a pessoa para o lugar certo.
+                camada = _camada_de_terceiro(self.caminho)
+                if camada:
+                    raise ValueError(camada)
                 # Quando havia cifra, o suspeito nao e o arquivo: e o nome. O
                 # nome entra na chave dos metodos 111 e 121, entao uma copia
                 # renomeada decifra com o tamanho certo e o conteudo todo
@@ -438,9 +477,8 @@ class Pacote:
                     # sozinho, e ai nao importa se o l2encdec sumiu, foi
                     # barrado pelo antivirus ou nao deu conta.
                     if not _abrir_sem_l2encdec(self.caminho, destino):
-                        raise ValueError(
-                            "nao consegui descriptografar %s: %s"
-                            % (self.caminho.name, saida.strip()[:160]))
+                        raise ValueError(_porque_nao_abriu(self.caminho,
+                                                           saida))
 
             self.puro = destino
             alvo = destino

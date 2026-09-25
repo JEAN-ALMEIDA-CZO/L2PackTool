@@ -62,6 +62,7 @@ PAGINAS = (
     ("multisell", N_("Multisell")),
     ("mob", N_("Mob")),
     ("conferir", N_("Conferir Cliente")),
+    ("protecao", N_("Proteção")),
     ("l2crypt", N_("L2Crypt")),
     # A ultima porque nao e uma aba: e o outro jeito de usar o
     # programa, para quem quer fazer em lote o que a tela faz um a um.
