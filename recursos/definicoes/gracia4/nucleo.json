@@ -1,0 +1,21 @@
+{
+  "rotulo": "CT2.4 - Gracia Epilogue",
+  "ordem": 120,
+  "formato": "binario",
+  "origem_das_definicoes": "biblioteca do L2FileEdit, pasta CT2_4en",
+  "provadas": [
+    "weapongrp",
+    "armorgrp",
+    "etcitemgrp",
+    "itemname-e",
+    "skillgrp",
+    "skillname-e",
+    "npcgrp",
+    "npcname-e",
+    "transformdata"
+  ],
+  "nao_provadas": [],
+  "conferido_em": "2026-09-24",
+  "cliente_usado": "Clientes/Gracia Epilogue (D:), limpo. Medido: 3.557 armas, 2.960 armaduras, 10.202 etcitem, 16.504 nomes de item, 60.101 skills, 9.803 NPCs, 204 transformacoes -- as nove tabelas identicas ao original na ida e volta.",
+  "observacao": "Difere do Gracia Final em weapongrp, skillgrp e npcgrp; as outras seis definicoes sao as mesmas. Nas telas: 16.677 itens com icone, 6.740 habilidades todas com icone (4.782 ativas, 1.897 passivas, 61 alternaveis) e 9.694 NPCs com malha."
+}

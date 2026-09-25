@@ -18,7 +18,7 @@
 ;             (ou: ISCC.exe instalador.iss)
 
 #define Nome        "L2PackTool"
-#define Versao      "1.6.0"
+#define Versao      "1.7.0"
 #define Autor       "Jean Almeida - " + "ÐarkÐomi"
 #define Endereco    "https://github.com/JEAN-ALMEIDA-CZO"
 #define Executavel  "L2PackTool-Completo.exe"

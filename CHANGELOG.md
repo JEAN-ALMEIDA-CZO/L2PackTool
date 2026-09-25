@@ -9,6 +9,20 @@ continua abrindo.
 
 ---
 
+## 1.7.0 — 24/09/2026
+
+**Gracia Epilogue.** Décimo segundo núcleo, com as nove tabelas provadas
+contra o cliente pela ida e volta byte a byte: 3.557 armas, 2.960 armaduras,
+10.202 etcitem, 16.504 nomes de item, 60.101 skills, 9.803 NPCs e 204
+transformações — todas idênticas ao original.
+
+Nas telas: 16.677 itens com ícone, 6.740 habilidades todas com ícone (4.782
+ativas, 1.897 passivas, 61 alternáveis) e 9.694 NPCs com malha. A detecção
+acerta os oito clientes locais, cada um no seu, todos com confiança certa. O
+lobby CT2.4 ganhou o cartão dizendo que é dele.
+
+---
+
 ## 1.6.0 — 24/09/2026
 
 **Proteger qualquer arquivo que o cliente carrega.** Antes só entravam as
