@@ -1953,6 +1953,13 @@ def montar(raiz):
     livro = ttk.Button(barra, command=lambda: abrir_o_manual(raiz))
     livro.pack(side="right", padx=(0, 6))
 
+    # A versao nova sai do GitHub direto para quem usa: uma release publicada
+    # la acende este botao na abertura seguinte de todo mundo.
+    import gui_atualizar
+    novidade = ttk.Button(barra, text=gui_atualizar.texto_do_botao())
+    novidade.configure(command=lambda: gui_atualizar.abrir(raiz, novidade))
+    novidade.pack(side="right", padx=(0, 6))
+
     corpo = ttk.Frame(raiz)
     corpo.pack(fill="both", expand=True)
 
@@ -2151,6 +2158,8 @@ def montar(raiz):
         botao.configure(text="  " + t("Configurações"))
         creditos.configure(text=t("Sobre"))
         livro.configure(text=t("Manual"))
+        if str(novidade.cget("style")) != "Primario.TButton":
+            novidade.configure(text=gui_atualizar.texto_do_botao())
         montar_abas()
         cabecalho.atualizar()
 
@@ -2161,7 +2170,10 @@ def montar(raiz):
     ajuda.Dica(creditos, lambda: t("Quem fez, a versão e como apoiar."))
     livro.configure(text=t("Manual"))
     ajuda.Dica(livro, lambda: t("O manual do programa, página por página."))
+    ajuda.Dica(novidade, lambda: t("Procura uma versão nova no GitHub, mostra "
+                                   "o que mudou e instala."))
     montar_abas()
+    gui_atualizar.procurar_ao_abrir(raiz, novidade)
 
 
 def main():

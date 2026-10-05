@@ -81,3 +81,16 @@ Lo del servidor pide un comando en el juego:
 ```
 
 El manual de cada pestaña dice cuál es su comando.
+
+## Actualizaciones
+
+El botón **Actualizaciones**, arriba de la ventana, pregunta a GitHub si hay
+una versión nueva. Si la hay, muestra qué cambió en cada versión desde la
+tuya, descarga el instalador — con la barra, cuánto llegó, la velocidad y
+cuánto falta — y verifica el archivo (tamaño y SHA-256) antes de ejecutarlo.
+El programa se cierra, instala la nueva versión encima y se abre de nuevo
+solo; la configuración y los proyectos quedan como están.
+
+Una vez al día, al abrir, pregunta solo. Si encuentra una versión nueva, el
+botón se pone dorado y la ventana aparece **una vez** por versión. Para que no
+pregunte, desmarca *Buscar sola al abrir el programa* en esa misma ventana.

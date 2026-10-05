@@ -9,6 +9,82 @@ continua abrindo.
 
 ---
 
+## 1.11.0 — 04/10/2026
+
+**High Five no servidor, de verdade.** O cliente do High Five já abria desde a
+1.7; o *servidor* dele não. O datapack do L2J e o do Mobius guardam tudo em
+`data/stats/`, o NPC tem outro formato e a chance de drop é outra unidade — e
+o programa só conhecia o aCis.
+
+**As pastas.** A detecção punha as habilidades em `stats/npcs`: o
+`<parameters>` de cada NPC cita habilidade **com nome**
+(`<skill name="PhysicalSpecial" id="4073" level="6"/>`), e as 11 mil citações
+ganhavam das 8 mil definições. Definição tem `levels`; citação, `level` no
+singular — agora conta só a primeira. Multisell e spawn eram procurados ao
+lado da pasta de NPCs, que é o lugar do aCis; no H5 ficam na raiz do `data`.
+Medido nos dois datapacks:
+
+| | antes | agora |
+| --- | --- | --- |
+| habilidades | `stats/npcs` | `stats/skills` (8.136) |
+| multisell | não achava | `multisell` (193 no Mobius, 192 no L2J) |
+| spawn | não achava | `spawns` (Mobius), `spawnlist` (L2J) |
+
+O `spawnlist` do L2J tem o mesmo nome de pasta para duas coisas — spawn e
+zona —, e só conta se tiver `<npc x= y= z=>` dentro.
+
+**A aba Mob lê e grava o NPC do High Five.** Status em atributos de `<stats>`,
+`<acquire>` e `<collision>`; `<skillList>`; `<dropLists>` com `<drop>`/`<spoil>`
+no Mobius e `<death>`/`<corpse>` (e `<group>`) no L2J; lacaios em
+`<parameters><minions name="Privates">`. A tela é a mesma — ela olha o mob
+aberto e escolhe o formato sozinha. Cada número mexido troca só aquele
+atributo, e os comentários de linha voltam iguais. Prova:
+
+- ida e volta sem edição: **10.477 de 10.477** NPCs do Mobius e 10.462 de
+  10.469 do L2J idênticos (os 7 restantes só mudam espaço em branco, e só se o
+  drop for editado); os 6.533 do aCis continuam idênticos;
+- editado (HP, nível, nome, IA, skills, drop, spoil, lacaios) e validado
+  contra o `npcs.xsd` do próprio servidor.
+
+O xsd do Mobius cobra duas coisas que o L2J não cobra: `<group>` de drop não
+existe lá (categoria extra vira item solto, e a conferência avisa), e lista
+vazia derruba o arquivo (tirar o último item tira o bloco).
+
+**A aba NPC cria no formato do H5.** NPC, drop e spawn saem na forma do
+servidor detectado — `exp` no Mobius, `expRate` no L2J, porque o xsd de cada
+um recusa o do outro; spawn em `data/spawns` (Mobius) ou `data/spawnlist`
+(L2J). Validados contra o xsd dos dois. Copiar um NPC do servidor também passou
+a trazer os campos do H5.
+
+**Os status aceitos vêm do `.jar`.** Os nomes de status que o servidor aceita
+(`pAtk`, `maxHp`…) eram lidos do `Stats.java` — que o pack pronto do H5 não
+traz. Sem ele o programa ficava com o que o datapack *usa*, e isso incluía
+`buffImmunity` e `stunProf`, citados só dentro de comentário (`TODO: Needs
+Support`): gravados num item, derrubam a tabela inteira. Agora o programa lê o
+enum **compilado**, dentro do `GameServer.jar`, sem precisar de Java:
+
+| servidor | de onde | status |
+| --- | --- | ---: |
+| Mobius H5 | `GameServer.jar` | 122 |
+| L2J H5 | `l2jserver.jar` | 116 |
+| aCis | `Stats.java` | 121 |
+
+Comentário de XML também deixou de contar como nome em uso.
+
+**Trocar de projeto limpa a aba Mob.** A lista de mobs do Interlude continuava
+na tela depois de trocar para o High Five, e o primeiro clique ia buscar o mob
+no servidor errado.
+
+**Atualização pelo programa.** Botão **Atualizações** no alto da janela: ele
+pergunta ao GitHub, mostra o que mudou em cada versão desde a sua, baixa o
+instalador com barra, velocidade e tempo restante, confere tamanho e SHA-256 e
+instala por cima — o programa fecha e abre de novo sozinho. Uma vez por dia, ao
+abrir, ele pergunta sozinho; havendo versão nova, o botão fica dourado e a
+janela aparece uma vez por versão. Publicar a release no GitHub passa a ser o
+que leva a versão até quem usa.
+
+---
+
 ## 1.10.0 — 25/09/2026
 
 **Aba "Textos".** As frases que o jogo escreve na tela passaram a ser editáveis

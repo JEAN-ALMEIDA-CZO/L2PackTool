@@ -2809,6 +2809,28 @@ pacote Unreal e dá falso negativo num `.dat` Ver413.
 
 ---
 
+## Atualizações
+
+O botão **Atualizações**, no alto da janela, pergunta ao GitHub se há versão
+nova. Havendo, a janela mostra o que mudou em cada versão desde a sua, e
+**Baixar e instalar** baixa o instalador com barra de progresso — quanto já
+veio, quanto falta, a velocidade e o tempo estimado. Antes de rodar, o arquivo
+é conferido contra o tamanho e o SHA-256 que o GitHub publica: download
+cortado ou trocado no caminho não chega a ser executado.
+
+Na instalação o programa fecha, o instalador roda sem perguntas na mesma pasta
+e abre a versão nova sozinho. `config.ini`, `projetos.ini`, `trabalho\` e
+`saida\` ficam como estão.
+
+Uma vez por dia, ao abrir, ele faz a pergunta sozinho. Achando versão nova, o
+botão fica dourado e a janela aparece **uma vez** por versão. A caixa
+*Procurar sozinho ao abrir o programa* desliga isso.
+
+Para quem publica: a versão chega a quem usa quando a **release** do GitHub
+tem o instalador anexado com o nome `L2PackTool-Setup-X.Y.Z.exe`. O texto da
+release é o que aparece em *O que mudou*.
+
+
 ## Qual modelo usar
 
 Os sete modelos foram rodados na **mesma** textura de pedra do cliente. A

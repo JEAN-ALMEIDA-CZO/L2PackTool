@@ -358,7 +358,7 @@ class JanelaMob:
                       text=t("Este mob não tem bloco <ai>.")).grid(
                 row=0, column=0, sticky="w")
             return
-        chaves = list(l2mob.AI_OBRIGATORIOS)
+        chaves = list(l2mob.chaves_de_ai(self.mob))
         chaves += [c for c in ai if c not in chaves]
         for posicao, chave in enumerate(chaves):
             linha, coluna = divmod(posicao, 4)
@@ -368,7 +368,7 @@ class JanelaMob:
             if chave == "type":
                 campo = ttk.Combobox(self.quadro_ai, width=12,
                                      textvariable=variavel,
-                                     values=l2mob.TIPOS_DE_AI)
+                                     values=l2mob.tipos_de_ai(self.mob))
             else:
                 campo = ttk.Entry(self.quadro_ai, textvariable=variavel,
                                   width=10)
@@ -595,11 +595,9 @@ class JanelaMob:
     def _montar_drops(self, pai):
         caixa = ttk.Frame(pai, padding=8)
 
-        recado = ttk.Label(
+        recado = self.recado_drop = ttk.Label(
             caixa, foreground=COR_TEXTO_FRACO, justify="left", wraplength=620,
-            text=t("A chance vai de 1 a 1.000.000, onde 1.000.000 é 100%. "
-                   "Categoria -1 é spoil; de 0 para cima são grupos de drop "
-                   "comum, e o core sorteia um item por grupo."))
+            text=self._recado_do_drop())
         recado.pack(anchor="w")
 
         dentro = ttk.Frame(caixa)
@@ -634,14 +632,36 @@ class JanelaMob:
                    command=self.por_categoria).pack(side="left", padx=(16, 0))
         return caixa
 
+    def _recado_do_drop(self):
+        """A regra da chance muda com o formato do servidor -- e o texto junto."""
+        if not l2mob.e_h5(self.mob):
+            return t("A chance vai de 1 a 1.000.000, onde 1.000.000 é 100%. "
+                     "Categoria -1 é spoil; de 0 para cima são grupos de drop "
+                     "comum, e o core sorteia um item por grupo.")
+        if (self.mob.get("gavetas") or ("drop",))[0] == "death":
+            return t("High Five (L2J): a chance é em porcento, de 0 a 100. "
+                     "Categoria -1 é o spoil (<corpse>); a 0 são itens "
+                     "soltos, cada um sorteado sozinho; de 1 para cima são "
+                     "<group>, e o core sorteia um item por grupo.")
+        return t("High Five (Mobius): a chance é em porcento, de 0 a 100, e "
+                 "cada item é sorteado sozinho. Categoria -1 é o spoil "
+                 "(<spoil>); o resto vai em <drop>.")
+
     def _encher_drops(self):
         self.lista_drops.delete(*self.lista_drops.get_children())
+        self.recado_drop.config(text=self._recado_do_drop())
         if not self.mob:
             return
         for c, categoria in enumerate(self.mob["drops"]):
-            rotulo = (t("spoil")
-                      if str(categoria["id"]) == str(l2mob.CATEGORIA_SPOIL)
-                      else t("categoria %s") % categoria["id"])
+            if str(categoria["id"]) == str(l2mob.CATEGORIA_SPOIL):
+                rotulo = t("spoil")
+            elif l2mob.e_h5(self.mob) and not l2mob.e_grupo(categoria):
+                rotulo = t("drop")
+            elif l2mob.e_h5(self.mob):
+                rotulo = t("grupo %s — chance %s%%") % (
+                    categoria["id"], categoria.get("chance", "100"))
+            else:
+                rotulo = t("categoria %s") % categoria["id"]
             pai = self.lista_drops.insert(
                 "", "end", iid="c%d" % c, open=True,
                 text=" %s  (%d)" % (rotulo, len(categoria["itens"])))
@@ -655,7 +675,7 @@ class JanelaMob:
                                 or t("(não está no cliente)")),
                     values=(ident, item.get("min", ""), item.get("max", ""),
                             chance,
-                            "%.4f%%" % l2mob.porcentagem(chance)))
+                            "%.4f%%" % l2mob.porcentagem(chance, self.mob)))
 
     def _drop_marcado(self):
         """(categoria, item) do que está marcado, ou (categoria, None)."""
@@ -696,7 +716,7 @@ class JanelaMob:
             return
         self.mob["drops"][categoria]["itens"].append(
             {"itemid": str(escolha.resposta["id"]), "min": "1", "max": "1",
-             "chance": "10000"})
+             "chance": l2mob.chance_padrao(self.mob)})
         self._mexeu("drops")
         self._encher_drops()
 
@@ -708,7 +728,8 @@ class JanelaMob:
         janela = gui_arma.MudarDrop(
             self.raiz, self.nomes.get(str(alvo.get("itemid", ""))) or "",
             alvo.get("itemid", ""), alvo.get("min", "1"),
-            alvo.get("max", "1"), alvo.get("chance", "1"))
+            alvo.get("max", "1"), alvo.get("chance", "1"),
+            percentual=l2mob.e_h5(self.mob))
         if janela.resposta is None:
             return
         alvo["min"] = janela.resposta["minimo"]
@@ -935,6 +956,35 @@ class JanelaMob:
         threading.Thread(target=self._abrir_thread, args=(pasta,),
                          daemon=True).start()
 
+    def ao_trocar_projeto(self):
+        """
+        O projeto mudou de servidor: a lista e o mob aberto eram do antigo.
+
+        Cada projeto tem o seu servidor. Deixar na tela os mobs do anterior
+        faria o próximo clique ler -- ou pior, gravar -- no servidor errado.
+        """
+        servidor = self.servidor.get().strip()
+        antes = getattr(self, "_servidor_da_lista", None)
+        if antes is None or antes == servidor:
+            return
+        self._servidor_da_lista = None
+        if self.mob is not None and self.mob.get("mexidos"):
+            self.log(t("\nO projeto mudou: as mudanças não gravadas do mob %s "
+                       "ficaram para trás.") % self.mob["id"])
+        self.lista, self.mob = [], None
+        l2mob.limpar_cache_de_sugestao()
+        self.preencher()
+        self.titulo.config(text=t("Nenhum mob aberto."))
+        self.preservados.config(text="")
+        self.campo_nome.set("")
+        self.campo_titulo.set("")
+        self._encher_status()
+        self._encher_skills()
+        self._encher_drops()
+        self._encher_minions()
+        self.estado.config(text=t("projeto trocado — clique em Carregar"))
+        self.atualizar_botoes()
+
     def _abrir_thread(self, pasta):
         try:
             lista = l2mob.listar(pasta)
@@ -954,6 +1004,7 @@ class JanelaMob:
             self.atualizar_botoes()
             return
         self.lista = lista
+        self._servidor_da_lista = self.servidor.get().strip()
         tipos = []
         for m in lista:
             if m["tipo"] and m["tipo"] not in tipos:

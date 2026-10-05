@@ -157,35 +157,149 @@ _FAREJADOS = {}
 
 # `stat="pAtk"` nos arquivos do servidor. Aceita hifen: `pAtk-animals` e um
 # nome so.
+# Comentario de XML: nome citado ali (`<!-- TODO: buffImmunity -->`) nao e
+# nome em uso.
+_COMENTARIO_XML = re.compile(r"<!--.*?-->", re.S)
 _STATUS_USADO = re.compile(r'stat\s*=\s*"([A-Za-z0-9_\-]+)"')
 
-# A linha do enum no fonte: `POWER_ATTACK("pAtk"),`. O nome entre aspas e o que
-# o XML escreve.
-_STATUS_DO_ENUM = re.compile(r'\(\s*"([A-Za-z0-9_\-]+)"\s*\)')
+# A linha do enum no fonte. O nome entre aspas e o que o XML escreve:
+#   aCis            POWER_ATTACK("pAtk"),
+#   L2J / Mobius    POWER_ATTACK("pAtk", new PAttackFinalizer()),
+_STATUS_DO_ENUM = re.compile(r'\b[A-Z][A-Z0-9_]*\s*\(\s*"([A-Za-z][A-Za-z0-9_\-]*)"')
+
+# Onde o enum mora em cada core, no fonte e compilado.
+_FONTES_DO_ENUM = ("java/**/skills/Stats.java",       # aCis
+                   "java/**/stats/Stats.java",        # L2J
+                   "java/**/stats/Stat.java")         # Mobius
+_CLASSE_DO_ENUM = re.compile(r"(^|/)(skills|stats)/Stats?\.class$")
+
+# Um nome de status: identificador, com hifen permitido (`pAtk-animals`).
+_NOME_DE_STATUS = re.compile(r"^[A-Za-z][A-Za-z0-9_\-]*$")
 
 
 def _status_do_core(pasta):
     """
-    Todos os status que o core aceita, lidos do `Stats.java` dele.
+    Todos os status que o core aceita, lidos do proprio core.
+
+    Primeiro o fonte (`Stats.java`/`Stat.java`); sem fonte, o COMPILADO -- o
+    `GameServer.jar` que o servidor roda. O pack pronto do High Five (Mobius)
+    so traz o .jar, e sem ler o .jar o programa ficava com a lista do que o
+    datapack usa, que e menor e ainda trazia dois nomes so citados em
+    comentario (`buffImmunity`, `stunProf`) -- nome que, gravado num item,
+    derruba o arquivo inteiro.
 
     Sobe ate seis niveis a partir da pasta de dados: o datapack mora em
-    `build/dist/game/data` e o fonte em `java/`, os dois pendurados no mesmo
-    tronco. Devolve (conjunto, caminho) ou (None, None) se nao achar.
+    `build/dist/game/data` (ou `ServerHI5/game/data`) e o fonte em `java/`, o
+    jar em `libs/`, todos pendurados no mesmo tronco. Devolve (conjunto,
+    caminho) ou (None, None) se nao achar.
     """
     de_onde = Path(pasta).resolve()
+    jars = []
     for _ in range(6):
-        for achado in de_onde.glob("java/**/skills/Stats.java"):
-            try:
-                texto = achado.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            nomes = set(_STATUS_DO_ENUM.findall(texto))
-            if len(nomes) > 20:      # e o enum mesmo, e nao outro arquivo
-                return nomes, achado
+        for padrao in _FONTES_DO_ENUM:
+            for achado in de_onde.glob(padrao):
+                try:
+                    texto = achado.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                nomes = set(_STATUS_DO_ENUM.findall(texto))
+                if len(nomes) > 20:      # e o enum mesmo, e nao outro arquivo
+                    return nomes, achado
+        for padrao in ("libs/*.jar", "game/libs/*.jar", "*.jar"):
+            jars.extend(sorted(de_onde.glob(padrao)))
         if de_onde.parent == de_onde:
             break
         de_onde = de_onde.parent
+    # O do servidor de jogo primeiro: o de login nao tem status nenhum.
+    jars.sort(key=lambda j: (0 if "game" in j.name.lower() else 1))
+    for jar in jars:
+        nomes, classe = _status_do_jar(jar)
+        if nomes:
+            return nomes, jar
     return None, None
+
+
+def _status_do_jar(jar):
+    """(nomes, classe) do enum de status dentro de um .jar, ou (None, None)."""
+    import zipfile
+    try:
+        with zipfile.ZipFile(jar) as z:
+            for nome in z.namelist():
+                if not _CLASSE_DO_ENUM.search(nome):
+                    continue
+                try:
+                    textos, constantes = _ler_classe(z.read(nome))
+                except (ValueError, IndexError, KeyError):
+                    continue
+                if len(constantes) <= 20:
+                    continue
+                # As strings da classe sao os nomes do XML, mais as
+                # mensagens de erro que ela tenha; as constantes do enum
+                # (MAX_HP) tambem aparecem, como nome de campo.
+                nomes = set(t for t in textos
+                            if t not in constantes and _NOME_DE_STATUS.match(t))
+                if len(nomes) > 20:
+                    return nomes, nome
+    except (OSError, zipfile.BadZipFile):
+        pass
+    return None, None
+
+
+def _ler_classe(dados):
+    """
+    As strings literais e as constantes de enum de um .class.
+
+    So o que o formato da JVM garante: a tabela de constantes (onde mora todo
+    literal "pAtk") e a lista de campos (onde cada constante do enum e um
+    campo marcado ACC_ENUM). Nao precisa de Java instalado.
+    """
+    import struct
+    if dados[:4] != b"\xca\xfe\xba\xbe":
+        raise ValueError("nao e um .class")
+    (quantos,) = struct.unpack_from(">H", dados, 8)
+    pool = [None] * quantos
+    pos, i = 10, 1
+    while i < quantos:
+        tag = dados[pos]
+        if tag == 1:                                    # Utf8
+            (n,) = struct.unpack_from(">H", dados, pos + 1)
+            pool[i] = dados[pos + 3:pos + 3 + n].decode("utf-8", "replace")
+            pos += 3 + n
+        elif tag in (3, 4):                             # int, float
+            pos += 5
+        elif tag in (5, 6):                             # long, double: 2 vagas
+            pos += 9
+            i += 1
+        elif tag == 8:                                  # String -> Utf8
+            (ref,) = struct.unpack_from(">H", dados, pos + 1)
+            pool[i] = ("string", ref)
+            pos += 3
+        elif tag in (7, 16, 19, 20):                    # Class, MethodType...
+            pos += 3
+        elif tag in (9, 10, 11, 12, 17, 18):            # refs, NameAndType...
+            pos += 5
+        elif tag == 15:                                 # MethodHandle
+            pos += 4
+        else:
+            raise ValueError("constante desconhecida %d" % tag)
+        i += 1
+    textos = [pool[e[1]] for e in pool if isinstance(e, tuple)]
+
+    pos += 6                                    # acesso, this, super
+    (interfaces,) = struct.unpack_from(">H", dados, pos)
+    pos += 2 + 2 * interfaces
+    (campos,) = struct.unpack_from(">H", dados, pos)
+    pos += 2
+    constantes = set()
+    for _ in range(campos):
+        acesso, nome, _desc, atributos = struct.unpack_from(">HHHH", dados, pos)
+        pos += 8
+        for _ in range(atributos):
+            (tamanho,) = struct.unpack_from(">I", dados, pos + 2)
+            pos += 6 + tamanho
+        if acesso & 0x4000:                     # ACC_ENUM
+            constantes.add(pool[nome])
+    return textos, constantes
 
 
 def farejar(pasta, aoprogresso=None, de_novo=False):
@@ -217,6 +331,7 @@ def farejar(pasta, aoprogresso=None, de_novo=False):
     tem_chance = False
     elementos = 0
     inserts = {}
+    npcs_h5 = gavetas_l2j = gavetas_mobius = 0
 
     arquivos = [q for q in pasta.rglob("*")
                 if q.is_file() and q.suffix.lower() in (".xml", ".sql")]
@@ -253,12 +368,17 @@ def farejar(pasta, aoprogresso=None, de_novo=False):
 
         # Fora do `if` de assunto de proposito: status aparece em item, em
         # habilidade e em armadura, e o que interessa e a uniao dos tres.
-        status_usados.update(_STATUS_USADO.findall(texto))
+        status_usados.update(_STATUS_USADO.findall(
+            _COMENTARIO_XML.sub("", texto)))
 
         if quantos["skills"]:
             alvos.extend(_ALVO_DE_SKILL.findall(texto))
             modos.extend(_MODO_DE_SKILL.findall(texto))
         if quantos["npcs"]:
+            if _NPC_DO_H5.search(texto):
+                npcs_h5 += quantos["npcs"]
+                gavetas_l2j += len(_GAVETA_L2J.findall(texto))
+                gavetas_mobius += len(_GAVETA_MOBIUS.findall(texto))
             nomeadas += len(_CATEGORIA_NOMEADA.findall(texto))
             numeradas += len(_CATEGORIA_NUMERADA.findall(texto))
             for bruto in _CHANCE_DE_DROP.findall(texto):
@@ -299,13 +419,39 @@ def farejar(pasta, aoprogresso=None, de_novo=False):
         # lado. Herdar esses caminhos do perfil base misturaria caminho medido
         # com caminho suposto, cada um a partir de uma raiz diferente.
         pastas["droplist"] = pastas.get("npcs", "")
-        vizinha = (pastas.get("npcs") or "").rsplit("/", 1)[0]
-        for assunto, nome in (("multisell", "multisell"), ("spawn", "spawnlist")):
-            candidata = "%s/%s" % (vizinha, nome) if vizinha else nome
-            if (pasta / candidata).is_dir():
-                pastas[assunto] = candidata
+        # Multisell e spawn: no aCis ficam ao lado da pasta de NPCs
+        # (`xml/multisell`); no L2J e no Mobius do High Five, dois andares
+        # acima, na raiz do `data` (`stats/npcs` x `multisell`, `spawns`).
+        # Sobe-se a partir da pasta de NPCs ate a raiz apontada, e a mais
+        # proxima ganha.
+        acima = (pastas.get("npcs") or "").split("/")
+        degraus = ["/".join(acima[:n]) for n in range(len(acima) - 1, -1, -1)]
+        for assunto, nomes in (("multisell", ("multisell",)),
+                               ("spawn", ("spawnlist", "spawns"))):
+            for degrau in degraus:
+                achou = next((("%s/%s" % (degrau, nome)) if degrau else nome
+                              for nome in nomes
+                              if (pasta / degrau / nome).is_dir()
+                              and (assunto != "spawn"
+                                   or _tem_spawn(pasta / degrau / nome))),
+                             None)
+                if achou:
+                    pastas[assunto] = achou
+                    break
         achado["pastas"] = pastas
         frases.append("XML: " + ", ".join(vistas))
+        # O <npc> do L2J/Mobius do Gracia em diante e outro: status em
+        # <stats>, <skillList>, <dropLists> e chance em porcento. Escrever o
+        # do aCis ali da um NPC que o servidor recusa.
+        if npcs_h5 * 2 > max(1, sum(onde["npcs"].values())):
+            achado["npc_xml"] = "h5"
+            achado["gavetas_de_drop"] = (["death", "corpse"]
+                                         if gavetas_l2j > gavetas_mobius
+                                         else ["drop", "spoil"])
+            achado["escala_de_chance"] = 1
+            frases.append("NPC no formato do High Five (<stats>, "
+                          "<dropLists><%s>), chance em porcento"
+                          % achado["gavetas_de_drop"][0])
     else:
         achado["formato"] = "sql"
         frases.append("banco: INSERT em " + ", ".join(
@@ -339,8 +485,9 @@ def farejar(pasta, aoprogresso=None, de_novo=False):
     if do_core:
         achado["estados_aceitos"] = sorted(do_core)
         achado["estados_de_onde"] = "core"
-        frases.append("%d status lidos de %s"
-                      % (len(do_core), onde_esta.name))
+        frases.append("%d status lidos de %s%s"
+                      % (len(do_core), onde_esta.name,
+                         " (compilado)" if onde_esta.suffix == ".jar" else ""))
     elif status_usados:
         achado["estados_aceitos"] = sorted(status_usados)
         achado["estados_de_onde"] = "datapack"
@@ -627,12 +774,43 @@ _MARCAS_DE_DEFINICAO = {"itens": ("name", "type"),
                         "npcs": ("name", "title", "idtemplate")}
 
 
+def _tem_spawn(pasta):
+    """
+    A pasta guarda ONDE o NPC nasce? O `spawnlist` do L2J High Five tem o
+    mesmo nome e so traz zonas (`<spawnZones>`); o spawn dele mora no banco.
+    """
+    for arquivo in sorted(Path(pasta).rglob("*.xml"))[:20]:
+        try:
+            texto = arquivo.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if "<npcmaker" in texto or _NPC_COM_LUGAR.search(texto):
+            return True
+    return False
+
+
+_NPC_COM_LUGAR = re.compile(r'<npc\s[^>]*\b(?:x|pos)\s*=\s*"')
+
+
+# O NPC do L2J/Mobius do Gracia em diante, e as duas grafias da gaveta de drop.
+_NPC_DO_H5 = re.compile(r"<(stats|skillList|dropLists)(?=[\s>])")
+_GAVETA_L2J = re.compile(r"<(death|corpse)>")
+_GAVETA_MOBIUS = re.compile(r"<(drop|spoil)>")
+
+
 def _so_definicoes(assunto, brutos):
     """Descarta as referencias, ficando com os elementos que definem algo."""
     marcas = _MARCAS_DE_DEFINICAO[assunto]
     ficam = []
     for bruto in brutos:
         campos = set(k.lower() for k, _v in _ATRIBUTO.findall(bruto))
+        # No High Five o `<parameters>` do NPC aponta habilidade COM nome:
+        # `<skill name="PhysicalSpecial" id="4073" level="6"/>`. O nome ali e
+        # o do parametro, nao o da habilidade, e sao 11 mil delas -- mais que
+        # as 8 mil definicoes de verdade, o que punha as habilidades em
+        # stats/npcs. `level` no singular, sem `levels`, e sempre referencia.
+        if assunto == "skills" and "level" in campos and "levels" not in campos:
+            continue
         if campos.intersection(marcas):
             ficam.append(bruto)
     return ficam
@@ -1228,7 +1406,53 @@ def _nome_da_categoria(atributos):
     return "SPOIL" if numero.startswith("-") else "DROP"
 
 
+def _npc_do_h5(texto, ident, arquivo, drops):
+    """
+    O NPC do L2J/Mobius do Gracia em diante, em campos neutros.
+
+    Ali o status nao e `<set>`, e sim atributos de `<stats>`, `<acquire>`,
+    `<collision>`... Quem ja sabe ler isso e o `l2mob`, e a tela de NPC recebe
+    os mesmos nomes neutros que recebe do aCis. None quando o NPC nao e
+    desse formato -- e a leitura do aCis segue.
+    """
+    import l2mob                         # aqui dentro: l2mob tambem usa este
+    for bloco in l2mob._NPC.finditer(texto):
+        cru = bloco.group(0)
+        if l2mob._atributos(cru[:cru.find(">") + 1]).get("id") != ident:
+            continue
+        if l2mob.dialeto(cru) != "h5":
+            return None
+        npc = l2mob._modelo(cru, arquivo, texto)
+        for categoria in npc["drops"]:
+            gaveta = "SPOIL" if str(categoria["id"]) == "-1" else "DROP"
+            for item in categoria["itens"]:
+                drops.append({"item": item["itemid"], "minimo": item["min"],
+                              "maximo": item["max"],
+                              "chance": item["chance"],     # ja em porcento
+                              "categoria": gaveta})
+        campos = dict(npc["sets"])
+        if npc["ai"].get("aggroRange"):
+            campos["aggroRange"] = npc["ai"]["aggroRange"]
+        sexo = re.search(r"<sex>\s*(\w+)\s*</sex>", cru)
+        if sexo:
+            campos["sex"] = sexo.group(1).lower()
+        estado = l2mob._caminho(cru, "status")
+        if estado:
+            for chave in ("targetable", "undying"):
+                valor = _atributos(cru[estado[0]:estado[1]]).get(chave)
+                if valor:
+                    campos[chave] = valor
+        return {"campos": campos, "extras": "", "nome": npc["name"],
+                "titulo": npc["title"], "arquivo": arquivo, "formato": "xml",
+                "aviso": ""}
+    return None
+
+
 def _npc_do_xml(texto, ident, arquivo, drops, perfil_do_servidor=None):
+    if _NPC_DO_H5.search(texto):
+        lido = _npc_do_h5(texto, ident, arquivo, drops)
+        if lido is not None:
+            return lido
     lido = _corpo_do_elemento(texto, "npc", ident)
     if lido is not None:
         cabeca, corpo = lido

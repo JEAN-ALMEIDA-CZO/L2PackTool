@@ -611,6 +611,16 @@ def ligar(tela):
                 atualizar()
             except Exception:                       # noqa: BLE001
                 pass
+        # A aba que guarda o que LEU do servidor (a lista de mobs) precisa
+        # esquecer: sem isto a troca para o High Five deixava na tela os
+        # 6.533 mobs do Interlude, e o primeiro clique ia buscar o mob no
+        # servidor errado.
+        trocou = getattr(tela, "ao_trocar_projeto", None)
+        if callable(trocou):
+            try:
+                trocou()
+            except Exception:                       # noqa: BLE001
+                pass
 
     d = projeto.dados(projeto.atual())
     aplicar(projeto.atual(), d["cliente"], d["servidor"])

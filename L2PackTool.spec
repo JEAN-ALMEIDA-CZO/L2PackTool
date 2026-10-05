@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = ['motor', 'l2npc', 'gui_npc', 'idioma', 'ajuda', 'gui_arquivos', 'l2anim', 'l2mapa', 'l2seq', 'l2criar', 'gui_video', 'l2conferir', 'gui_conferir', 'l2item', 'gui_item', 'rolagem', 'manual', 'l2skill', 'gui_skill', 'l2icone', 'gui_icone', 'l2servidor', 'l2mundo', 'gui_mundo', 'gui_arma', 'l2glow', 'gui_glow', 'l2env', 'l2multisell', 'gui_multisell', 'l2mob', 'gui_mob', 'tema', 'projeto', 'gui_projeto', 'versao', 'l2conjunto', 'l2mensagem', 'gui_texto']
+hiddenimports = ['motor', 'l2npc', 'gui_npc', 'idioma', 'ajuda', 'gui_arquivos', 'l2anim', 'l2mapa', 'l2seq', 'l2criar', 'gui_video', 'l2conferir', 'gui_conferir', 'l2item', 'gui_item', 'rolagem', 'manual', 'l2skill', 'gui_skill', 'l2icone', 'gui_icone', 'l2servidor', 'l2mundo', 'gui_mundo', 'gui_arma', 'l2glow', 'gui_glow', 'l2env', 'l2multisell', 'gui_multisell', 'l2mob', 'gui_mob', 'tema', 'projeto', 'gui_projeto', 'versao', 'l2conjunto', 'l2mensagem', 'gui_texto', 'l2atualizar', 'gui_atualizar']
 hiddenimports += collect_submodules('PIL')
 
 

@@ -80,3 +80,16 @@ depois. Coisa de servidor pede um comando em jogo:
 ```
 
 O manual de cada aba diz qual é o comando dela.
+
+## Atualizações
+
+O botão **Atualizações**, no alto da janela, pergunta ao GitHub se há versão
+nova. Havendo, mostra o que mudou em cada versão desde a sua, baixa o
+instalador — com a barra, quanto já veio, a velocidade e quanto falta — e
+confere o arquivo (tamanho e SHA-256) antes de rodar. O programa fecha,
+instala a versão nova por cima e abre de novo sozinho; configurações e
+projetos ficam como estão.
+
+Uma vez por dia, ao abrir, ele faz essa pergunta sozinho. Achando versão nova,
+o botão fica dourado, e a janela aparece **uma vez** por versão. Para não
+perguntar, desmarque *Procurar sozinho ao abrir o programa* na própria janela.

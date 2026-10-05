@@ -80,3 +80,16 @@ afterwards. Server-side work needs a command in game:
 ```
 
 Each tab's manual page names its own command.
+
+## Updates
+
+The **Updates** button, at the top of the window, asks GitHub whether there is
+a new version. If there is, it shows what changed in each version since yours,
+downloads the installer — with the bar, how much has arrived, the speed and
+what is left — and verifies the file (size and SHA-256) before running it. The
+program closes, installs the new version over the old one and reopens by
+itself; settings and projects stay as they are.
+
+Once a day, on startup, it asks on its own. When it finds a new version the
+button turns gold, and the window shows up **once** per version. To stop
+asking, untick *Check automatically when the program opens* in that window.

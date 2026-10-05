@@ -18,7 +18,7 @@
 ;             (ou: ISCC.exe instalador.iss)
 
 #define Nome        "L2PackTool"
-#define Versao      "1.10.0"
+#define Versao      "1.11.0"
 #define Autor       "Jean Almeida - " + "ÐarkÐomi"
 #define Endereco    "https://github.com/JEAN-ALMEIDA-CZO"
 #define Executavel  "L2PackTool-Completo.exe"
@@ -120,6 +120,10 @@ Name: "{autodesktop}\{#Nome}"; Filename: "{app}\{#Executavel}"; Tasks: atalho
 
 [Run]
 Filename: "{app}\{#Executavel}"; Description: "{cm:LaunchProgram,{#Nome}}"; Flags: nowait postinstall skipifsilent
+; A atualizacao de dentro do programa roda o instalador em silencio com
+; /REABRIR: o programa ja fechou para liberar o .exe, e quem clicou em
+; "Instalar agora" espera ve-lo de volta sozinho.
+Filename: "{app}\{#Executavel}"; Flags: nowait; Check: Reabrir
 
 [UninstallDelete]
 ; O que o programa escreve sozinho e nao consta da lista de arquivos: sem
@@ -129,6 +133,12 @@ Type: files; Name: "{app}\erros.log"
 Type: files; Name: "{app}\notify.log"
 
 [Code]
+{ /REABRIR vem da atualizacao feita pelo proprio programa. }
+function Reabrir: Boolean;
+begin
+  Result := WizardSilent and (Pos('/REABRIR', Uppercase(GetCmdTail)) > 0);
+end;
+
 { Desinstalar nao apaga o que o usuario produziu sem perguntar: projeto,
   configuracao e as pastas de trabalho e saida podem ter horas de serviço
   dentro. A pergunta e uma so, e o padrao e nao apagar. }

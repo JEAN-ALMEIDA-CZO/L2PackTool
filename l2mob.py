@@ -71,7 +71,8 @@ AI_OBRIGATORIOS = ("type", "ssCount", "ssRate", "spsCount", "spsRate",
 # de ordem de exibicao na tela -- nao de proibicao: `set` fora desta lista e
 # guardado como veio.
 STATUS = (
-    ("level", "nível"), ("type", "tipo"), ("exp", "exp"), ("sp", "sp"),
+    ("level", "nível"), ("type", "tipo"), ("exp", "exp"),
+    ("expRate", "taxa de exp"), ("sp", "sp"),
     ("hp", "HP"), ("mp", "MP"), ("hpRegen", "regen HP"),
     ("mpRegen", "regen MP"), ("pAtk", "atq. físico"),
     ("pDef", "def. física"), ("mAtk", "atq. mágico"),
@@ -79,6 +80,7 @@ STATUS = (
     ("walkSpd", "vel. andar"), ("runSpd", "vel. correr"),
     ("str", "STR"), ("int", "INT"), ("dex", "DEX"),
     ("wit", "WIT"), ("con", "CON"), ("men", "MEN"),
+    ("attackRange", "alcance"),
     ("radius", "raio"), ("height", "altura"),
     ("rHand", "mão direita"), ("lHand", "mão esquerda"),
     ("corpseTime", "tempo do corpo"), ("dropHerbGroup", "grupo de erva"),
@@ -123,6 +125,40 @@ RACAS = {
 # edicao com o texto exato que tinha.
 BLOCOS_EDITAVEIS = ("set", "ai", "skills", "drops", "minions")
 
+# No High Five (L2J e Mobius, do Gracia em diante) o status nao e uma lista de
+# `<set>`: cada numero mora num atributo de um elemento proprio. A tabela diz
+# onde, com o mesmo nome neutro que a tela ja usa para o aCis -- assim a tela
+# nao precisa saber qual dos dois esta editando. `None` no atributo quer
+# dizer que o valor e o TEXTO do elemento (`<corpseTime>7</corpseTime>`).
+CAMPOS_H5 = (
+    ("level", "", "level"), ("type", "", "type"),
+    ("exp", "acquire", "exp"), ("expRate", "acquire", "expRate"),
+    ("sp", "acquire", "sp"),
+    ("hp", "stats/vitals", "hp"), ("mp", "stats/vitals", "mp"),
+    ("hpRegen", "stats/vitals", "hpRegen"),
+    ("mpRegen", "stats/vitals", "mpRegen"),
+    ("pAtk", "stats/attack", "physical"), ("pDef", "stats/defence", "physical"),
+    ("mAtk", "stats/attack", "magical"), ("mDef", "stats/defence", "magical"),
+    ("crit", "stats/attack", "critical"),
+    ("atkSpd", "stats/attack", "attackSpeed"),
+    ("attackRange", "stats/attack", "range"),
+    ("walkSpd", "stats/speed/walk", "ground"),
+    ("runSpd", "stats/speed/run", "ground"),
+    ("str", "stats", "str"), ("int", "stats", "int"), ("dex", "stats", "dex"),
+    ("wit", "stats", "wit"), ("con", "stats", "con"), ("men", "stats", "men"),
+    ("radius", "collision/radius", "normal"),
+    ("height", "collision/height", "normal"),
+    ("rHand", "equipment", "rhand"), ("lHand", "equipment", "lhand"),
+    ("corpseTime", "corpseTime", None),
+)
+
+# Os filhos de `<npc>` que a tela do High Five edita, inteiros ou em parte.
+BLOCOS_EDITAVEIS_H5 = ("ai", "skillList", "dropLists", "stats", "acquire",
+                       "collision", "equipment", "corpseTime", "parameters")
+
+# `AIType` do core do High Five.
+TIPOS_DE_AI_H5 = ("FIGHTER", "ARCHER", "BALANCED", "MAGE", "HEALER", "CORPSE")
+
 _NPC = re.compile(r"[ \t]*<npc\s[^>]*?>.*?</npc>[ \t]*\r?\n?", re.S)
 _ATRIBUTO = re.compile(r'([\w:-]+)\s*=\s*"([^"]*)"')
 
@@ -145,14 +181,26 @@ def pasta_de_npcs(raiz):
     caminho = Path(raiz)
     if caminho.name.lower() == "npcs" and caminho.is_dir():
         return caminho
-    for tentativa in (caminho / "npcs",
-                      caminho / "xml" / "npcs",
-                      caminho / "data" / "xml" / "npcs",
-                      caminho / "game" / "data" / "xml" / "npcs",
-                      caminho / "dist" / "game" / "data" / "xml" / "npcs",
-                      caminho / "build" / "dist" / "game" / "data" / "xml" / "npcs"):
-        if tentativa.is_dir():
-            return tentativa
+    # `xml/npcs` e o aCis; `stats/npcs` e o L2J e o Mobius do Gracia em
+    # diante. A raiz apontada pode ser o servidor, o `game` ou o `data`.
+    for meio in (("xml",), ("stats",)):
+        for antes in ((), ("data",), ("game", "data"),
+                      ("dist", "game", "data"),
+                      ("build", "dist", "game", "data")):
+            tentativa = caminho.joinpath(*(antes + meio + ("npcs",)))
+            if tentativa.is_dir():
+                return tentativa
+    if (caminho / "npcs").is_dir():
+        return caminho / "npcs"
+    # Ultimo recurso: a pasta que o farejador do servidor achou -- a que tem
+    # mais <npc> --, para datapack com arrumacao propria.
+    try:
+        import l2servidor
+        achada = l2servidor.raiz_de(caminho, l2servidor.farejar(caminho), "npcs")
+        if achada is not None:
+            return achada
+    except Exception:                               # noqa: BLE001
+        pass
     return caminho / "npcs"
 
 
@@ -256,8 +304,10 @@ def golpes_de(npc):
     return [s for s in npc.get("skills") or [] if not e_a_raca(s)]
 
 
-def _modelo(cru, arquivo):
+def _modelo(cru, arquivo, texto_do_arquivo=""):
     """Um `<npc>` cru vira o dicionario que a tela edita."""
+    if dialeto(cru) == "h5":
+        return _modelo_h5(cru, arquivo, texto_do_arquivo)
     fim_abertura = cru.find(">")
     fecho = cru.rfind("</npc>")
     cabeca = cru[:fim_abertura + 1]
@@ -283,6 +333,7 @@ def _modelo(cru, arquivo):
         "minions": [],
         "filhos": _filhos(dentro),
         "mexidos": set(),
+        "dialeto": "acis",
     }
     for tag, texto in npc["filhos"]:
         if tag == "set":
@@ -306,9 +357,11 @@ def blocos_preservados(npc):
     A tela mostra isso: quem abre um pet e vê `petdata` na lista fica sabendo
     que aquelas cem linhas continuam lá, em vez de desconfiar que sumiram.
     """
+    editaveis = (BLOCOS_EDITAVEIS_H5 if npc.get("dialeto") == "h5"
+                 else BLOCOS_EDITAVEIS)
     vistos = []
     for tag, _texto in npc.get("filhos") or []:
-        if tag and tag not in BLOCOS_EDITAVEIS and tag not in vistos:
+        if tag and tag not in editaveis and tag not in vistos:
             vistos.append(tag)
     return vistos
 
@@ -331,16 +384,24 @@ def listar(pasta, aoprogresso=None):
             cru = bloco.group(0)
             cabeca = cru[:cru.find(">") + 1]
             a = _atributos(cabeca)
-            nivel = re.search(r'<set name="level" val="([^"]*)"', cru)
-            tipo = re.search(r'<set name="type" val="([^"]*)"', cru)
+            if dialeto(cru) == "h5":
+                nivel, tipo = a.get("level", ""), a.get("type", "")
+                drops = _dentro_de(cru, "dropLists").count("<item ")
+                skills = _dentro_de(cru, "skillList").count("<skill ")
+            else:
+                achado = re.search(r'<set name="level" val="([^"]*)"', cru)
+                nivel = achado.group(1) if achado else ""
+                achado = re.search(r'<set name="type" val="([^"]*)"', cru)
+                tipo = achado.group(1) if achado else ""
+                drops, skills = cru.count("<drop "), cru.count("<skill ")
             saida.append({
                 "id": a.get("id", ""),
                 "nome": a.get("name", ""),
                 "titulo": a.get("title", ""),
-                "tipo": tipo.group(1) if tipo else "",
-                "nivel": nivel.group(1) if nivel else "",
-                "drops": cru.count("<drop "),
-                "skills": cru.count("<skill "),
+                "tipo": tipo,
+                "nivel": nivel,
+                "drops": drops,
+                "skills": skills,
                 "arquivo": arquivo,
             })
     if aoprogresso:
@@ -355,7 +416,7 @@ def ler(arquivo, ident):
     for bloco in _NPC.finditer(texto):
         cru = bloco.group(0)
         if _atributos(cru[:cru.find(">") + 1]).get("id") == ident:
-            return _modelo(cru, arquivo)
+            return _modelo(cru, arquivo, texto)
     return None
 
 
@@ -392,6 +453,8 @@ def xml(npc):
     texto cru, não de uma emenda. Reinventar aquele fecho custou uma linha em
     branco a mais em cada um dos 6.532 mobs na primeira versão.
     """
+    if npc.get("dialeto") == "h5":
+        return _xml_h5(npc)
     recuo = _recuo(npc["cru"])
     dentro = recuo + "\t"
     mexidos = npc.get("mexidos") or set()
@@ -522,12 +585,36 @@ def gravar(npc, fazer_copia=True):
 # =========================================================================
 # conferir
 # =========================================================================
-def porcentagem(chance):
-    """`79637` -> `7,9637%`. É como o número é escrito e não como ele é lido."""
+def porcentagem(chance, npc=None):
+    """`79637` -> `7,9637%`. É como o número é escrito e não como ele é lido.
+
+    No High Five a chance já é escrita em porcento: `chance="70"` é 70%.
+    """
     try:
+        if e_h5(npc):
+            return float(chance)
         return 100.0 * float(chance) / CHANCE_CHEIA
     except (TypeError, ValueError):
         return 0.0
+
+
+def e_h5(npc):
+    """O mob é do formato do High Five (L2J/Mobius), e não do aCis?"""
+    return bool(npc) and npc.get("dialeto") == "h5"
+
+
+def chance_padrao(npc):
+    """A chance de um drop recém-posto: 1%, na unidade do formato."""
+    return "1" if e_h5(npc) else "10000"
+
+
+def chaves_de_ai(npc):
+    """Os campos do <ai> que a tela mostra mesmo vazios."""
+    return () if e_h5(npc) else AI_OBRIGATORIOS
+
+
+def tipos_de_ai(npc):
+    return TIPOS_DE_AI_H5 if e_h5(npc) else TIPOS_DE_AI
 
 
 def da_porcentagem(por_cento):
@@ -554,8 +641,9 @@ def conferir(npc, itens=None):
         problemas.append("o mob está sem nome; o core lê o atributo `name` "
                          "sem conferir se ele existe")
 
+    h5 = e_h5(npc)
     ai = npc.get("ai") or {}
-    if ai:
+    if ai and not h5:
         faltando = [c for c in AI_OBRIGATORIOS if c not in ai]
         if faltando:
             problemas.append("falta em <ai>: %s — o core lê esses atributos "
@@ -571,7 +659,7 @@ def conferir(npc, itens=None):
             problemas.append("o status `%s` está com `%s`, que não é número"
                              % (chave, valor))
 
-    if (npc.get("ai") or {}).get("type") and \
+    if not h5 and (npc.get("ai") or {}).get("type") and \
             npc["ai"]["type"] not in TIPOS_DE_AI:
         problemas.append("o <ai> é do tipo `%s`, que não é um dos quatro que "
                          "o pack usa (%s) — se não existir classe com esse "
@@ -614,6 +702,12 @@ def conferir(npc, itens=None):
             problemas.append("o minion %s tem min %d maior que max %d"
                              % (ident, menor, maior))
 
+    if h5 and (npc.get("gavetas") or ("drop",))[0] == "drop" and any(
+            e_grupo(c) and c.get("itens") for c in npc.get("drops") or []
+            if str(c.get("id")) != str(CATEGORIA_SPOIL)):
+        problemas.append("o Mobius do High Five não tem grupo de drop: os "
+                         "itens das categorias além da 0 vão soltos, cada um "
+                         "com a própria chance")
     for categoria in npc.get("drops") or []:
         rotulo = ("spoil" if str(categoria.get("id")) == str(CATEGORIA_SPOIL)
                   else "categoria %s" % categoria.get("id"))
@@ -630,12 +724,24 @@ def conferir(npc, itens=None):
                                  % (rotulo, ident))
             minimo = _inteiro(item.get("min"))
             maximo = _inteiro(item.get("max"))
-            chance = _inteiro(item.get("chance"))
-            if minimo is None or maximo is None or minimo < 1:
+            if minimo is None or maximo is None or minimo < (0 if h5 else 1):
                 problemas.append("%s: item %s com min/max inválido" % (rotulo, ident))
             elif minimo > maximo:
                 problemas.append("%s: item %s tem min %d maior que max %d"
                                  % (rotulo, ident, minimo, maximo))
+            if h5:
+                # Porcento com casa decimal; acima de 100 o core do High Five
+                # sorteia mais de uma vez, o que quase nunca e o que se quis.
+                try:
+                    chance = float(item.get("chance"))
+                except (TypeError, ValueError):
+                    chance = None
+                if chance is None or not 0 < chance <= 100:
+                    problemas.append("%s: item %s com chance `%s` — no High "
+                                     "Five o valor é em porcento, de 0 a 100"
+                                     % (rotulo, ident, item.get("chance")))
+                continue
+            chance = _inteiro(item.get("chance"))
             if chance is None or not 1 <= chance <= CHANCE_CHEIA:
                 problemas.append("%s: item %s com chance `%s` — o valor vai de "
                                  "1 a %d, onde %d é 100%%"
@@ -712,21 +818,524 @@ def _contar_skills(pasta, tipo, nivel, aoprogresso=None):
         texto = _texto(arquivo)
         for bloco in _NPC.finditer(texto):
             cru = bloco.group(0)
-            achado = re.search(r'<set name="type" val="([^"]*)"', cru)
-            if tipo and (not achado or achado.group(1) != tipo):
+            if dialeto(cru) == "h5":
+                a = _atributos(cru[:cru.find(">") + 1])
+                o_tipo, o_nivel = a.get("type"), a.get("level")
+                lista = _dentro_de(cru, "skillList")
+            else:
+                achado = re.search(r'<set name="type" val="([^"]*)"', cru)
+                o_tipo = achado.group(1) if achado else None
+                achado = re.search(r'<set name="level" val="([^"]*)"', cru)
+                o_nivel = achado.group(1) if achado else None
+                lista = cru
+            if tipo and o_tipo != tipo:
                 continue
-            achado = re.search(r'<set name="level" val="([^"]*)"', cru)
             try:
-                dele = int(achado.group(1)) if achado else -1
+                dele = int(o_nivel) if o_nivel else -1
             except ValueError:
                 dele = -1
             if not menor <= dele <= maior:
                 continue
             # Um mob conta UMA vez por skill, mesmo repetindo a linha.
-            for ident in set(re.findall(r'<skill id="([^"]*)"', cru)):
+            for ident in set(re.findall(r'<skill id="([^"]*)"', lista)):
                 if ident == str(SKILL_DA_RACA):
                     continue
                 contagem[ident] = contagem.get(ident, 0) + 1
     if aoprogresso:
         aoprogresso(1.0, "")
     return sorted(contagem.items(), key=lambda p: (-p[1], int(p[0] or 0)))
+
+
+# =========================================================================
+# o formato do High Five (L2J e Mobius, do Gracia em diante)
+# =========================================================================
+# O mesmo NPC, escrito de outro jeito:
+#
+#     <npc id="18038" level="61" type="FestivalMonster" name="...">
+#         <acquire exp="5313" sp="468" />
+#         <stats str="40" ...>
+#             <vitals hp="1985.5" ... />
+#             <attack physical="501" ... />
+#         </stats>
+#         <skillList> <skill id="4416" level="6" /> </skillList>
+#         <dropLists>
+#             <drop> <item id="57" min="629" max="1257" chance="70" /> </drop>
+#             <spoil> ... </spoil>          <- L2J: <death> e <corpse>
+#         </dropLists>
+#         <parameters>
+#             <minions name="Privates"> <npc id="18010" count="2" ... /> </minions>
+#         </parameters>
+#     </npc>
+#
+# A chance e em PORCENTO, e nao em milionesimos. E a cirurgia continua a
+# mesma: cada numero mexido troca so o atributo dele, e cada bloco mexido
+# troca so o bloco -- os comentarios de linha (`<!-- Stun -->`) voltam iguais
+# em tudo o que nao mudou.
+_MARCAS_H5 = re.compile(
+    r"<(stats|skillList|dropLists|acquire|collision|race)(?=[\s/>])")
+
+# Gaveta do High Five -> categoria da tela. O espolio e a -1 nos dois mundos.
+_GAVETAS_H5 = {"drop": "0", "death": "0", "spoil": "-1", "corpse": "-1"}
+
+# Um filho com o comentario que vier na mesma linha, para ser devolvido igual.
+_LINHA_DE = r"<%s\s[^>]*?/>(?:[^\S\n]*<!--.*?-->)?"
+
+
+def dialeto(cru):
+    """`h5` para o `<npc>` do L2J/Mobius do Gracia em diante; `acis` no resto."""
+    cabeca = cru[:cru.find(">") + 1]
+    if _MARCAS_H5.search(cru) or re.search(r'\slevel\s*=\s*"', cabeca):
+        return "h5"
+    return "acis"
+
+
+def _achar(texto, nome, inicio=0, fim=None):
+    """
+    (abertura, fim da abertura, fim do elemento) do primeiro `<nome>` no
+    trecho, ou None. `<skill` nao casa com `<skillList`.
+    """
+    fim = len(texto) if fim is None else fim
+    achado = re.compile(r"<%s(?=[\s/>])[^>]*>" % re.escape(nome)).search(
+        texto, inicio, fim)
+    if achado is None:
+        return None
+    if achado.group(0).endswith("/>"):
+        return achado.start(), achado.end(), achado.end()
+    fecho = texto.find("</%s>" % nome, achado.end(), fim)
+    if fecho < 0:
+        return achado.start(), achado.end(), achado.end()
+    return achado.start(), achado.end(), fecho + len(nome) + 3
+
+
+def _caminho(texto, caminho):
+    """O elemento em `stats/speed/walk`, a partir do corpo do `<npc>`."""
+    inicio = texto.find(">") + 1
+    fim = texto.rfind("</npc>")
+    fim = len(texto) if fim < 0 else fim
+    achado = None
+    pai = ""
+    for parte in caminho.split("/"):
+        if pai == "stats" and parte in ("attack", "defence"):
+            # `<stats>` tem um `<attribute>` com `<attack>` e `<defence>` de
+            # elemento dentro. O de status e o que esta FORA dele.
+            dentro = _achar(texto, "attribute", inicio, fim)
+            trechos = (((inicio, dentro[0]), (dentro[2], fim)) if dentro
+                       else ((inicio, fim),))
+            achado = None
+            for de, ate in trechos:
+                achado = _achar(texto, parte, de, ate)
+                if achado:
+                    break
+        else:
+            achado = _achar(texto, parte, inicio, fim)
+        if achado is None:
+            return None
+        inicio, fim, pai = achado[1], achado[2], parte
+    return achado
+
+
+def _dentro_de(cru, caminho):
+    """O texto de dentro do elemento, ou "" se ele nao existe."""
+    achado = _caminho(cru, caminho)
+    return cru[achado[1]:achado[2]] if achado else ""
+
+
+def _escapar(valor):
+    return (str(valor).replace("&", "&amp;").replace("<", "&lt;")
+            .replace('"', "&quot;"))
+
+
+def _com_atributo(abertura, nome, valor):
+    """A tag de abertura com `nome="valor"`, trocado no lugar ou acrescentado."""
+    padrao = re.compile(r'(\s%s\s*=\s*")[^"]*(")' % re.escape(nome))
+    valor = _escapar(valor)
+    if padrao.search(abertura):
+        return padrao.sub(lambda m: m.group(1) + valor + m.group(2),
+                          abertura, count=1)
+    corte = len(abertura) - (2 if abertura.endswith("/>") else 1)
+    corpo = abertura[:corte].rstrip()
+    return '%s %s="%s"%s' % (corpo, nome, valor, abertura[len(corpo):])
+
+
+def _trocar(texto, achado, novo):
+    """
+    Troca o elemento pelo `novo` (que ja traz o proprio recuo). Com `novo`
+    vazio, o elemento sai -- e a linha dele junto, se ele estava sozinho nela.
+    """
+    abre, _f, fim = achado
+    linha = texto.rfind("\n", 0, abre) + 1
+    sozinho = not texto[linha:abre].strip()
+    if novo:
+        if sozinho:
+            return texto[:linha] + novo + texto[fim:]
+        return texto[:abre] + novo.lstrip() + texto[fim:]
+    fim_da_linha = texto.find("\n", fim)
+    fim_da_linha = len(texto) if fim_da_linha < 0 else fim_da_linha + 1
+    if sozinho and not texto[fim:fim_da_linha].strip():
+        return texto[:linha] + texto[fim_da_linha:]
+    return texto[:abre] + texto[fim:]
+
+
+def _inserir_antes(texto, nomes, novo, nl):
+    """Poe o bloco novo na linha de cima do primeiro destes que existir."""
+    pos = None
+    for nome in nomes:
+        achado = _caminho(texto, nome)
+        if achado:
+            pos = achado[0]
+            break
+    if pos is None:
+        pos = texto.rfind("</npc>")
+    linha = texto.rfind("\n", 0, pos) + 1
+    return texto[:linha] + novo + nl + texto[linha:]
+
+
+def _ler_campo_h5(cru, cabeca, caminho, atributo):
+    if not caminho:
+        return _atributos(cabeca).get(atributo)
+    achado = _caminho(cru, caminho)
+    if achado is None:
+        return None
+    if atributo is None:
+        if achado[1] == achado[2]:
+            return ""
+        fecho = achado[2] - len(caminho.split("/")[-1]) - 3
+        return cru[achado[1]:fecho].strip()
+    return _atributos(cru[achado[0]:achado[1]]).get(atributo)
+
+
+def _linhas_de(trecho, tag):
+    """[(atributos, linha crua com o comentario)] de cada `<tag .../>`."""
+    saida = []
+    for achado in re.finditer(_LINHA_DE % tag, trecho):
+        linha = achado.group(0)
+        saida.append((_atributos(linha.split("/>")[0]), linha))
+    return saida
+
+
+def _minions_h5(texto):
+    """O `<minions>` dos lacaios dentro de `<parameters>`, ou None."""
+    parametros = _caminho(texto, "parameters")
+    if parametros is None:
+        return None
+    primeiro = None
+    inicio = parametros[1]
+    while True:
+        achado = _achar(texto, "minions", inicio, parametros[2])
+        if achado is None:
+            return primeiro
+        if 'name="Privates"' in texto[achado[0]:achado[1]]:
+            return achado
+        primeiro = primeiro or achado
+        inicio = achado[2]
+
+
+def _item_h5(a, linha):
+    item = {"itemid": a.get("id", ""), "min": a.get("min", "1"),
+            "max": a.get("max", "1"), "chance": a.get("chance", "100")}
+    item["_orig"] = (item["itemid"], item["min"], item["max"], item["chance"])
+    item["_cru"] = linha
+    return item
+
+
+def _recuo_da_linha(texto, achado, padrao):
+    """O recuo que a linha do elemento ja tem; o padrao, se ele nao abre linha."""
+    if not achado:
+        return padrao
+    linha = texto.rfind("\n", 0, achado[0]) + 1
+    recuo = texto[linha:achado[0]]
+    return padrao if recuo.strip() else recuo
+
+
+def e_grupo(categoria):
+    """A categoria vira `<group>` no High Five? A 0 e a -1 sao itens soltos."""
+    if "grupo" in categoria:
+        return bool(categoria["grupo"])
+    return str(categoria.get("id")) not in ("0", "-1")
+
+
+def _modelo_h5(cru, arquivo, texto_do_arquivo=""):
+    fim_abertura = cru.find(">")
+    fecho = cru.rfind("</npc>")
+    cabeca = cru[:fim_abertura + 1]
+    atributos = _atributos(cabeca)
+
+    sets = []
+    for chave, caminho, atributo in CAMPOS_H5:
+        valor = _ler_campo_h5(cru, cabeca, caminho, atributo)
+        if valor is not None:
+            sets.append((chave, valor))
+
+    ai = _caminho(cru, "ai")
+    ai = _atributos(cru[ai[0]:ai[1]]) if ai else {}
+
+    skills = [a for a, _linha in _linhas_de(_dentro_de(cru, "skillList"),
+                                             "skill")]
+
+    drops, usadas = [], []
+    lista = _caminho(cru, "dropLists")
+    for tag in ("drop", "death", "spoil", "corpse"):
+        achado = _achar(cru, tag, lista[1], lista[2]) if lista else None
+        if not achado:
+            continue
+        usadas.append(tag)
+        # O L2J agrupa: `<group chance="50">` sorteia UM item entre os seus,
+        # e cada grupo vira uma categoria da tela. Item solto, fora de grupo,
+        # e sorteado sozinho -- a categoria 0, como no Mobius.
+        base = _GAVETAS_H5[tag]
+        solta = None
+        grupos = 0
+        trecho = cru[achado[1]:achado[2]]
+        for parte in re.finditer(r"<group\b[^>]*>.*?</group>|" + _LINHA_DE
+                                 % "item", trecho, re.S):
+            texto_da_parte = parte.group(0)
+            if texto_da_parte.startswith("<group"):
+                grupos += 1
+                abertura = texto_da_parte[:texto_da_parte.find(">") + 1]
+                drops.append({
+                    "id": base if base == "-1" else str(grupos),
+                    "chance": _atributos(abertura).get("chance", "100"),
+                    "grupo": True,
+                    "itens": [_item_h5(a, linha) for a, linha
+                              in _linhas_de(texto_da_parte, "item")]})
+                solta = None
+                continue
+            if solta is None:
+                solta = {"id": base, "grupo": False, "itens": []}
+                drops.append(solta)
+            a = _atributos(texto_da_parte.split("/>")[0])
+            solta["itens"].append(_item_h5(a, texto_da_parte))
+    # Qual par de nomes o servidor usa: o do proprio mob; senao o dos vizinhos
+    # no arquivo; senao o do Mobius. Escrever o par errado e um drop que o core
+    # nao le, sem erro nenhum.
+    if usadas:
+        gavetas = (("death", "corpse") if set(usadas) & {"death", "corpse"}
+                   else ("drop", "spoil"))
+    elif re.search(r"<(death|corpse)>", texto_do_arquivo or ""):
+        gavetas = ("death", "corpse")
+    else:
+        gavetas = ("drop", "spoil")
+
+    minions = []
+    bloco = _minions_h5(cru)
+    if bloco:
+        for a, linha in _linhas_de(cru[bloco[1]:bloco[2]], "npc"):
+            m = {"id": a.get("id", ""), "min": a.get("count", "1"),
+                 "max": a.get("count", "1"),
+                 "respawnTime": a.get("respawnTime", "120"),
+                 "weightPoint": a.get("weightPoint", "0")}
+            m["_orig"] = (m["id"], m["max"])
+            m["_cru"] = linha
+            minions.append(m)
+
+    return {
+        "id": atributos.get("id", ""),
+        "name": atributos.get("name", ""),
+        "title": atributos.get("title", ""),
+        "atributos": atributos,
+        "arquivo": Path(arquivo),
+        "cru": cru,
+        "cabeca": cabeca,
+        "rabo": cru[fecho:],
+        "sets": sets,
+        "sets_originais": list(sets),
+        "ai": ai,
+        "ai_original": dict(ai),
+        "skills": skills,
+        "drops": drops,
+        "gavetas": gavetas,
+        "minions": minions,
+        "filhos": _filhos(cru[fim_abertura + 1:fecho]),
+        "mexidos": set(),
+        "dialeto": "h5",
+    }
+
+
+def _xml_h5(npc):
+    """O `<npc>` do High Five com so o que foi mexido trocado."""
+    texto = npc["cru"]
+    mexidos = npc.get("mexidos") or set()
+    nl = "\r\n" if "\r\n" in texto else "\n"
+    dentro = _recuo(texto) + "\t"
+
+    # ---- os numeros: um atributo por vez -------------------------------
+    na_cabeca = {}
+    if "atributos" in mexidos:
+        # So o que mudou: NPC sem `name` no arquivo nao ganha `name=""`.
+        antes = _atributos(npc["cabeca"])
+        for chave in ("name", "title"):
+            if (npc.get(chave) or "") != (antes.get(chave) or ""):
+                na_cabeca[chave] = npc.get(chave) or ""
+    if "sets" in mexidos:
+        agora = dict(npc.get("sets") or [])
+        antes = dict(npc.get("sets_originais") or [])
+        for chave, caminho, atributo in CAMPOS_H5:
+            if chave not in agora or agora[chave] == antes.get(chave):
+                continue
+            valor = agora[chave]
+            if not caminho:
+                na_cabeca[atributo] = valor
+                continue
+            achado = _caminho(texto, caminho)
+            if achado is None:
+                continue
+            if atributo is None:
+                fecho = achado[2] - len(caminho.split("/")[-1]) - 3
+                texto = texto[:achado[1]] + _escapar(valor) + texto[fecho:]
+            else:
+                texto = (texto[:achado[0]]
+                         + _com_atributo(texto[achado[0]:achado[1]], atributo,
+                                         valor)
+                         + texto[achado[1]:])
+    if na_cabeca:
+        fim = texto.find(">") + 1
+        cabeca = texto[:fim]
+        for chave, valor in na_cabeca.items():
+            cabeca = _com_atributo(cabeca, chave, valor)
+        texto = cabeca + texto[fim:]
+
+    # ---- <ai> ------------------------------------------------------------
+    if "ai" in mexidos:
+        antes = npc.get("ai_original") or {}
+        trocar = dict((k, v) for k, v in (npc.get("ai") or {}).items()
+                      if str(v) != "" and str(v) != str(antes.get(k, "")))
+        if trocar:
+            achado = _caminho(texto, "ai")
+            if achado:
+                abertura = texto[achado[0]:achado[1]]
+                for chave, valor in trocar.items():
+                    abertura = _com_atributo(abertura, chave, valor)
+                texto = texto[:achado[0]] + abertura + texto[achado[1]:]
+            else:
+                texto = _inserir_antes(
+                    texto, ("dropLists", "collision"),
+                    "%s<ai %s />" % (dentro, " ".join(
+                        '%s="%s"' % (k, _escapar(v))
+                        for k, v in trocar.items())),
+                    nl)
+
+    # ---- <skillList> -----------------------------------------------------
+    if "skills" in mexidos:
+        achado = _caminho(texto, "skillList")
+        velhas = {}
+        if achado:
+            for a, linha in _linhas_de(texto[achado[1]:achado[2]], "skill"):
+                velhas.setdefault((a.get("id"), a.get("level")), linha)
+        skills = npc.get("skills") or []
+        if skills:
+            base = _recuo_da_linha(texto, achado, dentro)
+            linhas = [base + "<skillList>"]
+            for s in skills:
+                chave = (str(s.get("id", "")), str(s.get("level", "1")))
+                linhas.append(base + "\t" + (
+                    velhas.get(chave)
+                    or '<skill id="%s" level="%s" />' % chave))
+            linhas.append(base + "</skillList>")
+            novo = nl.join(linhas)
+            if achado:
+                texto = _trocar(texto, achado, novo)
+            else:
+                texto = _inserir_antes(texto, ("corpseTime", "exCrtEffect",
+                                               "ai", "dropLists", "collision"),
+                                       novo, nl)
+        elif achado:
+            texto = _trocar(texto, achado, "")
+
+    # ---- <dropLists> -----------------------------------------------------
+    if "drops" in mexidos:
+        normal, espolio = npc.get("gavetas") or ("drop", "spoil")
+        comuns, roubo = [], []
+        for categoria in npc.get("drops") or []:
+            destino = roubo if str(categoria.get("id")) == "-1" else comuns
+            destino.append(categoria)
+
+        def linha_do_item(item):
+            agora = (str(item.get("itemid", "")), str(item.get("min", "1")),
+                     str(item.get("max", "1")), str(item.get("chance", "1")))
+            if item.get("_cru") and item.get("_orig") == agora:
+                return item["_cru"]
+            return '<item id="%s" min="%s" max="%s" chance="%s" />' % agora
+
+        achado = _caminho(texto, "dropLists")
+        base = _recuo_da_linha(texto, achado, dentro)
+        corpo = []
+        for gaveta, categorias in ((normal, comuns), (espolio, roubo)):
+            linhas = []
+            recuo = base + "\t\t"
+            for categoria in categorias:
+                itens = categoria.get("itens") or []
+                if not itens:
+                    continue
+                # `<group>` e do L2J (`<death>`); o xsd do Mobius (`<drop>`)
+                # recusa o arquivo inteiro se aparecer um.
+                if e_grupo(categoria) and gaveta in ("death", "corpse"):
+                    linhas.append('%s<group chance="%s">'
+                                  % (recuo, categoria.get("chance", "100")))
+                    linhas.extend(recuo + "\t" + linha_do_item(i)
+                                  for i in itens)
+                    linhas.append(recuo + "</group>")
+                else:
+                    linhas.extend(recuo + linha_do_item(i) for i in itens)
+            if linhas:
+                corpo += (["%s\t<%s>" % (base, gaveta)] + linhas
+                          + ["%s\t</%s>" % (base, gaveta)])
+        if corpo:
+            novo = nl.join([base + "<dropLists>"] + corpo
+                           + [base + "</dropLists>"])
+            if achado:
+                texto = _trocar(texto, achado, novo)
+            else:
+                texto = _inserir_antes(texto, ("collision",), novo, nl)
+        elif achado:
+            # `<dropLists>` vazio nao passa no xsd do Mobius: sai inteiro.
+            texto = _trocar(texto, achado, "")
+
+    # ---- <minions> dentro de <parameters> ---------------------------------
+    if "minions" in mexidos:
+        def linha_do_minion(m):
+            agora = (str(m.get("id", "")),
+                     str(m.get("max") or m.get("min") or 1))
+            if m.get("_cru") and m.get("_orig") == agora:
+                return m["_cru"]
+            return ('<npc id="%s" count="%s" respawnTime="%s" '
+                    'weightPoint="%s" />'
+                    % (agora[0], agora[1], m.get("respawnTime", "120"),
+                       m.get("weightPoint", "0")))
+
+        lacaios = npc.get("minions") or []
+        bloco = _minions_h5(texto)
+        if bloco:
+            linha = texto.rfind("\n", 0, bloco[0]) + 1
+            recuo = texto[linha:bloco[0]]
+            if recuo.strip():
+                recuo = dentro + "\t"
+            if lacaios:
+                novo = nl.join([recuo + texto[bloco[0]:bloco[1]]]
+                               + [recuo + "\t" + linha_do_minion(m)
+                                  for m in lacaios]
+                               + [recuo + "</minions>"])
+                texto = _trocar(texto, bloco, novo)
+            else:
+                texto = _trocar(texto, bloco, "")
+                # `<parameters>` sem filho nenhum tambem nao passa no xsd.
+                parametros = _caminho(texto, "parameters")
+                if parametros and not re.search(
+                        r"<[A-Za-z]", texto[parametros[1]:parametros[2]
+                                            - len("</parameters>")]):
+                    texto = _trocar(texto, parametros, "")
+        elif lacaios:
+            recuo = dentro + "\t"
+            minions = nl.join([recuo + '<minions name="Privates">']
+                              + [recuo + "\t" + linha_do_minion(m)
+                                 for m in lacaios]
+                              + [recuo + "</minions>"])
+            parametros = _caminho(texto, "parameters")
+            if parametros:
+                pos = texto.find("\n", parametros[1]) + 1
+                texto = texto[:pos] + minions + nl + texto[pos:]
+            else:
+                novo = nl.join([dentro + "<parameters>", minions,
+                                dentro + "</parameters>"])
+                pos = texto.find("\n", texto.find(">")) + 1
+                texto = texto[:pos] + novo + nl + texto[pos:]
+    return texto

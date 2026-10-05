@@ -150,3 +150,30 @@ Después, en el juego:
 ```
 //reload npc
 ```
+
+## High Five (L2J y Mobius)
+
+Desde Gracia el `<npc>` se escribe de otra forma, y la pantalla lee y graba
+los dos sin que elijas nada — mira el mob abierto:
+
+| | aCis (Interlude) | L2J / Mobius (High Five) |
+| --- | --- | --- |
+| carpeta | `data/xml/npcs` | `data/stats/npcs` |
+| estadísticas | `<set name="hp" val="...">` | atributos de `<stats>`, `<acquire>`, `<collision>` |
+| skills | `<skills>` | `<skillList>` |
+| drop | `<drops><category>` | `<dropLists>`: `<drop>`/`<spoil>` (Mobius), `<death>`/`<corpse>` (L2J) |
+| probabilidad | por millón | **en porcentaje**: `chance="70"` es 70% |
+| minions | `<minions>` | `<parameters><minions name="Privates">` |
+
+Cada número modificado cambia **solo ese atributo**; los comentarios de línea
+(`<!-- Stun -->`) vuelven iguales en todo lo que no cambió. Prueba: los 10.477
+NPCs de Mobius y los 10.469 de L2J vuelven idénticos cuando no se toca nada, y
+lo editado pasa el `npcs.xsd` del propio servidor.
+
+Dos diferencias que exige el xsd:
+
+- **El `<group>` de drop solo existe en L2J.** En Mobius cada ítem se sortea
+  por separado, y un `<group>` tumba el archivo entero — allí las categorías
+  extra van como ítems sueltos, y la verificación avisa.
+- **Una lista vacía sale entera.** `<dropLists>`, `<minions>` y `<parameters>`
+  sin nada dentro no pasan el xsd; quitar el último ítem quita el bloque.

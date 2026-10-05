@@ -149,3 +149,30 @@ Then, in game:
 ```
 //reload npc
 ```
+
+## High Five (L2J and Mobius)
+
+From Gracia on, `<npc>` is written differently, and the screen reads and
+writes both without you choosing anything — it looks at the open mob:
+
+| | aCis (Interlude) | L2J / Mobius (High Five) |
+| --- | --- | --- |
+| folder | `data/xml/npcs` | `data/stats/npcs` |
+| stats | `<set name="hp" val="...">` | attributes of `<stats>`, `<acquire>`, `<collision>` |
+| skills | `<skills>` | `<skillList>` |
+| drop | `<drops><category>` | `<dropLists>`: `<drop>`/`<spoil>` (Mobius), `<death>`/`<corpse>` (L2J) |
+| chance | per million | **percent**: `chance="70"` is 70% |
+| minions | `<minions>` | `<parameters><minions name="Privates">` |
+
+Each edited number replaces **only that attribute**; line comments
+(`<!-- Stun -->`) come back unchanged wherever nothing changed. Proof: the
+10,477 Mobius NPCs and the 10,469 L2J NPCs come back identical when nothing is
+edited, and what is edited passes the server's own `npcs.xsd`.
+
+Two differences the xsd enforces:
+
+- **Drop `<group>` only exists in L2J.** In Mobius each item is rolled on its
+  own, and a `<group>` breaks the whole file — there, extra categories are
+  written as loose items, and the check warns about it.
+- **An empty list is removed.** `<dropLists>`, `<minions>` and `<parameters>`
+  with nothing inside fail the xsd; removing the last item removes the block.
