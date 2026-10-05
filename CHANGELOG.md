@@ -9,6 +9,26 @@ continua abrindo.
 
 ---
 
+## 1.11.1 — 05/10/2026
+
+**O instalador terminava com "Erro interno: CallSpawnServer: Unexpected
+response: $0".** A instalação em si já tinha acabado; o erro vinha no último
+passo, ao abrir o programa ou o LEIA-ME. Instalado no modo "para todos os
+usuários", o Inno abre esses dois como *o usuário de antes do UAC*, por um
+processo auxiliar — e esse auxiliar falha em algumas máquinas. Agora os dois
+abrem com o próprio usuário do instalador, sem auxiliar nenhum.
+
+**A atualização repete o modo da instalação.** O botão Atualizações roda o
+instalador em silêncio, e em silêncio ele não pergunta "só para mim" ou "para
+todos". O programa agora diz qual (`/CURRENTUSER` ou `/ALLUSERS`), lendo onde
+ele mesmo está registrado: instalar no outro modo deixaria duas entradas em
+*Aplicativos* apontando para a mesma pasta.
+
+A caixa "Ler o LEIA-ME" do fim da instalação passou a vir desmarcada: numa
+atualização, quem já usa o programa não precisa dele aberto toda vez.
+
+---
+
 ## 1.11.0 — 04/10/2026
 
 **High Five no servidor, de verdade.** O cliente do High Five já abria desde a

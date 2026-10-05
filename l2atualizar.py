@@ -280,6 +280,37 @@ def pasta_instalada():
     return pasta if any(pasta.glob("unins*.exe")) else None
 
 
+# O AppId do instalador.iss. Nao muda nunca -- e por ele que o Windows sabe que
+# a versao nova e a mesma instalacao.
+APP_ID = "{8B2F5E14-4C7A-4E0B-9A3D-5D2F1C7E9A40}_is1"
+_DESINSTALAR = r"Software\Microsoft\Windows\CurrentVersion\Uninstall" + "\\" + APP_ID
+
+
+def modo_instalado():
+    """
+    `/ALLUSERS` ou `/CURRENTUSER`, conforme o modo em que o programa ja esta
+    registrado; "" se nao achar.
+
+    O instalador deixa escolher "so para mim" ou "para todos". Em silencio
+    ele nao pergunta -- e instalar no outro modo deixaria duas entradas em
+    Aplicativos apontando para a mesma pasta. Repetir o modo de antes evita
+    isso; "para todos" pede o UAC, como pediu na primeira vez.
+    """
+    if os.name != "nt":
+        return ""
+    import winreg
+    for raiz, modo in ((winreg.HKEY_CURRENT_USER, "/CURRENTUSER"),
+                       (winreg.HKEY_LOCAL_MACHINE, "/ALLUSERS")):
+        for vista in (0, getattr(winreg, "KEY_WOW64_64KEY", 0)):
+            try:
+                with winreg.OpenKey(raiz, _DESINSTALAR, 0,
+                                    winreg.KEY_READ | vista):
+                    return modo
+            except OSError:
+                continue
+    return ""
+
+
 def instalar(instalador):
     """
     Roda o instalador. Empacotado, sem perguntas e reabrindo no fim -- quem
@@ -289,6 +320,9 @@ def instalar(instalador):
     if empacotado():
         argumentos += ["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
                        "/CLOSEAPPLICATIONS", "/REABRIR"]
+        modo = modo_instalado()
+        if modo:
+            argumentos.append(modo)
         pasta = pasta_instalada()
         if pasta is not None:
             argumentos.append("/DIR=%s" % pasta)

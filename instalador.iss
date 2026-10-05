@@ -18,7 +18,7 @@
 ;             (ou: ISCC.exe instalador.iss)
 
 #define Nome        "L2PackTool"
-#define Versao      "1.11.0"
+#define Versao      "1.11.1"
 #define Autor       "Jean Almeida - " + "ÐarkÐomi"
 #define Endereco    "https://github.com/JEAN-ALMEIDA-CZO"
 #define Executavel  "L2PackTool-Completo.exe"
@@ -108,7 +108,7 @@ Name: "atalho"; Description: "{cm:AtalhoArea}"; GroupDescription: "{cm:Additiona
 
 [Files]
 Source: "dist\{#Executavel}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "recursos\LEIA-ME.html"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "recursos\LEIA-ME.html"; DestDir: "{app}"; Flags: ignoreversion
 ; Os lobbys das cronicas do Chaotic Throne ficam ao lado do programa, e nao
 ; dentro dele: sao 62 MB que quem usa um lobby so nao precisa carregar no exe.
 Source: "lobbies\*.zip"; DestDir: "{app}\lobbies"; Flags: ignoreversion skipifsourcedoesntexist
@@ -119,7 +119,14 @@ Name: "{group}\{cm:AbrirLeiaMe}"; Filename: "{app}\LEIA-ME.html"
 Name: "{autodesktop}\{#Nome}"; Filename: "{app}\{#Executavel}"; Tasks: atalho
 
 [Run]
-Filename: "{app}\{#Executavel}"; Description: "{cm:LaunchProgram,{#Nome}}"; Flags: nowait postinstall skipifsilent
+; `runascurrentuser` nas duas caixas do fim: sem ele, o Inno instalado como
+; administrador abre o programa "como o usuario de antes do UAC", por um
+; processo auxiliar -- e esse auxiliar falha em algumas maquinas com
+; "CallSpawnServer: Unexpected response: $0", depois de tudo ja instalado.
+; O LEIA-ME saiu do `isreadme` do [Files] pelo mesmo motivo: ele abria pelo
+; mesmo auxiliar, sem como mudar.
+Filename: "{app}\{#Executavel}"; Description: "{cm:LaunchProgram,{#Nome}}"; Flags: nowait postinstall skipifsilent runascurrentuser
+Filename: "{app}\LEIA-ME.html"; Description: "{cm:AbrirLeiaMe}"; Flags: shellexec nowait postinstall skipifsilent runascurrentuser unchecked
 ; A atualizacao de dentro do programa roda o instalador em silencio com
 ; /REABRIR: o programa ja fechou para liberar o .exe, e quem clicou em
 ; "Instalar agora" espera ve-lo de volta sozinho.
