@@ -28,7 +28,7 @@ cliente. Tudo numa janela só, em português, inglês e espanhol.
 | **Lobby Vídeo** | a tela de entrada: catorze lobbys prontos (C1 a High Five), ou o seu vídeo |
 | **Texture Upscaler** | amplia as texturas de um `.utx` por IA e remonta o pacote *(em testes)* |
 | **Proteção** | fecha as tabelas do cliente com uma chave sua, para ninguém gerar arquivo que ele aceite |
-| **Arquivos** | abre e fecha `.dat`, `.utx`, `.u`, `.unr`, `.ini`, e trata o cliente oficial: chave, loader e patcher |
+| **Arquivos** | abre e fecha `.dat`, `.utx`, `.u`, `.unr`, `.ini`, trata o cliente oficial (chave, loader e patcher) e adapta C1 a C4 para o Windows 10 e 11 |
 | **Conferir Cliente** | varre o cliente e diz o que falta |
 
 O botão **Atualizações**, no alto da janela, traz a versão nova direto do

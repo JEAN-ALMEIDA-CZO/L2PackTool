@@ -64,3 +64,30 @@ um cabeçalho fora do padrão que nenhum leitor de fora reconhece.
 **Abriu, mas o conteúdo veio embaralhado** — a decifragem rodou com a chave
 errada. No `Ver121` isso acontece quando o arquivo foi renomeado em algum
 momento, porque a chave vem do nome.
+
+## Windows 10 e 11
+
+As crônicas **C1 a C4** não abrem nos Windows de hoje: o `L2.exe` fica parado,
+sem janela e sem log. O C3 e o C4, depois disso, ainda param numa caixa
+"AGP is deactivated". O quadro **Windows 10 e 11** mostra o que o cliente do
+projeto precisa, e **Adaptar o cliente do projeto** corrige.
+
+| arquivo | o defeito | a correção |
+| --- | --- | --- |
+| `Core.dll` | ao carregar, ele tenta criar um objeto do Windows que não existe; no Windows 10 essa consulta trava com o carregador de DLLs parado | o jogo segue pelo caminho que já tinha para "objeto não existe" — três bytes |
+| `D3DDrv.dll` (C3, C4) | pergunta pela memória AGP, que placa nenhuma de hoje declara, e espera o clique numa caixa | pula só a caixa — um byte |
+
+Nada tem posição fixa: o programa procura no arquivo a forma exata de cada
+trecho e só mexe se ela bater inteira. Os originais vão para
+`system\backup_win10`, e **Desfazer** os devolve. C5, Interlude e as crônicas
+do Chaotic Throne em diante não têm esses defeitos, e o quadro diz isso.
+
+Pela linha de comando:
+
+```
+L2PackTool-cli win10 "C:\Lineage II C2\system" --so-ver
+L2PackTool-cli win10 "C:\Lineage II C2\system"
+L2PackTool-cli win10 "C:\Lineage II C2\system" --desfazer
+```
+
+O GameGuard dos clientes oficiais não é tocado por esta função.

@@ -64,3 +64,31 @@ outside the standard that no outside reader recognises.
 **It opened, but the contents came out scrambled** — the decryption ran with the
 wrong key. On `Ver121` this happens when the file was renamed at some point,
 because the key comes from the name.
+
+## Windows 10 and 11
+
+Chronicles **C1 to C4** do not open on today's Windows: `L2.exe` just sits
+there, with no window and no log. C3 and C4 then also stop at an "AGP is
+deactivated" box. The **Windows 10 and 11** frame shows what the project's
+client needs, and **Adapt the project's client** fixes it.
+
+| file | the defect | the fix |
+| --- | --- | --- |
+| `Core.dll` | while loading, it tries to create a Windows object that does not exist; on Windows 10 that lookup hangs while the DLL loader is locked | the game takes the path it already had for "object does not exist" — three bytes |
+| `D3DDrv.dll` (C3, C4) | asks for AGP memory, which no card today reports, and waits for a click on a box | skips only the box — one byte |
+
+Nothing is at a fixed position: the program looks for the exact shape of each
+piece of code and only changes it if the shape matches entirely. The originals
+go to `system\backup_win10`, and **Undo** puts them back. C5, Interlude and the
+Chaotic Throne chronicles onward do not have these defects, and the frame says
+so.
+
+From the command line:
+
+```
+L2PackTool-cli win10 "C:\Lineage II C2\system" --so-ver
+L2PackTool-cli win10 "C:\Lineage II C2\system"
+L2PackTool-cli win10 "C:\Lineage II C2\system" --desfazer
+```
+
+The official clients' GameGuard is not touched by this function.

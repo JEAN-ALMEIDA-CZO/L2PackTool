@@ -9,6 +9,60 @@ continua abrindo.
 
 ---
 
+## 1.12.0 — 06/10/2026
+
+**C1 a C4 no Windows 10 e 11.** As crônicas antigas não abriam nos Windows de
+hoje: o `L2.exe` ficava parado em 14 MB, sem janela e sem log. Nem o modo de
+compatibilidade nem rodar como administrador resolviam.
+
+**A causa foi medida no próprio cliente.** A pilha da thread principal, lida
+com o jogo travado, para em `Core.dll+0x7C780` — o retorno de um
+`CoCreateInstance` da classe `{53e96b9b-3784-4edc-a80d-268cb5b5ec0d}`, chamado
+por um construtor global, ou seja, durante o carregamento das DLLs. A classe
+não existe em Windows nenhum, e o jogo foi feito para seguir sem ela: na falha
+ele só escreve um aviso de depuração. No XP a resposta "classe não
+registrada" vinha na hora; no Windows 10, com `CLSCTX_ALL`, o COM consulta o
+serviço do sistema por RPC — e a resposta nunca chega, porque o carregador de
+DLLs está travado esperando o próprio `Core.dll`.
+
+**A correção** leva o jogo direto ao caminho que ele já tinha para "classe não
+registrada": o `test eax,eax / jl` depois do `CoInitializeEx` vira `jmp`. O
+mesmo código aparece **três vezes** em cada `Core.dll` (dois construtores e um
+método), e as três são trocadas. Nenhuma posição é fixa — o programa acha o
+CLSID no arquivo, o `push` desse endereço e o desvio logo antes, e só troca se
+a forma bater inteira.
+
+| crônica | `Core.dll` | `D3DDrv.dll` |
+| --- | --- | --- |
+| C1, C2 | 3 bytes | — |
+| C3, C4 | 3 bytes | 1 byte |
+| C5, Interlude, Chaotic Throne em diante | não têm o defeito | — |
+
+**O aviso de AGP.** O C3 e o C4, depois de passar disso, paravam numa caixa
+"AGP is deactivated": o renderizador pergunta pela memória AGP
+(`D3DDEVCAPS_TEXTURENONLOCALVIDMEM`), que placa nenhuma de hoje declara, e
+espera o clique — depois segue pelo mesmo caminho de quem tem AGP. A correção
+redireciona o desvio para o salto que já pulava a caixa: um byte de
+deslocamento relativo. Uma primeira versão trocava um `mov eax,[endereço]`
+por um salto, e aquele endereço tem relocação: com a DLL carregada fora do
+endereço preferido, o Windows "corrigia" o salto e o jogo caía num
+`General protection fault` em `CheckDeviceCaps`. A versão publicada não toca
+em byte relocável.
+
+**Onde fica.** Aba **L2Crypt**, quadro **Windows 10 e 11**: o diagnóstico do
+cliente do projeto, **Adaptar o cliente do projeto** e **Desfazer**. Os
+originais vão para `system\backup_win10` antes de qualquer escrita, e cada
+arquivo só é trocado depois da conferência. Na linha de comando:
+
+```
+L2PackTool-cli win10 <system> [--so-ver] [--desfazer]
+```
+
+Provado: o C2 abre até a tela de login; o C4 abre até a tela de login sem a
+caixa de AGP. A função não mexe no GameGuard.
+
+---
+
 ## 1.11.1 — 05/10/2026
 
 **O instalador terminava com "Erro interno: CallSpawnServer: Unexpected

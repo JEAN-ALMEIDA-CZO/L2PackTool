@@ -2809,6 +2809,36 @@ pacote Unreal e dá falso negativo num `.dat` Ver413.
 
 ---
 
+## Windows 10 e 11 (C1 a C4)
+
+As crônicas C1 a C4 não abrem nos Windows de hoje: o `L2.exe` fica parado em
+poucos megabytes, sem janela e sem log. A causa foi medida no próprio cliente
+— a pilha da thread principal para dentro de um `CoCreateInstance` do
+`Core.dll`, chamado durante o carregamento das DLLs para criar um objeto que
+não existe em Windows nenhum. No XP a resposta "classe não registrada" vinha
+na hora; no Windows 10 a consulta ao serviço COM nunca volta, porque o
+carregador de DLLs está travado esperando o próprio `Core.dll`.
+
+O jogo já tinha o caminho para quando o objeto não existe (ele só escreve um
+aviso de depuração e segue). A correção leva o jogo direto para esse caminho:
+são três bytes no `Core.dll` — o mesmo código aparece três vezes —, achados
+pela forma do código e não por posição fixa.
+
+O C3 e o C4 ainda param numa caixa "AGP is deactivated": o renderizador
+pergunta pela memória AGP, que placa nenhuma de hoje declara. A segunda
+correção pula só a caixa, com um byte de deslocamento relativo no
+`D3DDrv.dll`.
+
+Na aba **L2Crypt**, quadro **Windows 10 e 11**: o programa diz o que o
+cliente do projeto precisa, **Adaptar** corrige e guarda os originais em
+`system\backup_win10`, **Desfazer** os devolve. Na linha de comando:
+`L2PackTool-cli win10 <system> [--so-ver] [--desfazer]`.
+
+Provado: C2 abre até a tela de login; C4 abre até a tela de login sem a caixa
+de AGP. C5, Interlude e as crônicas do Chaotic Throne em diante não têm esses
+defeitos. A função não mexe no GameGuard dos clientes oficiais.
+
+
 ## Atualizações
 
 O botão **Atualizações**, no alto da janela, pergunta ao GitHub se há versão

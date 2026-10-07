@@ -26,6 +26,7 @@ import idioma
 import l2npc
 import l2chaves
 import l2conferir
+import l2win10
 import motor
 from idioma import t, N_
 
@@ -164,6 +165,41 @@ class JanelaArquivos:
             "nova — é para isso que existem o patcher e os loaders da "
             "comunidade, que acompanham o l2encdec."))
 
+        # ---- Windows 10 e 11 ----
+        w10 = ttk.LabelFrame(quadro, text=t("Windows 10 e 11"), padding=8)
+        w10.pack(fill="x", pady=(10, 0))
+        ttk.Label(w10, style="Fraco.TLabel", justify="left", wraplength=700,
+                  text=t("As crônicas C1 a C4 travam ao abrir nos Windows de "
+                         "hoje, e o C3 e o C4 ainda param num aviso de AGP. "
+                         "Adaptar corrige o Core.dll e o D3DDrv.dll da system "
+                         "do projeto, guardando os originais.")).pack(anchor="w")
+        linha_w10 = ttk.Frame(w10)
+        linha_w10.pack(fill="x", pady=(6, 0))
+        self.botao_win10 = ttk.Button(linha_w10, text=t("Adaptar o cliente do projeto"),
+                                      command=self.adaptar_win10)
+        self.botao_win10.pack(side="left")
+        self.botao_win10_volta = ttk.Button(linha_w10, text=t("Desfazer"),
+                                            command=self.desfazer_win10)
+        self.botao_win10_volta.pack(side="left", padx=(6, 0))
+        ajuda.ajuda(linha_w10, lambda: t(
+            "Core.dll — ao carregar, ele tenta criar um objeto do Windows que "
+            "não existe. No XP a resposta vinha na hora; no Windows 10 a "
+            "consulta trava, e o jogo fica parado sem janela. A correção faz "
+            "o jogo seguir pelo caminho que ele já tinha para \"objeto não "
+            "existe\". São três bytes.@@"
+            "D3DDrv.dll — o renderizador pergunta pela memória AGP, que placa "
+            "nenhuma de hoje declara, e para numa caixa \"AGP is deactivated\" "
+            "esperando o clique. A correção pula só a caixa: um byte.@@"
+            "Nada tem posição fixa: o programa procura no arquivo a forma "
+            "exata de cada trecho e só mexe se ela bater inteira. Os originais "
+            "vão para system\\backup_win10, e Desfazer os devolve.@@"
+            "C5, Interlude e as crônicas do Chaotic Throne em diante não têm "
+            "esses defeitos — o programa diz isso, e não mexe."))
+        self.recado_win10 = ttk.Label(w10, style="Miudo.TLabel", wraplength=700,
+                                      justify="left")
+        self.recado_win10.pack(anchor="w", pady=(6, 0))
+        self.atualizar_win10()
+
         acao = ttk.Frame(quadro)
         acao.pack(fill="x", pady=(8, 0))
         self.botao = ttk.Button(acao, text=t("Descriptografar"),
@@ -197,6 +233,91 @@ class JanelaArquivos:
         self.texto.pack(fill="both", expand=True)
 
         self.atualizar()
+
+    # ---- Windows 10 e 11 ---------------------------------------------------
+    def _system_do_projeto(self):
+        import projeto
+        cliente = (projeto.cliente() or "").strip()
+        if not cliente:
+            return None
+        return l2conferir.raiz_do_cliente(cliente) / "system"
+
+    def atualizar_win10(self):
+        """O diagnostico do cliente do projeto, e os botoes de acordo."""
+        system = self._system_do_projeto()
+        if system is None or not system.is_dir():
+            self.recado_win10.config(text=t("Aponte a pasta do cliente em Projetos."))
+            self.botao_win10.config(state="disabled")
+            self.botao_win10_volta.config(state="disabled")
+            return
+        try:
+            situacao, _frase = l2win10.estado(system)
+        except Exception as erro:                   # noqa: BLE001
+            self.recado_win10.config(text=str(erro))
+            return
+        frases = {
+            "precisa": t("Este cliente precisa da adaptação para abrir no "
+                         "Windows 10/11."),
+            "adaptado": t("Este cliente já está adaptado para o Windows 10/11."),
+            "nao_se_aplica": t("Este cliente não tem os defeitos conhecidos do "
+                               "Windows 10/11 — nada a fazer."),
+            "sem_core": t("Não achei o Core.dll na system do projeto."),
+        }
+        detalhe = []
+        for correcao, _caminho, estado in l2win10.diagnostico(system):
+            if estado != "nao_se_aplica":
+                detalhe.append("%s: %s" % (correcao.arquivo,
+                                           t("adaptado") if estado == "adaptado"
+                                           else t("precisa")))
+        self.recado_win10.config(text=frases.get(situacao, "") +
+                                 ("  (" + ", ".join(detalhe) + ")" if detalhe else ""))
+        self.botao_win10.config(state="normal" if situacao == "precisa" else "disabled")
+        tem_copia = (system / l2win10.PASTA_DE_COPIAS).is_dir()
+        self.botao_win10_volta.config(state="normal" if tem_copia else "disabled")
+
+    def ao_trocar_projeto(self):
+        try:
+            self.atualizar_win10()
+        except tk.TclError:
+            pass
+
+    def adaptar_win10(self):
+        system = self._system_do_projeto()
+        if system is None:
+            return
+        if not messagebox.askyesno(
+                t("Adaptar para o Windows 10/11?"),
+                t("Vou corrigir o Core.dll (e o D3DDrv.dll, se precisar) em:\n"
+                  "%s\n\nOs originais ficam em backup_win10, e Desfazer os "
+                  "devolve. Feche o jogo antes. Continuar?") % system):
+            return
+        self.log(t("\n=== adaptando para o Windows 10/11 ==="))
+        try:
+            alterados = l2win10.adaptar(system, aolog=self.log)
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu para adaptar"), str(erro))
+            self.atualizar_win10()
+            return
+        self.atualizar_win10()
+        if alterados:
+            messagebox.showinfo(t("Cliente adaptado"),
+                                t("Pronto: %d arquivo(s) adaptado(s). Pode abrir "
+                                  "o jogo pelo l2.exe.") % len(alterados))
+
+    def desfazer_win10(self):
+        system = self._system_do_projeto()
+        if system is None:
+            return
+        if not messagebox.askyesno(t("Devolver os originais?"),
+                                   t("O Core.dll e o D3DDrv.dll voltam a ser os "
+                                     "originais guardados em backup_win10. "
+                                     "Continuar?")):
+            return
+        try:
+            l2win10.desfazer(system, aolog=self.log)
+        except Exception as erro:                   # noqa: BLE001
+            messagebox.showerror(t("Não deu para desfazer"), str(erro))
+        self.atualizar_win10()
 
     # ---- ajudantes -------------------------------------------------------
 

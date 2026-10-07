@@ -5,7 +5,7 @@ hiddenimports = []
 hiddenimports += collect_submodules('PIL')
 # Os comandos `listar`, `conferir`, `abrir` e `fechar` chamam estes
 # dois. A importacao e dentro da funcao, entao eles vao declarados.
-hiddenimports += ['l2conferir', 'l2npc', 'l2mapa', 'l2anim']
+hiddenimports += ['l2conferir', 'l2npc', 'l2mapa', 'l2anim', 'l2win10']
 
 
 a = Analysis(

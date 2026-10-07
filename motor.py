@@ -1409,6 +1409,7 @@ COMANDOS = (
     ("conferir", "confere o cliente e diz que arquivo falta"),
     ("lobby", "poe o video na tela de login de um lobby, com camera fixa"),
     ("animar", "anima uma textura do cliente, ou troca os quadros de uma"),
+    ("win10", "adapta as cronicas C1 a C4 para abrir no Windows 10/11"),
     ("ferramentas", "diz quais ferramentas foram encontradas, e onde"),
     ("ajuda", "esta lista; `ajuda <comando>` detalha um deles"),
 )
@@ -1423,6 +1424,7 @@ EXEMPLOS = """exemplos
   L2PackTool-cli listar Fantasy.utx
   L2PackTool-cli conferir "C:\\Lineage II" -o relatorio.txt
   L2PackTool-cli lobby "C:\\Lineage II"
+  L2PackTool-cli win10 "C:\\Lineage II C2\\system"
   L2PackTool-cli animar Icon.utx --listar
   L2PackTool-cli animar Icon.utx --textura skill1042 --imagem arte.png
   L2PackTool-cli animar L2_SkillTime.utx --familia ToggleEffect --imagem arte.png
@@ -1470,6 +1472,32 @@ def _ferramentas(exigidas=()):
         print("caminho em %s." % CONFIG)
         return None
     return T
+
+
+def _cmd_win10(args):
+    """Diagnostico, adaptacao ou desfazer da compatibilidade com Windows 10."""
+    import l2win10
+    system = Path(args.system)
+    if system.name.lower() != "system" and (system / "system").is_dir():
+        system = system / "system"
+    try:
+        if args.desfazer:
+            for arquivo in l2win10.desfazer(system, aolog=print):
+                pass
+            return 0
+        print("\n%s\n" % system)
+        for correcao, caminho, situacao in l2win10.diagnostico(system):
+            print("  %-11s %-14s %s" % (correcao.arquivo, situacao, correcao.titulo))
+        situacao, frase = l2win10.estado(system)
+        print("\n" + frase)
+        if args.so_ver or situacao != "precisa":
+            return 0
+        l2win10.adaptar(system, aolog=print)
+        print("Pronto. Os originais ficaram em %s." % (system / l2win10.PASTA_DE_COPIAS))
+        return 0
+    except l2win10.ErroWin10 as erro:
+        print("erro: %s" % erro)
+        return 1
 
 
 def _cmd_ferramentas(_args):
@@ -2025,6 +2053,14 @@ def montar_o_parser():
     an.add_argument("--nao-instalar", action="store_true", dest="nao_instalar",
                     help="monta e confere, mas nao mexe no cliente")
     an.set_defaults(funcao=_cmd_animar)
+
+    w10 = sub.add_parser("win10", help=dict(COMANDOS)["win10"])
+    w10.add_argument("system", help="a pasta system do cliente (ou a do cliente)")
+    w10.add_argument("--so-ver", action="store_true",
+                     help="so diz o que o cliente precisa, sem mexer")
+    w10.add_argument("--desfazer", action="store_true",
+                     help="devolve os originais guardados em backup_win10")
+    w10.set_defaults(funcao=_cmd_win10)
 
     fr = sub.add_parser("ferramentas", help=dict(COMANDOS)["ferramentas"])
     fr.set_defaults(funcao=_cmd_ferramentas)
