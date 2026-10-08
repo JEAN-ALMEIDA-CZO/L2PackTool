@@ -18,6 +18,7 @@ dourado, e a janela aparece UMA vez por versão -- quem disse "depois" não é
 perguntado de novo a cada abertura.
 """
 
+import os
 import re
 import threading
 import tkinter as tk
@@ -673,7 +674,22 @@ class JanelaDeAtualizacao:
         if empacotado:
             # O instalador precisa do .exe livre. Sair ja, sem a pergunta de
             # "ha trabalho em andamento" -- isso foi conferido acima.
-            self.raiz.after(400, self.raiz.destroy)
+            self.raiz.after(400, self._sair_para_instalar)
+
+    def _sair_para_instalar(self):
+        """
+        Fecha a janela E o processo.
+
+        So o `destroy` nao basta: qualquer linha de execucao que nao seja
+        daemon segura o Python vivo depois que a janela some, e um processo
+        sem janela segurando o .exe faz o instalador desistir -- o usuario ve
+        o programa fechar e nada instalar.
+        """
+        try:
+            self.raiz.destroy()
+        except tk.TclError:
+            pass
+        os._exit(0)
 
     # ---- o resto -------------------------------------------------------------
     def ver_pagina(self):

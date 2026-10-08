@@ -9,6 +9,32 @@ continua abrindo.
 
 ---
 
+## 1.13.1 — 07/10/2026
+
+**A atualização baixava e não instalava.** Depois do download, o programa
+fechava e nada acontecia: a versão continuava a mesma. O instalador abria,
+sim, mas em silêncio, e encontrava o `.exe` ainda em uso — o programa só
+fecha *depois* de abrir o instalador, e uma cópia sem janela (aberta como
+administrador, ou presa ao fechar) também segurava o arquivo. O Restart
+Manager do Windows não conseguia fechá-la com educação, perguntava o que
+fazer, e no modo silencioso a resposta padrão a essa pergunta é **Abortar**.
+O instalador desistia sem dizer nada.
+
+Agora:
+
+- o instalador, quando é aberto pelo botão Atualizações, **espera o programa
+  fechar** (até 30 segundos) antes de conferir os arquivos em uso;
+- o que ainda estiver aberto depois disso é **fechado à força**
+  (`CloseApplications=force`), em vez de cancelar a instalação;
+- o programa, ao sair para instalar, **encerra o processo de verdade** — antes
+  só fechava a janela, e qualquer tarefa em segundo plano podia deixar o
+  processo vivo, invisível, segurando o `.exe`.
+
+Quem está na 1.11, na 1.12 ou na 1.13.0 recebe esta versão pelo mesmo botão:
+a correção está no instalador novo, que é o que roda na atualização.
+
+---
+
 ## 1.13.0 — 07/10/2026
 
 **Tela de abertura.** O programa leva alguns segundos para montar as doze

@@ -18,7 +18,7 @@
 ;             (ou: ISCC.exe instalador.iss)
 
 #define Nome        "L2PackTool"
-#define Versao      "1.13.0"
+#define Versao      "1.13.1"
 #define Autor       "Jean Almeida - " + "ÐarkÐomi"
 #define Endereco    "https://github.com/JEAN-ALMEIDA-CZO"
 #define Executavel  "L2PackTool-Completo.exe"
@@ -53,8 +53,12 @@ AllowNoIcons=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-; O programa segura os proprios arquivos enquanto roda.
-CloseApplications=yes
+; O programa segura os proprios arquivos enquanto roda. `force`: se o
+; Restart Manager nao conseguir fechar com educacao (uma copia sem janela,
+; uma copia aberta como administrador), ele encerra -- com `yes`, a
+; atualizacao silenciosa respondia "Abortar" a pergunta suprimida e
+; desistia sem dizer nada.
+CloseApplications=force
 RestartApplications=no
 
 SetupIconFile=recursos\icone.ico
@@ -141,9 +145,70 @@ Type: files; Name: "{app}\notify.log"
 
 [Code]
 { /REABRIR vem da atualizacao feita pelo proprio programa. }
+function PeloPrograma: Boolean;
+begin
+  Result := Pos('/REABRIR', Uppercase(GetCmdTail)) > 0;
+end;
+
 function Reabrir: Boolean;
 begin
-  Result := WizardSilent and (Pos('/REABRIR', Uppercase(GetCmdTail)) > 0);
+  Result := WizardSilent and PeloPrograma;
+end;
+
+{ Quantas copias do programa instalado estao rodando. Copia de outra pasta
+  (um teste em dist\, outra instalacao) nao conta; copia cujo caminho o
+  Windows nao mostra conta, por garantia. }
+function CopiasAbertas(const Exe: string): Integer;
+var
+  Wmi, Lista, Item: Variant;
+  I: Integer;
+  Caminho: Variant;
+  Texto: string;
+begin
+  Result := 0;
+  try
+    Wmi := CreateOleObject('WbemScripting.SWbemLocator');
+    Wmi := Wmi.ConnectServer('.', 'root\CIMV2');
+    { #39 nunca no comeco da linha: o pre-processador le como diretiva }
+    Lista := Wmi.ExecQuery('SELECT ExecutablePath FROM Win32_Process WHERE Name = ' + #39 +
+                           ExtractFileName(Exe) + #39);
+    for I := 0 to Lista.Count - 1 do
+    begin
+      Item := Lista.ItemIndex(I);
+      Caminho := Item.ExecutablePath;
+      if VarIsNull(Caminho) or VarIsEmpty(Caminho) then
+        Result := Result + 1
+      else
+      begin
+        Texto := Caminho;
+        if CompareText(Texto, Exe) = 0 then
+          Result := Result + 1;
+      end;
+    end;
+  except
+    Result := 0;       { sem WMI, fica com o Restart Manager }
+  end;
+end;
+
+{ A atualizacao de dentro do programa abre este instalador e SO DEPOIS o
+  programa fecha. Sem esperar, o Restart Manager encontra o .exe ainda
+  aberto. Espera ate 30 s; quem sobrar, o CloseApplications=force fecha. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Exe: string;
+  Espera: Integer;
+begin
+  Result := '';
+  if not PeloPrograma then
+    Exit;
+  Exe := ExpandConstant('{app}\{#Executavel}');
+  Espera := 0;
+  while (Espera < 30000) and (CopiasAbertas(Exe) > 0) do
+  begin
+    Sleep(250);
+    Espera := Espera + 250;
+  end;
+  Log(Format('Esperou %d ms pelo programa fechar.', [Espera]));
 end;
 
 { Desinstalar nao apaga o que o usuario produziu sem perguntar: projeto,
