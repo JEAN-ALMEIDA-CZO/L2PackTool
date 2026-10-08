@@ -228,6 +228,9 @@ class Dica:
         texto = self.texto() if callable(self.texto) else self.texto
         if not texto:
             return
+        # `@@` e o separador de paragrafo dos textos de ajuda. So a aba de
+        # glow trocava por conta propria; nas outras ele aparecia cru no balao.
+        texto = texto.replace("@@", "\n\n")
 
         self.balao = tk.Toplevel(self.widget)
         self.balao.wm_overrideredirect(True)          # sem barra de título

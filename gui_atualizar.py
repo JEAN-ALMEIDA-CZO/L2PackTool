@@ -96,27 +96,107 @@ def texto_do_botao():
     return t("Atualizações")
 
 
-def _paragrafos(texto):
-    """
-    As linhas do Markdown com cada parágrafo numa linha só.
+def _celulas(linha):
+    """As celulas de uma linha de tabela Markdown, sem as barras das pontas."""
+    miolo = linha.strip()
+    if miolo.startswith("|"):
+        miolo = miolo[1:]
+    if miolo.endswith("|"):
+        miolo = miolo[:-1]
+    return [c.strip() for c in miolo.split("|")]
 
-    O texto da release é quebrado à mão a cada 80 colunas, como o CHANGELOG.
-    O GitHub junta essas linhas; a janela também precisa juntar, senão o
-    parágrafo sai picotado no meio da frase. Título, item de lista, tabela e
-    linha em branco começam linha nova; o resto continua a anterior.
+
+def _blocos(texto):
     """
-    saida = []
-    for linha in texto.split("\n"):
-        crua = linha.rstrip()
-        especial = (not crua.strip()
-                    or re.match(r"^\s*(#{1,6}\s|[-*+]\s|\||---\s*$|```|>)", crua))
-        if saida and not especial and saida[-1].strip() and \
-                not saida[-1].lstrip().startswith(("#", "|", "```")) and \
-                saida[-1].strip() != "---":
-            saida[-1] = saida[-1] + " " + crua.strip()
-        else:
-            saida.append(crua)
-    return saida
+    O Markdown em blocos, na ordem: o que o GitHub desenha, so que contado.
+
+    ("titulo", nivel, texto) | ("par", texto) | ("item", nivel, marca, texto)
+    ("codigo", texto) | ("tabela", cabecalho, alinhamentos, linhas)
+    ("citacao", texto) | ("regra",)
+
+    Linhas seguidas de paragrafo viram um paragrafo so -- o texto da release
+    e quebrado a mao a cada 80 colunas, como o CHANGELOG, e o GitHub junta.
+    O mesmo vale para a continuacao recuada de um item de lista.
+    """
+    linhas = texto.replace("\r\n", "\n").split("\n")
+    blocos = []
+    i = 0
+    while i < len(linhas):
+        crua = linhas[i].rstrip()
+        tira = crua.strip()
+        if not tira:
+            i += 1
+            continue
+        if tira.startswith("```"):
+            corpo = []
+            i += 1
+            while i < len(linhas) and not linhas[i].strip().startswith("```"):
+                corpo.append(linhas[i].rstrip())
+                i += 1
+            blocos.append(("codigo", "\n".join(corpo)))
+            i += 1
+            continue
+        if tira.startswith("|") and i + 1 < len(linhas) and \
+                re.match(r"^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$", linhas[i + 1].strip()):
+            cabecalho = _celulas(tira)
+            alinhamentos = []
+            for c in _celulas(linhas[i + 1]):
+                alinhamentos.append("e" if c.endswith(":") and not c.startswith(":")
+                                    else "center" if c.startswith(":") and c.endswith(":")
+                                    else "w")
+            corpo = []
+            i += 2
+            while i < len(linhas) and linhas[i].strip().startswith("|"):
+                corpo.append(_celulas(linhas[i]))
+                i += 1
+            blocos.append(("tabela", cabecalho, alinhamentos, corpo))
+            continue
+        if re.match(r"^(-{3,}|\*{3,}|_{3,})$", tira):
+            blocos.append(("regra",))
+            i += 1
+            continue
+        titulo = re.match(r"^(#{1,6})\s+(.*?)\s*#*$", tira)
+        if titulo:
+            blocos.append(("titulo", len(titulo.group(1)), titulo.group(2)))
+            i += 1
+            continue
+        item = re.match(r"^(\s*)([-*+]|\d+[.)])\s+(.*)$", crua)
+        if item:
+            recuo = len(item.group(1).expandtabs(4))
+            texto_item = item.group(3).strip()
+            i += 1
+            # continuacao do item: linha recuada que nao e outro item
+            while i < len(linhas) and linhas[i].strip() and \
+                    linhas[i][:1] in (" ", "\t") and \
+                    not re.match(r"^\s*([-*+]|\d+[.)])\s+", linhas[i]):
+                texto_item += " " + linhas[i].strip()
+                i += 1
+            blocos.append(("item", recuo // 2, item.group(2), texto_item))
+            continue
+        if tira.startswith(">"):
+            partes = []
+            while i < len(linhas) and linhas[i].strip().startswith(">"):
+                partes.append(linhas[i].strip()[1:].strip())
+                i += 1
+            blocos.append(("citacao", " ".join(p for p in partes if p)))
+            continue
+        # paragrafo: junta ate a proxima linha em branco ou bloco especial
+        partes = [tira]
+        i += 1
+        while i < len(linhas):
+            prox = linhas[i].strip()
+            if not prox or re.match(r"^(#{1,6}\s|[-*+]\s|\d+[.)]\s|\||```|>|(-{3,}|\*{3,}|_{3,})$)", prox):
+                break
+            partes.append(prox)
+            i += 1
+        blocos.append(("par", " ".join(partes)))
+    return blocos
+
+
+def _sem_marcas(texto):
+    """O texto de uma celula sem as marcas de Markdown."""
+    texto = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", texto)
+    return re.sub(r"\*\*|`|(?<![\w*])\*(?=\S)|(?<=\S)\*(?!\w)", "", texto)
 
 
 # ---------------------------------------------------------------------------
@@ -185,19 +265,34 @@ class JanelaDeAtualizacao:
         self.notas.configure(yscrollcommand=barra.set)
         barra.pack(side="right", fill="y")
         self.notas.pack(side="left", fill="both", expand=True)
-        self.notas.tag_configure("versao", font=tema.TITULO,
-                                 foreground=tema.OURO, spacing1=6, spacing3=4)
-        self.notas.tag_configure("data", font=tema.MIUDO,
-                                 foreground=tema.TEXTO_FRACO, spacing3=6)
-        self.notas.tag_configure("h", font=tema.SUBTITULO,
-                                 foreground=tema.TEXTO, spacing1=8, spacing3=2)
-        self.notas.tag_configure("item", lmargin1=8, lmargin2=22, spacing1=1)
-        self.notas.tag_configure("forte", font=tema.CORPO_FORTE)
-        self.notas.tag_configure("codigo", font=tema.FIXA,
-                                 foreground=tema.OURO_CLARO)
-        self.notas.tag_configure("italico", font=(tema.FAMILIA, 9, "italic"))
-        self.notas.tag_configure("tabela", font=tema.FIXA,
-                                 foreground=tema.TEXTO_FRACO)
+        n = self.notas
+        n.tag_configure("versao", font=tema.TITULO, foreground=tema.OURO,
+                        spacing1=6, spacing3=2)
+        n.tag_configure("data", font=tema.MIUDO, foreground=tema.TEXTO_FRACO,
+                        spacing3=8)
+        n.tag_configure("h1", font=(tema.FAMILIA, 11, "bold"),
+                        foreground=tema.TEXTO, spacing1=12, spacing3=4)
+        n.tag_configure("h", font=tema.SUBTITULO, foreground=tema.TEXTO,
+                        spacing1=10, spacing3=3)
+        n.tag_configure("par", spacing1=2, spacing3=8, lmargin1=2, lmargin2=2)
+        for nivel in range(4):
+            recuo = 10 + 20 * nivel
+            n.tag_configure("item%d" % nivel, lmargin1=recuo, lmargin2=recuo + 16,
+                            spacing1=1, spacing3=3)
+        n.tag_configure("marca", foreground=tema.OURO)
+        n.tag_configure("forte", font=tema.CORPO_FORTE)
+        n.tag_configure("italico", font=(tema.FAMILIA, 9, "italic"))
+        n.tag_configure("codigo", font=tema.FIXA, foreground=tema.OURO_CLARO,
+                        background=tema.FUNDO)
+        n.tag_configure("bloco", font=tema.FIXA, foreground=tema.TEXTO,
+                        background=tema.ABISSO, lmargin1=14, lmargin2=14,
+                        rmargin=14, spacing1=1, spacing3=1)
+        n.tag_configure("bloco_borda", background=tema.ABISSO, font=(tema.FAMILIA, 3),
+                        lmargin1=14, rmargin=14)
+        n.tag_configure("citacao", foreground=tema.TEXTO_FRACO, lmargin1=10,
+                        lmargin2=22, spacing1=2, spacing3=8)
+        n.tag_configure("marca_citacao", foreground=tema.BORDA_FORTE)
+        n.bind("<Configure>", self._redesenhar_se_mudou, add="+")
         self.notas.configure(state="disabled")
 
         # ---- o andamento do download --------------------------------------
@@ -296,64 +391,167 @@ class JanelaDeAtualizacao:
     # ---- as notas ---------------------------------------------------------
     def _escrever_notas(self, releases):
         """
-        O texto da release, que é Markdown, num Text com estilo.
+        O texto da release, que é Markdown, desenhado como o GitHub mostra.
 
-        Sem biblioteca de Markdown: as notas usam título, lista, negrito e
-        `código`, e é só isso que se desenha. O resto sai como texto.
+        Sem biblioteca de Markdown: as notas usam título, parágrafo, lista
+        (com ou sem número), negrito, itálico, `código`, bloco de código,
+        tabela, citação e linha divisória -- e é isso que se desenha. A
+        tabela vira uma grade de verdade, embutida no texto, com cabeçalho,
+        bordas e quebra de linha dentro da célula.
         """
+        self._releases = list(releases)
         caixa = self.notas
+        largura = max(caixa.winfo_width(), 560)
+        self._largura_desenhada = largura
+        for embutido in getattr(self, "_embutidos", []):
+            try:
+                embutido.destroy()
+            except tk.TclError:
+                pass
+        self._embutidos = []
         caixa.configure(state="normal")
         caixa.delete("1.0", "end")
-        for release in releases:
-            caixa.insert("end", t("Versão %s") % release["texto"] + "\n",
-                         "versao")
+        for n, release in enumerate(self._releases):
+            if n:
+                self._regra(largura)
+            caixa.insert("end", t("Versão %s") % release["texto"] + "\n", "versao")
             if release.get("data"):
-                caixa.insert("end", t("publicada em %s") % release["data"]
-                             + "\n", "data")
-            for linha in _paragrafos(release.get("notas") or t("(sem notas)")):
-                self._linha(linha)
-            caixa.insert("end", "\n")
+                caixa.insert("end", t("publicada em %s") % release["data"] + "\n", "data")
+            for bloco in _blocos(release.get("notas") or t("(sem notas)")):
+                self._bloco(bloco, largura)
         caixa.configure(state="disabled")
         caixa.yview_moveto(0)
 
-    def _linha(self, linha):
+    def _bloco(self, bloco, largura):
         caixa = self.notas
-        crua = linha.rstrip()
-        titulo = re.match(r"^\s*#{1,6}\s+(.*)$", crua)
-        item = re.match(r"^(\s*)[-*+]\s+(.*)$", crua)
-        if crua.strip() == "---":
+        tipo = bloco[0]
+        if tipo == "titulo":
+            nivel, texto = bloco[1], bloco[2]
+            self._inline(texto, ("h1" if nivel <= 2 else "h",))
+            caixa.insert("end", "\n", ("h1" if nivel <= 2 else "h",))
+        elif tipo == "par":
+            self._inline(bloco[1], ("par",))
+            caixa.insert("end", "\n", ("par",))
+        elif tipo == "item":
+            nivel, marca, texto = bloco[1], bloco[2], bloco[3]
+            tag = "item%d" % min(nivel, 3)
+            simbolo = marca if marca[0].isdigit() else ("•", "◦", "▪", "▪")[min(nivel, 3)]
+            caixa.insert("end", simbolo + "  ", (tag, "marca"))
+            self._inline(texto, (tag,))
+            caixa.insert("end", "\n", (tag,))
+        elif tipo == "codigo":
+            caixa.insert("end", "\n", ("bloco_borda",))
+            caixa.insert("end", bloco[1] + "\n", ("bloco",))
+            caixa.insert("end", "\n", ("bloco_borda",))
+        elif tipo == "citacao":
+            caixa.insert("end", "▎ ", ("citacao", "marca_citacao"))
+            self._inline(bloco[1], ("citacao",))
+            caixa.insert("end", "\n", ("citacao",))
+        elif tipo == "regra":
+            self._regra(largura)
+        elif tipo == "tabela":
+            self._tabela(bloco[1], bloco[2], bloco[3], largura)
+
+    def _regra(self, largura):
+        linha = tk.Frame(self.notas, height=1, width=largura - 40,
+                         background=tema.BORDA_FORTE)
+        self._embutidos.append(linha)
+        self.notas.window_create("end", window=linha, pady=8)
+        self.notas.insert("end", "\n")
+
+    def _tabela(self, cabecalho, alinhamentos, linhas, largura):
+        """
+        A tabela como uma grade de rótulos, embutida no Text.
+
+        A largura de cada coluna parte do texto mais comprido dela; se a
+        soma passa da janela, as colunas largas encolhem e o texto quebra
+        dentro da célula -- como o GitHub faz.
+        """
+        import tkinter.font as tkfont
+        fonte = tkfont.Font(font=tema.CORPO)
+        forte = tkfont.Font(font=tema.CORPO_FORTE)
+        fixa = tkfont.Font(font=tema.FIXA)
+        n = max([len(cabecalho)] + [len(l) for l in linhas])
+        cab = (cabecalho + [""] * n)[:n]
+        corpo = [(l + [""] * n)[:n] for l in linhas]
+
+        def medida(texto, cabeca=False):
+            # cada celula medida na fonte em que vai ser desenhada
+            if re.fullmatch(r"`[^`]+`", texto.strip()):
+                return fixa.measure(_sem_marcas(texto))
+            if cabeca or re.fullmatch(r"\*\*.+\*\*", texto.strip()):
+                return forte.measure(_sem_marcas(texto))
+            return fonte.measure(_sem_marcas(texto))
+
+        natural = []
+        for c in range(n):
+            medidas = [medida(cab[c], True)] + [medida(l[c]) for l in corpo]
+            natural.append(max(medidas + [30]) + 20)
+        disponivel = largura - 60
+        larguras = list(natural)
+        while sum(larguras) > disponivel:
+            maior = max(range(n), key=lambda k: larguras[k])
+            if larguras[maior] <= 90:
+                break
+            larguras[maior] -= 10
+
+        grade = tk.Frame(self.notas, background=tema.BORDA)
+        self._embutidos.append(grade)
+        rolar = lambda e: self.notas.yview_scroll(int(-e.delta / 120), "units")
+        for r, valores in enumerate([cab] + corpo):
+            for c in range(n):
+                texto = valores[c]
+                inteiro_codigo = bool(re.fullmatch(r"`[^`]+`", texto.strip()))
+                fundo = tema.ELEVADO if r == 0 else (tema.PAINEL if r % 2 else tema.FUNDO)
+                rotulo = tk.Label(
+                    grade, text=_sem_marcas(texto), justify="left",
+                    anchor={"e": "e", "center": "center"}.get(
+                        alinhamentos[c] if c < len(alinhamentos) else "w", "w"),
+                    wraplength=larguras[c] - 16, background=fundo,
+                    foreground=(tema.OURO_CLARO if inteiro_codigo else tema.TEXTO),
+                    font=(tema.CORPO_FORTE if r == 0 or re.fullmatch(r"\*\*.+\*\*", texto.strip())
+                          else tema.FIXA if inteiro_codigo else tema.CORPO),
+                    padx=8, pady=4)
+                rotulo.grid(row=r, column=c, sticky="nsew",
+                            padx=(1 if c == 0 else 0, 1), pady=(1 if r == 0 else 0, 1))
+                rotulo.bind("<MouseWheel>", rolar)
+        for c in range(n):
+            grade.grid_columnconfigure(c, minsize=larguras[c])
+        grade.bind("<MouseWheel>", rolar)
+        self.notas.window_create("end", window=grade, padx=4, pady=6)
+        self.notas.insert("end", "\n")
+
+    def _redesenhar_se_mudou(self, _evento=None):
+        """A janela mudou de largura: as tabelas acompanham."""
+        if not getattr(self, "_releases", None):
             return
-        if crua.lstrip().startswith("|"):
-            # Tabela: a linha de tracos some, e cada linha vira as celulas
-            # lado a lado, em fonte fixa para as colunas se alinharem.
-            celulas = [c.strip() for c in crua.strip().strip("|").split("|")]
-            if all(re.match(r"^:?-{2,}:?$", c) for c in celulas if c):
-                return
-            caixa.insert("end", "   " + "  │  ".join(
-                re.sub(r"\*\*|`", "", c).ljust(14) for c in celulas).rstrip()
-                + "\n", ("tabela",))
+        largura = self.notas.winfo_width()
+        if abs(largura - getattr(self, "_largura_desenhada", largura)) < 40:
             return
-        if titulo:
-            self._inline(titulo.group(1), ("h",))
-            caixa.insert("end", "\n")
-        elif item:
-            nivel = len(item.group(1).expandtabs(4)) // 2
-            caixa.insert("end", "    " * nivel + "•  ", ("item",))
-            self._inline(item.group(2), ("item",))
-            caixa.insert("end", "\n", ("item",))
-        else:
-            self._inline(crua, ())
-            caixa.insert("end", "\n")
+        marcado = getattr(self, "_redesenho", None)
+        if marcado:
+            self.topo.after_cancel(marcado)
+
+        def refazer():
+            onde = self.notas.yview()[0]
+            self._escrever_notas(self._releases)
+            self.notas.yview_moveto(onde)
+        self._redesenho = self.topo.after(250, refazer)
 
     def _inline(self, texto, base):
-        """**negrito**, `código` e [rótulo](link) -> só o rótulo."""
+        """**negrito**, *itálico*, `código` e [rótulo](link) -> só o rótulo."""
         texto = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", texto)
         for pedaco in re.split(r"(\*\*[^*]+\*\*|`[^`]+`|(?<![\w*])\*[^*\s][^*]*\*(?!\w))",
                                texto):
             if not pedaco:
                 continue
             if pedaco.startswith("**") and pedaco.endswith("**"):
-                self.notas.insert("end", pedaco[2:-2], base + ("forte",))
+                # o negrito pode ter `codigo` dentro, como o GitHub aceita
+                for parte in re.split(r"(`[^`]+`)", pedaco[2:-2]):
+                    if parte.startswith("`") and parte.endswith("`") and len(parte) > 2:
+                        self.notas.insert("end", parte[1:-1], base + ("codigo",))
+                    elif parte:
+                        self.notas.insert("end", parte, base + ("forte",))
             elif pedaco.startswith("*") and pedaco.endswith("*") and len(pedaco) > 2:
                 self.notas.insert("end", pedaco[1:-1], base + ("italico",))
             elif pedaco.startswith("`") and pedaco.endswith("`"):

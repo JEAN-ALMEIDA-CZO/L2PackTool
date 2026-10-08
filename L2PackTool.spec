@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = ['motor', 'l2npc', 'gui_npc', 'idioma', 'ajuda', 'gui_arquivos', 'l2anim', 'l2mapa', 'l2seq', 'l2criar', 'gui_video', 'l2conferir', 'gui_conferir', 'l2item', 'gui_item', 'rolagem', 'manual', 'l2skill', 'gui_skill', 'l2icone', 'gui_icone', 'l2servidor', 'l2mundo', 'gui_mundo', 'gui_arma', 'l2glow', 'gui_glow', 'l2env', 'l2multisell', 'gui_multisell', 'l2mob', 'gui_mob', 'tema', 'projeto', 'gui_projeto', 'versao', 'l2conjunto', 'l2mensagem', 'gui_texto', 'l2atualizar', 'gui_atualizar', 'l2win10']
+hiddenimports = ['motor', 'l2npc', 'gui_npc', 'idioma', 'ajuda', 'gui_arquivos', 'l2anim', 'l2mapa', 'l2seq', 'l2criar', 'gui_video', 'l2conferir', 'gui_conferir', 'l2item', 'gui_item', 'rolagem', 'manual', 'l2skill', 'gui_skill', 'l2icone', 'gui_icone', 'l2servidor', 'l2mundo', 'gui_mundo', 'gui_arma', 'l2glow', 'gui_glow', 'l2env', 'l2multisell', 'gui_multisell', 'l2mob', 'gui_mob', 'tema', 'projeto', 'gui_projeto', 'versao', 'l2conjunto', 'l2mensagem', 'gui_texto', 'l2atualizar', 'gui_atualizar', 'l2win10', 'abertura']
 hiddenimports += collect_submodules('PIL')
 
 
@@ -20,9 +20,24 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+# A imagem de abertura que o executavel mostra enquanto se descompacta, antes
+# de o Python existir. Desenhada por arte_da_abertura.py a cada compilacao.
+# Sem `text_pos`: com ele o PyInstaller escreve na imagem o nome de cada
+# arquivo que vai extraindo -- ruido para quem so quer o programa aberto. O
+# "Carregando o sistema..." ja vem desenhado na propria imagem.
+splash = Splash(
+    'recursos/abertura.png',
+    binaries=a.binaries,
+    datas=a.datas,
+    minify_script=True,
+    always_on_top=True,
+)
+
 exe = EXE(
     pyz,
     a.scripts,
+    splash,
+    splash.binaries,
     a.binaries,
     a.datas,
     [],

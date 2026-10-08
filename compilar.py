@@ -222,6 +222,9 @@ def main(argumentos):
     if not so_assinar:
         for alvo in versao.escrever():
             print("versao: %s" % alvo.name)
+        # a imagem de abertura leva a versao escrita: refeita a cada build
+        import arte_da_abertura
+        print("abertura: %s" % arte_da_abertura.desenhar().name)
         for spec in specs:
             if not compilar(spec):
                 print("\nA compilacao de %s falhou. Nada foi assinado." % spec)

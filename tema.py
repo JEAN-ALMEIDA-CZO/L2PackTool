@@ -46,6 +46,8 @@ ignoram metade do que se pede -- num tema escuro isso deixa campo branco no
 meio da tela.
 """
 
+import re
+import time
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
@@ -149,6 +151,7 @@ def aplicar(raiz):
     _fonte("TkFixedFont", FAMILIA_FIXA, 9)
 
     raiz.configure(background=ABISSO)
+    selecionar_ao_clicar(raiz)
 
     # ---- os widgets crus do tk, que nao passam pelo ttk ---------------
     # `option_add` alcanca Text, Canvas, Listbox e Menu, que sao os quatro que
@@ -383,3 +386,53 @@ def _barras(estilo):
                      troughcolor=ABISSO, bordercolor=BORDA,
                      lightcolor=OURO, darkcolor=OURO, borderwidth=0,
                      thickness=6)
+
+
+
+# ---------------------------------------------------------------------------
+# Campo numerico: entrar nele seleciona o valor
+# ---------------------------------------------------------------------------
+# Quem clica num campo de numero -- a cor do encantamento, o nivel, a chance --
+# quer TROCAR o valor, e nao escrever depois dele. Sem isto o `0` que estava
+# la ficava, e digitar 127 dava 0127, ou 1270 com o cursor antes do zero --
+# e o limite de 255 entrava no meio da digitacao.
+#
+# Pelo Tab o ttk ja seleciona tudo (`<<TraverseIn>>`). Faltava o clique: o
+# clique que DA o foco a um campo numerico seleciona o valor inteiro. Clicar
+# de novo num campo que ja esta em uso, ou arrastar para marcar um pedaco,
+# continua como sempre. Campo de texto (nome, caminho) fica como o Windows
+# faz: o clique poe o cursor onde caiu.
+_NUMERO = re.compile(r"[-+]?\d+(?:[.,]\d+)?%?")
+_CLASSES_DE_CAMPO = ("TEntry", "TSpinbox", "TCombobox", "Entry", "Spinbox")
+_JANELA_DO_CLIQUE = 0.6          # segundos entre ganhar o foco e soltar o botao
+
+
+def _ganhou_foco(evento):
+    try:
+        evento.widget._l2_foco_em = time.monotonic()
+    except (AttributeError, TypeError):
+        pass
+
+
+def _soltou_o_clique(evento):
+    campo = evento.widget
+    quando = getattr(campo, "_l2_foco_em", 0)
+    if time.monotonic() - quando > _JANELA_DO_CLIQUE:
+        return
+    campo._l2_foco_em = 0
+    try:
+        if str(campo.cget("state")) == "disabled" or campo.selection_present():
+            return                  # arrastou para marcar um pedaco: respeita
+        if not _NUMERO.fullmatch(campo.get().strip()):
+            return
+        campo.selection_range(0, "end")
+        campo.icursor("end")
+    except (tk.TclError, AttributeError):
+        pass
+
+
+def selecionar_ao_clicar(raiz):
+    """Liga o comportamento em todos os campos do programa, de uma vez."""
+    for classe in _CLASSES_DE_CAMPO:
+        raiz.bind_class(classe, "<FocusIn>", _ganhou_foco, add="+")
+        raiz.bind_class(classe, "<ButtonRelease-1>", _soltou_o_clique, add="+")

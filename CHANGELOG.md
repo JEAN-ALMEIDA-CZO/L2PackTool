@@ -9,6 +9,54 @@ continua abrindo.
 
 ---
 
+## 1.13.0 — 07/10/2026
+
+**Tela de abertura.** O programa leva alguns segundos para montar as doze
+abas, e a versão Completa ainda descompacta 300 MB antes disso. Sem nada na
+tela, quem clicava no atalho achava que não tinha aberto e clicava de novo.
+Agora a abertura aparece desde o primeiro segundo — a logo do Lineage II, o
+nome e a versão —, em duas metades com a mesma cara:
+
+- enquanto o executável se descompacta, a imagem `recursos/abertura.png`,
+  mostrada pelo próprio PyInstaller antes de o Python existir (redesenhada a
+  cada compilação, com a versão do momento);
+- enquanto as abas são montadas, a mesma tela com a **barra animada**, que
+  avança aba por aba ("carregando: Itens") com um brilho correndo.
+
+A barra roda na própria linha de execução, com um interpretador Tk só dela: a
+aba Lobby Vídeo leva segundos varrendo os lobbies, e na mesma linha da janela
+principal a barra congelava. E a janela principal aparece e se desenha *por
+baixo* da abertura antes de ela sair — o primeiro desenho leva uns dois
+segundos, e sem isso ficava um vazio entre uma e outra.
+
+**As notas de versão aparecem como no GitHub.** A janela de Atualizações
+desenhava o Markdown de forma simples: tabela virava texto desalinhado, bloco
+de código mostrava as crases. Agora tabela é grade de verdade (cabeçalho,
+bordas, alinhamento, quebra dentro da célula, cada célula medida na fonte em
+que é desenhada), bloco de código tem fundo próprio, e entram lista numerada,
+citação, linha divisória e `código` dentro de **negrito**. Redimensionar a
+janela redesenha as tabelas na largura nova.
+
+**Clicar num campo de número seleciona o valor.** Na cor do encantamento — e
+em qualquer campo numérico do programa —, clicar no campo deixava o cursor
+depois do `0` que estava lá: digitar 127 dava 0127, ou 1270, e o limite de
+255 entrava no meio. Agora o clique que dá o foco a um campo numérico
+seleciona o valor inteiro, e o que se digita substitui. Clicar de novo num
+campo que já está em uso, ou arrastar para marcar um trecho, continua como
+sempre; campo de texto (nome, caminho) fica como o Windows faz. Vale para
+campo comum, campo de setinha e caixa de escolha editável.
+
+**O cabeçalho mostra as pastas num `?`.** Os caminhos do cliente e do
+servidor cortavam no meio e empurravam os botões. Agora ficam "cliente" e
+"servidor" com o `?`, e o caminho inteiro aparece ao passar o mouse — com
+aviso quando a pasta não está definida ou não existe mais no disco.
+
+**Correção: o `@@` aparecia cru nas dicas.** É o separador de parágrafo dos
+textos de ajuda, e só a aba Glow o trocava por linha em branco; nas outras dez
+telas ele aparecia literalmente no balão.
+
+---
+
 ## 1.12.0 — 06/10/2026
 
 **C1 a C4 no Windows 10 e 11.** As crônicas antigas não abriam nos Windows de

@@ -1918,12 +1918,24 @@ def janela_de_configuracoes(raiz, ocupado, refazer):
     janela.grab_set()
 
 
-def montar(raiz):
+def montar(raiz, ao_carregar=None):
     """
     Barra de cima e abas. Separado de main() para poder rodar de novo quando o
     idioma muda: as abas sao destruidas e montadas outra vez, ja traduzidas.
+
+    `ao_carregar(texto)` e chamado a cada aba montada -- e o que faz a barra
+    da abertura andar. So vale na primeira montagem: trocar de idioma
+    remonta as abas com a janela ja aberta, sem abertura.
     """
     abertas = []
+    carregando = [ao_carregar]
+
+    def passo(texto):
+        if carregando[0] is not None:
+            try:
+                carregando[0](texto)
+            except Exception:                       # noqa: BLE001
+                pass
 
     import gui_projeto
     import projeto
@@ -1982,6 +1994,7 @@ def montar(raiz):
         abas = ttk.Notebook(corpo)
         abas.pack(fill="both", expand=True)
 
+        passo(t("carregando: Texture Upscaler"))
         aba_texturas = rolagem.Area(abas)
         abas.add(aba_texturas, text=t("  Texture Upscaler · Beta  "))
         abertas.append(Janela(raiz, aba_texturas.dentro))
@@ -1989,6 +2002,7 @@ def montar(raiz):
         # A aba de NPC e opcional de proposito: ela depende do l2asm e do
         # l2disasm, e quem so quer ampliar textura nao deve ficar sem programa
         # porque uma ferramenta que nao usa esta faltando.
+        passo(t("carregando: NPC"))
         try:
             import gui_npc
             aba_npc = rolagem.Area(abas)
@@ -2002,6 +2016,7 @@ def montar(raiz):
 
         # O video do lobby. Fica antes das outras abas de lobby porque e o que
         # a maioria quer: escolher um video e pronto.
+        passo(t("carregando: Lobby Vídeo"))
         try:
             import gui_video
             aba_video = rolagem.Area(abas)
@@ -2015,6 +2030,7 @@ def montar(raiz):
 
         # Itens depende do l2disasm e do l2asm, como a de NPC -- e pela mesma
         # razao fica opcional.
+        passo(t("carregando: Itens"))
         try:
             import gui_item
             aba_item = rolagem.Area(abas)
@@ -2028,6 +2044,7 @@ def montar(raiz):
 
         # Habilidades anda junto com Itens: mesmas ferramentas, mesmo jeito de
         # trabalhar, e quem cria um item costuma querer a habilidade tambem.
+        passo(t("carregando: Habilidades"))
         try:
             import gui_skill
             aba_skill = rolagem.Area(abas)
@@ -2042,6 +2059,7 @@ def montar(raiz):
         # Textos anda junto: e a mesma familia de tabela e o mesmo caminho --
         # abrir, mexer, gerar, instalar. Quem traduz um item costuma querer
         # traduzir a mensagem que fala dele.
+        passo(t("carregando: Textos"))
         try:
             import gui_texto
             aba_texto = rolagem.Area(abas)
@@ -2055,6 +2073,7 @@ def montar(raiz):
 
         # O glow vem depois das habilidades porque le as mesmas tabelas de
         # item: quem chega ate aqui ja tem o cliente aberto e as armas listadas.
+        passo(t("carregando: Glow"))
         try:
             import gui_glow
             aba_glow = rolagem.Area(abas)
@@ -2069,6 +2088,7 @@ def montar(raiz):
         # Multisell fica ao lado do Glow: as duas leem as tabelas de item do
         # cliente e a pasta do servidor, e quem cria uma arma costuma querer
         # a loja que a vende.
+        passo(t("carregando: Multisell"))
         try:
             import gui_multisell
             aba_ms = rolagem.Area(abas)
@@ -2083,6 +2103,7 @@ def montar(raiz):
         # Mob fica ao lado de Multisell porque as duas mexem no datapack do
         # servidor e leem as tabelas de item do cliente -- a lista de drop pede
         # o nome e o desenho do item exatamente como o checkout pede.
+        passo(t("carregando: Mob"))
         try:
             import gui_mob
             aba_mob = rolagem.Area(abas)
@@ -2096,6 +2117,7 @@ def montar(raiz):
 
         # A conferencia e a unica aba que nao muda nada por conta propria: le o
         # cliente e diz o que falta. Por isso vem antes da que abre arquivos.
+        passo(t("carregando: Conferir Cliente"))
         try:
             import gui_conferir
             aba_conf = rolagem.Area(abas)
@@ -2110,6 +2132,7 @@ def montar(raiz):
         # Proteger vem depois de conferir e antes de abrir: conferir so le,
         # proteger fecha, e o L2Crypt e a ferramenta solta de abrir e fechar
         # um arquivo por vez.
+        passo(t("carregando: Proteção"))
         try:
             import gui_protecao
             aba_prot = rolagem.Area(abas)
@@ -2123,6 +2146,7 @@ def montar(raiz):
 
         # Abrir arquivo do cliente so precisa do l2encdec, que e a ferramenta
         # mais basica do conjunto -- por isso esta aba quase nunca falta.
+        passo(t("carregando: L2Crypt"))
         try:
             import gui_arquivos
             aba_arq = rolagem.Area(abas)
@@ -2136,6 +2160,7 @@ def montar(raiz):
 
         # Cada aba passa a seguir o projeto: recebe as pastas agora e a cada
         # troca, em vez de cada uma guardar a sua.
+        passo(t("ligando as abas ao projeto…"))
         for tela in abertas:
             try:
                 gui_projeto.ligar(tela)
@@ -2173,10 +2198,12 @@ def montar(raiz):
     ajuda.Dica(novidade, lambda: t("Procura uma versão nova no GitHub, mostra "
                                    "o que mudou e instala."))
     montar_abas()
+    carregando[0] = None            # daqui em diante, sem abertura
     gui_atualizar.procurar_ao_abrir(raiz, novidade)
 
 
 def main():
+    import abertura as _abertura
     raiz = tk.Tk()
     registro = instalar_rede(raiz)
 
@@ -2211,13 +2238,22 @@ def main():
     # Quem ja usava o programa tem as pastas no config.ini. Elas viram um
     # projeto chamado `Padrao` na primeira execucao: ninguem perde o que tinha
     # configurado, e ninguem precisa saber que a estrutura mudou.
+    # A janela so aparece pronta: ate la, a abertura com a barra. Ela abre
+    # em cima da imagem que o PyInstaller mostrou durante a descompactacao,
+    # e a fecha -- a troca nao aparece.
+    raiz.withdraw()
+    tela_de_abertura = None
+    try:
+        tela_de_abertura = _abertura.Abertura(raiz, passos=14,
+                                              texto=t("Carregando o sistema…"))
+    except Exception:                               # noqa: BLE001
+        _abertura._fechar_a_imagem_do_pyinstaller()
+
     try:
         import projeto as _projeto
         _projeto.migrar()
     except Exception:                               # noqa: BLE001
         pass
-
-    montar(raiz)
 
     def ao_fechar():
         """
@@ -2254,6 +2290,32 @@ def main():
         raiz.destroy()
 
     raiz.protocol("WM_DELETE_WINDOW", ao_fechar)
+
+    try:
+        montar(raiz, ao_carregar=tela_de_abertura.avancar
+               if tela_de_abertura else None)
+    finally:
+        # A janela principal aparece e se desenha POR BAIXO da abertura, e
+        # so entao a abertura sai: o primeiro desenho dela leva uns dois
+        # segundos, e sem isto ficava um vazio entre uma e outra.
+        #
+        # Quem clica no X nesse meio segundo fecha a janela antes do fim
+        # deste bloco -- dai o tratamento de fechar ja estar ligado, e os
+        # ultimos passos tolerarem a janela ter ido embora.
+        try:
+            raiz.update_idletasks()
+            raiz.deiconify()
+            raiz.update()
+        except tk.TclError:
+            pass
+        if tela_de_abertura is not None:
+            tela_de_abertura.fechar()
+        try:
+            raiz.lift()
+            raiz.focus_force()
+        except tk.TclError:
+            return                          # fechada durante a abertura
+
     raiz.mainloop()
 
 

@@ -110,10 +110,36 @@ class Cabecalho(ttk.Frame):
             "para quem mexe em mais de um servidor: em vez de acertar dezoito "
             "campos, troca-se um."))
 
-        self.resumo = ttk.Label(self, style="Miudo.TLabel", justify="left")
+        # O resumo do projeto. Os caminhos nao vao escritos: no cabecalho eles
+        # cortavam no meio ("D:/##  LINEAGE 2 - ARQUIVOS/Clientes/High-Fi")
+        # e empurravam os botoes. Fica o nome de cada pasta com o `?`, e o
+        # caminho inteiro aparece ao passar o mouse.
+        self.resumo = ttk.Frame(self)
         self.resumo.pack(side="left", padx=(tema.SECAO, 0))
+        self._caminhos = {"cliente": "", "servidor": ""}
+        self._rotulos = []
+        for linha, chave, rotulo in ((0, "cliente", t("cliente")),
+                                     (1, "servidor", t("servidor"))):
+            r = ttk.Label(self.resumo, text=rotulo + ":", style="Miudo.TLabel")
+            r.grid(row=linha, column=0, sticky="w")
+            self._rotulos.append(r)
+            ajuda.ajuda(self.resumo, lambda c=chave: self._dica_do_caminho(c),
+                        largura=460, grid=True, row=linha, column=1,
+                        sticky="w", padx=(6, 0))
+        self.cronica_rotulo = ttk.Label(self.resumo, style="Miudo.TLabel",
+                                        justify="left")
+        self.cronica_rotulo.grid(row=2, column=0, columnspan=2, sticky="w")
 
         self.atualizar()
+
+    def _dica_do_caminho(self, chave):
+        """O caminho inteiro, lido na hora -- o projeto pode ter mudado."""
+        caminho = (self._caminhos.get(chave) or "").strip()
+        if not caminho:
+            return t("Não definido neste projeto. Aponte em Projetos….")
+        if not Path(caminho).exists():
+            return caminho + "@@" + t("Esta pasta não existe mais no disco.")
+        return caminho
 
     def atualizar(self):
         """Relê a lista de projetos e o escolhido."""
@@ -124,15 +150,17 @@ class Cabecalho(ttk.Frame):
         self.caixa.config(state="readonly" if nomes else "disabled")
         d = projeto.dados(atual)
         if not atual:
-            self.resumo.config(
+            self._caminhos = {"cliente": "", "servidor": ""}
+            self.cronica_rotulo.config(
                 text=t("Nenhum projeto. Crie um em Projetos… para não ter "
-                       "que apontar as pastas em cada aba."))
+                       "que apontar as pastas em cada aba."), wraplength=360)
             return
         import l2item
-        self.resumo.config(
-            text=t("cliente:  %s\nservidor: %s\ncrônica:  %s")
-            % (d["cliente"] or t("—"), d["servidor"] or t("—"),
-               l2item.rotulo_da_cronica(d["cronica"])))
+        self._caminhos = {"cliente": d["cliente"] or "",
+                          "servidor": d["servidor"] or ""}
+        self.cronica_rotulo.config(
+            text=t("crônica:  %s") % l2item.rotulo_da_cronica(d["cronica"]),
+            wraplength=0)
 
     def _ao_escolher(self, _evento=None):
         nome = self.escolhido.get()
