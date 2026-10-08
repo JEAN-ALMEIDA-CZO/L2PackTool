@@ -75,6 +75,9 @@ DIST = BASE / "dist"
 
 NORMAIS = ("L2PackTool.spec", "L2PackTool-cli.spec")
 COMPLETOS = ("L2PackTool-Completo.spec", "L2PackTool-cli-Completo.spec")
+# A copia do instalador: o -Completo em pasta (ver o comentario do spec).
+INSTALADO = "L2PackTool-Instalado.spec"
+PASTA_INSTALADA = "L2PackTool-instalado"
 
 # Servidores de carimbo de tempo, em ordem. Mais de um porque eles caem, e uma
 # assinatura sem carimbo vale so ate o certificado expirar.
@@ -164,6 +167,8 @@ def compilar(spec):
 
 
 def exe_do_spec(spec):
+    if spec == INSTALADO:
+        return DIST / PASTA_INSTALADA / "L2PackTool-Completo.exe"
     return DIST / (Path(spec).stem + ".exe")
 
 
@@ -185,12 +190,12 @@ ou baixe em https://jrsoftware.org/isinfo.php
 
 def montar_instalador():
     """
-    O instalador, a partir do executavel completo que ja esta em dist/.
+    O instalador, a partir da pasta do programa que ja esta em dist/.
 
     Nao compila o programa: quem faz isso e o `--tudo`. Aqui so se empacota
     o que ja existe.
     """
-    alvo = DIST / "L2PackTool-Completo.exe"
+    alvo = exe_do_spec(INSTALADO)
     if not alvo.exists():
         print("Nao achei %s. Rode antes:  python compilar.py --tudo"
               % alvo.name)
@@ -213,9 +218,9 @@ def main(argumentos):
 
     so_assinar = "--so-assinar" in argumentos
     if "--tudo" in argumentos:
-        specs = NORMAIS + COMPLETOS
+        specs = NORMAIS + COMPLETOS + (INSTALADO,)
     elif "--completo" in argumentos:
-        specs = COMPLETOS
+        specs = COMPLETOS + (INSTALADO,)
     else:
         specs = NORMAIS
 

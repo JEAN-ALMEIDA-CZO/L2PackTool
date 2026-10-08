@@ -100,6 +100,78 @@ def icone(widget):
     return novo
 
 
+# As imagens do icone do programa, por interpretador -- mesmo motivo de
+# `_icones`.
+_fotos_do_programa = {}
+
+
+def _fotos_do_icone(widget):
+    """
+    O icone do programa como PhotoImage, uma por tamanho do .ico (maior antes).
+
+    Nao da para entregar o .ico ao Tk (`iconbitmap`): as imagens dele sao PNG
+    por dentro, como o Windows moderno grava, e o leitor de .ico do Tk so
+    entende o formato antigo. Ele aceita o arquivo sem erro, nao acha imagem
+    nenhuma, e a janela -- e o botao na barra de tarefas -- ficavam com a
+    pena do Tk. Lido pelo Pillow e entregue como foto (`iconphoto`), sai certo.
+    """
+    if Image is None:
+        return []
+    chave = id(widget.tk)
+    guardadas = _fotos_do_programa.get(chave)
+    if guardadas:
+        try:
+            guardadas[0].width()            # o interpretador ainda esta vivo?
+            return guardadas
+        except Exception:
+            _fotos_do_programa.pop(chave, None)
+    import motor
+    fotos = []
+    try:
+        with Image.open(motor.AQUI / "recursos" / "icone.ico") as ico:
+            tamanhos = sorted(ico.info.get("sizes") or [ico.size], reverse=True)
+            for tamanho in tamanhos:
+                arte = ico.ico.getimage(tamanho).convert("RGBA")
+                fotos.append(ImageTk.PhotoImage(arte, master=widget))
+    except Exception:
+        return []
+    _fotos_do_programa[chave] = fotos
+    return fotos
+
+
+def _icone_pelo_arquivo(janela, padrao):
+    import motor
+    caminho = str(motor.AQUI / "recursos" / "icone.ico")
+    try:
+        if padrao:
+            janela.iconbitmap(default=caminho)
+        else:
+            janela.iconbitmap(caminho)
+    except Exception:
+        pass
+
+
+def icone_padrao(raiz):
+    """
+    O icone do programa na raiz e em toda janela que nascer depois dela.
+
+    Chamar logo depois de criar a raiz.
+    """
+    fotos = _fotos_do_icone(raiz)
+    if fotos:
+        try:
+            # `True` vale para as janelas que vierem (vai na classe); a
+            # segunda chamada poe o icone NA raiz, que e o que a barra de
+            # tarefas le primeiro.
+            raiz.iconphoto(True, *fotos)
+            raiz.iconphoto(False, *fotos)
+            return raiz
+        except Exception:
+            pass
+    _icone_pelo_arquivo(raiz, True)
+    return raiz
+
+
 def por_icone(janela):
     """
     Poe o icone do programa numa janela.
@@ -108,12 +180,14 @@ def por_icone(janela):
     outro programa. Falha em silencio: nao achar o arquivo nao pode impedir a
     janela de abrir.
     """
-    import motor
-    caminho = motor.AQUI / "recursos" / "icone.ico"
-    try:
-        janela.iconbitmap(str(caminho))
-    except Exception:
-        pass
+    fotos = _fotos_do_icone(janela)
+    if fotos:
+        try:
+            janela.iconphoto(False, *fotos)
+            return janela
+        except Exception:
+            pass
+    _icone_pelo_arquivo(janela, False)
     return janela
 
 

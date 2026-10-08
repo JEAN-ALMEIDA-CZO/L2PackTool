@@ -9,6 +9,39 @@ continua abrindo.
 
 ---
 
+## 1.13.2 — 08/10/2026
+
+**A janela só aparece pronta.** A janela principal aparecia por baixo da
+abertura ainda vazia, branca, com "(Não está respondendo)" no título por
+vários segundos. Duas abas faziam trabalho pesado logo depois de a janela
+surgir, e enquanto isso o programa não atendia o Windows:
+
+- a sub-aba **Prévia** do servidor (aba NPC) lia o servidor inteiro para
+  descobrir o formato dele, cerca de 3 segundos, mesmo escondida. Agora ela
+  só é montada quando alguém abre a sub-aba;
+- a aba **Proteção** relia o cliente logo depois de abrir. Agora isso
+  acontece antes de a janela aparecer.
+
+A ordem passou a ser a pedida: tudo carrega com a janela escondida (a barra
+da abertura segue animando), a abertura fecha e só então a janela aparece,
+já desenhada de uma vez.
+
+**Abre bem mais rápido.** A versão instalada era um único `.exe` de 300 MB
+que se descompactava inteiro na pasta temporária a cada abertura, com o
+antivírus varrendo tudo de novo: uns 8 segundos parados só na imagem da
+abertura. O instalador agora põe o programa em pasta (o `.exe` e o
+`_internal\` ao lado), e não há mais o que descompactar. Na mesma máquina, a
+janela pronta saiu de 18,5 s para 7,3 s. O `.exe` solto continua existindo
+para quem não usa o instalador.
+
+**O ícone de volta na janela e na barra de tarefas.** Toda janela do
+programa mostrava a pena do Tk. As imagens do `icone.ico` são PNG por dentro,
+e o leitor de `.ico` do Tk só entende o formato antigo: aceitava o arquivo
+sem erro e não achava imagem nenhuma. Agora o ícone é lido pelo Pillow e
+entregue ao Tk como imagem, na janela principal e em todas as outras.
+
+---
+
 ## 1.13.1 — 07/10/2026
 
 **A atualização baixava e não instalava.** Depois do download, o programa

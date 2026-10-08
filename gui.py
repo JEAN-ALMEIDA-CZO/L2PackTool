@@ -266,14 +266,7 @@ class Janela:
         self.ampliar_feitas = 0.0
         self.ampliar_total = 0
 
-        try:
-            # `default=` faz toda janela filha nascer com este icone. Sem ele,
-            # cada janela nova precisa lembrar de pedir o seu -- e uma que
-            # esquecesse aparecia com a pena do Tk, parecendo de outro
-            # programa.
-            raiz.iconbitmap(default=str(RECURSOS / "icone.ico"))
-        except Exception:
-            pass
+        # O icone de toda janela ja foi posto em `main` (ajuda.icone_padrao).
 
         self.T = motor.carregar_config()
         self.modelos = listar_modelos(self.T.get("modelos", ""))
@@ -2202,9 +2195,44 @@ def montar(raiz, ao_carregar=None):
     gui_atualizar.procurar_ao_abrir(raiz, novidade)
 
 
+def _assentar(raiz, calma=0.4, limite=25.0):
+    """
+    Roda, com a janela ainda escondida, o que as abas deixaram para "logo
+    depois" -- reler o cliente, ler o servidor, preencher listas.
+
+    Isso rodava com a janela ja na tela: a linha principal ficava segundos
+    sem atender o Windows, a janela aparecia branca, com "(Nao esta
+    respondendo)" e a pena do Tk no titulo. Escondida, ninguem ve a espera;
+    a abertura continua animando, porque roda na propria linha.
+
+    Para quando a fila fica `calma` segundos sem nada demorado, ou no
+    `limite`, o que vier primeiro.
+    """
+    inicio = time.monotonic()
+    calmo_desde = None
+    while time.monotonic() - inicio < limite:
+        antes = time.monotonic()
+        try:
+            raiz.update()
+        except tk.TclError:
+            return                              # fechada no meio
+        depois = time.monotonic()
+        if depois - antes < 0.03:
+            if calmo_desde is None:
+                calmo_desde = antes
+            elif depois - calmo_desde >= calma:
+                return
+        else:
+            calmo_desde = None
+        time.sleep(0.01)
+
+
 def main():
     import abertura as _abertura
     raiz = tk.Tk()
+    # Logo na criacao, antes de qualquer coisa: toda janela do programa nasce
+    # com o icone dele, e nao com a pena do Tk.
+    ajuda.icone_padrao(raiz)
     registro = instalar_rede(raiz)
 
     idioma.carregar()
@@ -2244,7 +2272,7 @@ def main():
     raiz.withdraw()
     tela_de_abertura = None
     try:
-        tela_de_abertura = _abertura.Abertura(raiz, passos=14,
+        tela_de_abertura = _abertura.Abertura(raiz, passos=15,
                                               texto=t("Carregando o sistema…"))
     except Exception:                               # noqa: BLE001
         _abertura._fechar_a_imagem_do_pyinstaller()
@@ -2294,23 +2322,29 @@ def main():
     try:
         montar(raiz, ao_carregar=tela_de_abertura.avancar
                if tela_de_abertura else None)
+        if tela_de_abertura is not None:
+            tela_de_abertura.avancar(t("preparando a janela…"))
+        _assentar(raiz)
     finally:
-        # A janela principal aparece e se desenha POR BAIXO da abertura, e
-        # so entao a abertura sai: o primeiro desenho dela leva uns dois
-        # segundos, e sem isto ficava um vazio entre uma e outra.
-        #
-        # Quem clica no X nesse meio segundo fecha a janela antes do fim
-        # deste bloco -- dai o tratamento de fechar ja estar ligado, e os
-        # ultimos passos tolerarem a janela ter ido embora.
-        try:
-            raiz.update_idletasks()
-            raiz.deiconify()
-            raiz.update()
-        except tk.TclError:
-            pass
+        # A ordem e: tudo carregado com a janela escondida, a abertura sai,
+        # e so entao a janela aparece -- ja pronta, desenhada de uma vez.
         if tela_de_abertura is not None:
             tela_de_abertura.fechar()
         try:
+            # Transparente ate o primeiro desenho terminar: sem isto o
+            # Windows mostra o quadro branco por meio segundo antes do
+            # conteudo.
+            raiz.update_idletasks()
+            try:
+                raiz.attributes("-alpha", 0.0)
+            except tk.TclError:
+                pass
+            raiz.deiconify()
+            raiz.update()
+            try:
+                raiz.attributes("-alpha", 1.0)
+            except tk.TclError:
+                pass
             raiz.lift()
             raiz.focus_force()
         except tk.TclError:

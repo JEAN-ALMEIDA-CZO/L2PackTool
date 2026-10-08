@@ -14,11 +14,15 @@
 ;  diferente do que declara e mais um sinal a favor do antivirus. Quem ganha
 ;  o nome curto e o atalho.
 ;
+;  Desde a 1.13.2 ele vem em PASTA (o .exe e o _internal\ ao lado), de
+;  dist\L2PackTool-instalado: o arquivo unico se descompactava inteiro na
+;  pasta temporaria a cada abertura, uns oito segundos parado.
+;
 ;  Compilar:  python compilar.py --instalador
 ;             (ou: ISCC.exe instalador.iss)
 
 #define Nome        "L2PackTool"
-#define Versao      "1.13.1"
+#define Versao      "1.13.2"
 #define Autor       "Jean Almeida - " + "ÐarkÐomi"
 #define Endereco    "https://github.com/JEAN-ALMEIDA-CZO"
 #define Executavel  "L2PackTool-Completo.exe"
@@ -110,8 +114,13 @@ es.ApagarDados=¿Borrar también la configuración, los proyectos y los archivos
 [Tasks]
 Name: "atalho"; Description: "{cm:AtalhoArea}"; GroupDescription: "{cm:AdditionalIcons}"
 
+[InstallDelete]
+; O _internal\ de uma versao vai inteiro embora antes de a outra entrar: um
+; modulo que deixou de existir nao pode ficar la sendo carregado.
+Type: filesandordirs; Name: "{app}\_internal"
+
 [Files]
-Source: "dist\{#Executavel}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\L2PackTool-instalado\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "recursos\LEIA-ME.html"; DestDir: "{app}"; Flags: ignoreversion
 ; Os lobbys das cronicas do Chaotic Throne ficam ao lado do programa, e nao
 ; dentro dele: sao 62 MB que quem usa um lobby so nao precisa carregar no exe.
@@ -139,6 +148,7 @@ Filename: "{app}\{#Executavel}"; Flags: nowait; Check: Reabrir
 [UninstallDelete]
 ; O que o programa escreve sozinho e nao consta da lista de arquivos: sem
 ; isto, a pasta fica para tras com restos dentro.
+Type: filesandordirs; Name: "{app}\_internal"
 Type: filesandordirs; Name: "{app}\abertos"
 Type: files; Name: "{app}\erros.log"
 Type: files; Name: "{app}\notify.log"

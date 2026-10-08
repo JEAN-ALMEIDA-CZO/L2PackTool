@@ -95,7 +95,8 @@ class PainelServidor:
         abas.add(self._montar_drop(abas), text=t(" Drop "))
         abas.add(self._montar_spawn(abas), text=t(" Spawn "))
         abas.add(self._montar_loja(abas), text=t(" Loja "))
-        abas.add(self._montar_previa(abas), text=t(" Prévia "))
+        self._aba_previa = self._montar_previa(abas)
+        abas.add(self._aba_previa, text=t(" Prévia "))
         self.abas = abas
         abas.bind("<<NotebookTabChanged>>", lambda _e: self.atualizar_previa())
 
@@ -921,9 +922,25 @@ class PainelServidor:
         botao.config(text=(t("Ler o %s do servidor") % alvo) if alvo
                      else t("Ler do servidor"))
 
+    def _previa_a_vista(self):
+        abas = getattr(self, "abas", None)
+        if abas is None:
+            return False
+        try:
+            return abas.select() == str(self._aba_previa)
+        except tk.TclError:
+            return False
+
     def atualizar_previa(self, _evento=None):
         self.dizer_o_alvo()
         if not hasattr(self, "previa"):
+            return
+        # A previa le o servidor inteiro para descobrir o formato dele -- uns
+        # tres segundos na primeira vez. Montada com a sub-aba escondida, ela
+        # rodava na abertura do programa (o Notebook avisa a troca de aba ao
+        # ganhar a primeira) e a janela ficava "nao respondendo". Escondida,
+        # so fica marcada; abrir a sub-aba Previa e que a monta.
+        if not self._previa_a_vista():
             return
         try:
             pecas = self.pecas()
